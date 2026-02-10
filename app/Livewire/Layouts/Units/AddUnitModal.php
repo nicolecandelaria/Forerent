@@ -116,9 +116,10 @@ class AddUnitModal extends Component
     /*----------------------------------
     | UI ACTIONS
     ----------------------------------*/
-    public function open(): void
+    /*public function open(): void
     {
         $this->resetForm();
+    }*/
     /*----------------------------------
     | UI ACTIONS
     ----------------------------------*/
@@ -126,7 +127,6 @@ class AddUnitModal extends Component
     // Step 2: The Listener Attribute
     // This tells Livewire: "When you hear 'open-add-unit-modal', run this function."
     #[On('open-add-unit-modal')]
-
     public function open(): void
     {
         $this->isOpen = true;
@@ -245,7 +245,6 @@ class AddUnitModal extends Component
             $this->currentStep--;
         }
     }
-
     public function saveUnit()
     {
         $this->validate(array_merge($this->step1Rules, [
@@ -262,6 +261,7 @@ class AddUnitModal extends Component
         try {
             Unit::create([
                 'property_id' => $this->property_id,
+                'unit_number' => $this->generateUniqueUnitNumber($this->property_id, $this->floor_number), // ← Auto-generate
                 'floor_number' => $this->floor_number,
                 'm/f' => $this->m_f,
                 'bed_type' => $this->bed_type,
@@ -272,13 +272,21 @@ class AddUnitModal extends Component
                 'amenities' => json_encode($checkedAmenityNames),
             ]);
 
-            session()->flash('success', 'New unit has been created successfully!');
-            $this->close();
-            $this->dispatch('unitCreated');
-            $this->dispatch('refresh-unit-list');
+            // ... rest of success handling
         } catch (\Exception $e) {
             session()->flash('error', 'Error saving unit: ' . $e->getMessage());
         }
+    }
+
+    private function generateUniqueUnitNumber($propertyId, $floorNumber): string
+    {
+        $baseNumber = sprintf("F%dU%d", $floorNumber, rand(100, 999)); // e.g., F2U456
+
+        while (Unit::where('property_id', $propertyId)->where('unit_number', $baseNumber)->exists()) {
+            $baseNumber = sprintf("F%dU%d", $floorNumber, rand(1000, 9999));
+        }
+
+        return $baseNumber;
     }
 
     /*----------------------------------

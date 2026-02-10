@@ -2,30 +2,48 @@
 
 namespace App\Livewire\Layouts\Dashboard;
 
+use App\Models\Announcement;
+use App\Models\Lease;
+use App\Models\Unit;
 use Livewire\Component;
 
 class AnnouncementList extends Component
 {
     public $announcements = [];
-    public $isLandlord = false; // Default to false
+    public $role = "tenant";
 
-    public function mount($isLandlord = false)
+    public function mount()
     {
-        $this->isLandlord = $isLandlord;
+        $this->role = auth()->user()->role;
 
-        // Mock Data - Replace with Database Query later
-        $this->announcements = [
-            [
-                'date' => 'October 1, 2025',
-                'title' => 'Rent Increase Notification',
-                'description' => 'This is a notification that the monthly rent for all units will be increased effective December 1, 2025.'
-            ],
-            [
-                'date' => 'October 15, 2025',
-                'title' => 'Maintenance Scheduled',
-                'description' => 'Regular maintenance checks for all units.'
-            ]
-        ];
+        if ($this->role == "landlord") {
+            $this->announcements = Announcement::where('author_id', auth()->id())
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+        else if ($this->role == "manager") {
+            $propertyIds = Unit::where('manager_id', auth()->id())->get()
+            ->pluck('property_id')
+            ->unique();
+
+            $this->announcements = Announcement::where('author_id', auth()->id())
+                ->orWhereIn('property_id', $propertyIds)
+                ->orderBy('created_at', 'desc')
+                ->where('recipient_role', 'manager')->get();
+        }
+        else if ($this->role == "tenant") {
+            $propertyIds = Lease::where('tenant_id', auth()->id())
+                ->join('beds', 'leases.bed_id', '=', 'beds.bed_id')
+                ->join('units', 'beds.unit_id', '=', 'units.unit_id')
+                ->pluck('units.property_id')
+                ->unique();
+
+
+            $this->announcements = Announcement::where('property_id', $propertyIds)
+                ->where('recipient_role', 'tenant')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
     }
 
     public function render()

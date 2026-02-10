@@ -33,4 +33,25 @@ class Property extends Model
     {
         return $this->hasMany(Announcement::class, 'property_id', 'property_id');
     }
+
+    public function managers()
+    {
+        return $this->hasManyThrough(
+            User::class,
+            Unit::class,
+            'property_id',
+            'user_id',
+            'property_id',
+            'manager_id'
+        )->distinct();
+    }
+
+    public function tenantsForManager($managerId)
+    {
+        return User::whereHas('leases.bed.unit', function ($query) use ($managerId) {
+            $query->where('manager_id', $managerId)
+                ->where('property_id', $this->property_id)->distinct();
+        });
+    }
+
 }

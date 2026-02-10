@@ -17,17 +17,18 @@ class AnnouncementFactory extends Factory
     {
         $authorId = $this->getAuthorId();
         $author = User::find($authorId);
-        $property = $this->getProperty(); // get full property
+        $property = $this->getProperty();
         $propertyName = $property->building_name;
 
         // Generate title and description based on context
-        [$title, $description] = $this->generateTitleAndDescription($propertyName);
+        [$headline, $details] = $this->generateHeadlineAndDetails($propertyName);
 
         return [
             'author_id'      => $authorId,
             'property_id'    => $property->property_id,
-            'title'          => $title,
-            'description'    => $description,
+            'headline'       => $headline,
+            'details'        => $details,
+            'sender_role'    => $author->role,
             'recipient_role' => $this->determineRecipientRole($author->role),
             'created_at'     => $this->faker->dateTimeBetween('first day of November this year', 'last day of November this year'),
             'updated_at'     => $this->faker->dateTimeBetween('first day of November this year', 'last day of November this year')
@@ -81,9 +82,9 @@ class AnnouncementFactory extends Factory
         return $property;
     }
 
-    private function generateTitleAndDescription(string $propertyName): array
+    private function generateHeadlineAndDetails(string $propertyName): array
     {
-        $titles = [
+        $headline = [
             'Maintenance' => [
                 'Scheduled Maintenance Notice',
                 'Laundry Room Maintenance',
@@ -107,10 +108,10 @@ class AnnouncementFactory extends Factory
             ]
         ];
 
-        $category = $this->faker->randomElement(array_keys($titles));
-        $title = $this->faker->randomElement($titles[$category]);
+        $category = $this->faker->randomElement(array_keys($headline));
+        $headline = $this->faker->randomElement($headline[$category]);
 
-        $description = match ($title) {
+        $details = match ($headline) {
             'Scheduled Maintenance Notice' => "$propertyName: General maintenance will be conducted on all units on " . $this->faker->dateTimeBetween('now', '+2 weeks')->format('F j, Y') . ". Expect temporary service interruptions.",
             'Laundry Room Maintenance' => "$propertyName: The laundry room will be unavailable from " . $this->faker->time('H:i') . " to " . $this->faker->time('H:i') . " on " . $this->faker->dateTimeBetween('now', '+10 days')->format('F j, Y') . " for equipment servicing.",
             'Pool Area Cleaning' => "$propertyName: Pool maintenance is scheduled for " . $this->faker->dayOfWeek . ". Please refrain from using the pool area during this time.",
@@ -129,6 +130,6 @@ class AnnouncementFactory extends Factory
             default => $this->faker->paragraph(3)
         };
 
-        return [$title, $description];
+        return [$headline, $details];
     }
 }

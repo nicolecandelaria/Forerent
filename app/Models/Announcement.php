@@ -13,7 +13,7 @@ class Announcement extends Model
     protected $primaryKey = 'announcement_id';
 
     protected $fillable = [
-        'author_id', 'property_id', 'title', 'description', 'recipient_role'
+        'author_id', 'property_id', 'headline', 'details', 'sender_role', 'recipient_role', 'created_at'
     ];
 
     public function author()

@@ -17,9 +17,9 @@
     <div class="p-6 space-y-4 max-h-64 overflow-y-auto">
         @forelse($announcements as $announcement)
         <div class="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
-            <div class="text-sm text-blue-700 font-semibold mb-1">{{ $announcement['date'] }}</div>
-            <h4 class="text-base font-bold text-gray-900 mb-1">{{ $announcement['title'] }}</h4>
-            <p class="text-sm text-gray-600">{{ $announcement['description'] }}</p>
+            <div class="text-sm text-blue-700 font-semibold mb-1">{{ $announcement['created_at'] }}</div>
+            <h4 class="text-base font-bold text-gray-900 mb-1">{{ $announcement['headline'] }}</h4>
+            <p class="text-sm text-gray-600">{{ $announcement['details'] }}</p>
         </div>
         @empty
         <p class="text-gray-500 text-center py-4">No announcements yet</p>

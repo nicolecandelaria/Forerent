@@ -2,16 +2,22 @@
 
 namespace App\Livewire\Layouts\Dashboard;
 
+use App\Models\Announcement;
+use App\Models\Lease;
+use App\Models\Unit;
 use Livewire\Component;
 use Carbon\Carbon;
 
 class CalendarWidget extends Component
 {
+    public $role = 'tenant';
     public $currentMonth;
     public $currentYear;
     public $calendarDays = [];
     public $selectedDate;
-    public $dailyEvents = [];
+    public $dailyAnnouncements = [];
+
+    public $announcementDates = [];
 
     public function mount()
     {
@@ -38,8 +44,10 @@ class CalendarWidget extends Component
             $this->calendarDays[] = $i;
         }
 
-        // Load events for the selected date (Mock Data for now)
-        $this->loadEvents();
+
+        $this->loadDailyAnnouncements();
+
+        $this->loadEventDates();
     }
 
     public function selectDate($date)
@@ -48,16 +56,88 @@ class CalendarWidget extends Component
         $this->updateCalendar();
     }
 
-    public function loadEvents()
+    public function loadDailyAnnouncements()
     {
-        // You can replace this later with a Database query
-        $this->dailyEvents = [
-            [
-                'title' => 'Rent Increase Notification',
-                'description' => 'This is a notification that the monthly rent for all units will be increased.'
-            ],
-            // Add more mock events here if needed
-        ];
+        $this->role = auth()->user()->role;
+
+        if ($this->role == "landlord") {
+            $this->dailyAnnouncements = Announcement::where('author_id', auth()->id())
+                ->whereDate('created_at', $this->selectedDate)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+        else if ($this->role == "manager") {
+            $propertyIds = Unit::where('manager_id', auth()->id())->get()
+                ->pluck('property_id')
+                ->unique();
+
+            $this->dailyAnnouncements = Announcement::where('author_id', auth()->id())
+                ->orWhereIn('property_id', $propertyIds)
+                ->whereDate('created_at', $this->selectedDate)
+                ->orderBy('created_at', 'desc')
+                ->where('recipient_role', 'manager')->get();
+        }
+        else if ($this->role == "tenant") {
+            $leases = Lease::with('bed.unit')->where('tenant_id', auth()->id())->get();
+
+            $propertyIds = $leases->pluck('bed.unit.property_id')->unique();
+
+            $this->dailyAnnouncements = Announcement::where('property_id', $propertyIds)
+                ->where('recipient_role', 'tenant')
+                ->whereDate('created_at', $this->selectedDate)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+    }
+
+    public function loadEventDates()
+    {
+        $this->role = auth()->user()->role;
+        $userId = auth()->id();
+
+        // Get the start and end of the currently displayed month
+        $startOfMonth = Carbon::parse($this->currentYear . '-' . date('m', strtotime($this->currentMonth)) . '-01')->startOfMonth();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+
+        if ($this->role == "landlord") {
+            $this->announcementDates = Announcement::where('author_id', $userId)
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                ->pluck('created_at')
+                ->map(fn($d) => (int) Carbon::parse($d)->format('d'))
+                ->unique()
+                ->toArray();
+
+        } elseif ($this->role == "manager") {
+            $propertyIds = Unit::where('manager_id', $userId)
+                ->pluck('property_id')
+                ->unique();
+
+            $this->announcementDates = Announcement::where(function($query) use ($userId, $propertyIds) {
+                $query->where('author_id', $userId)
+                    ->orWhereIn('property_id', $propertyIds);
+            })
+                ->where('recipient_role', 'manager')
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                ->pluck('created_at')
+                ->map(fn($d) => (int) Carbon::parse($d)->format('d'))
+                ->unique()
+                ->toArray();
+
+        } elseif ($this->role == "tenant") {
+            $leases = Lease::with('bed.unit')->where('tenant_id', auth()->id())->get();
+
+            $propertyIds = $leases->pluck('bed.unit.property_id')->unique();
+
+            $this->announcementDates = Announcement::whereIn('property_id', $propertyIds)
+                ->where('recipient_role', 'tenant')
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                ->pluck('created_at')
+                ->map(fn($d) => (int) Carbon::parse($d)->format('d'))
+                ->unique()
+                ->toArray();
+        }
+
+        logger('Announcement Dates for current month:', $this->announcementDates);
     }
 
     public function render()

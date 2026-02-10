@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id('announcement_id')->primary();
             $table->foreignId('author_id')->constrained('users', 'user_id')->onDelete('cascade');
             $table->foreignId('property_id')->nullable()->constrained('properties', 'property_id')->nullOnDelete();
-            $table->string('title');
-            $table->text('description');
+            $table->string('headline');
+            $table->text('details');
+            $table->enum('sender_role', ['landlord', 'manager'])->default('landlord');
             $table->enum('recipient_role', ['manager', 'tenant'])->default('manager');
             $table->timestamps();
             $table->softDeletes();
