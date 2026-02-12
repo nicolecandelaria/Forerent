@@ -1,22 +1,22 @@
 <div>
     {{-- Main Announcement Form Modal --}}
-    @if($showModal && !$showConfirmation)
+    @if($showModal)
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 
         {{-- Modal Panel --}}
         <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
 
-            {{-- 1. Header Section (Matched Color #070589) --}}
+            {{-- 1. Header Section --}}
             <div class="bg-[#070589] text-white p-6 flex-shrink-0">
                 <div class="flex items-start justify-between">
                     <div>
                         <h2 class="text-xl font-bold uppercase">ANNOUNCEMENT</h2>
                         <p class="mt-1 text-sm text-blue-100">Fill in the details to post a new update</p>
                     </div>
-                    {{-- Close Button --}}
+                    {{-- Close Button (Triggers Discard Modal) --}}
                     <button
-                        wire:click="closeModal"
                         type="button"
+                        x-on:click="$dispatch('open-modal', 'discard-announcement-confirmation')"
                         class="text-white hover:text-blue-200 transition-colors focus:outline-none">
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -32,7 +32,7 @@
                     {{-- White Container Card --}}
                     <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
 
-                        {{-- Headline (Floating Label) --}}
+                        {{-- Headline --}}
                         <div class="relative">
                             <input
                                 wire:model="headline"
@@ -52,7 +52,7 @@
                             @enderror
                         </div>
 
-                        {{-- Details (Floating Label Textarea) --}}
+                        {{-- Details --}}
                         <div class="relative">
                             <textarea
                                 wire:model="details"
@@ -106,44 +106,38 @@
 
             {{-- 3. Footer --}}
             <div class="p-6 pt-0 flex justify-end">
+                {{-- Save Button   --}}
                 <button
-                    wire:click="save"
                     type="button"
+                    x-on:click="$dispatch('open-modal', 'save-announcement-confirmation')"
                     class="px-8 py-3 bg-[#070589] text-white text-sm font-semibold rounded-lg hover:bg-[#001445] focus:ring-4 focus:ring-blue-300 transition-colors shadow-lg">
                     Save
                 </button>
             </div>
         </div>
     </div>
-    @endif
 
-    {{-- Confirmation Modal --}}
-    @if($showConfirmation)
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-        <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div class="p-8 text-center">
-                {{-- Updated Title Color --}}
-                <h3 class="text-2xl font-bold text-[#070589] mb-4">Post Announcement?</h3>
-                <p class="text-gray-600 mb-8">
-                    Your announcement will be saved and will be visible to everyone immediately. Do you want to proceed?
-                </p>
-                <div class="flex gap-4 justify-center">
-                    <button
-                        wire:click="cancelConfirmation"
-                        type="button"
-                        class="px-6 py-2.5 bg-blue-50 text-[#070589] font-semibold rounded-lg hover:bg-blue-100 transition-colors">
-                        Cancel
-                    </button>
-                    <button
-                        wire:click="confirmPost"
-                        type="button"
-                        class="px-6 py-2.5 bg-[#070589] text-white font-semibold rounded-lg hover:bg-[#001445] transition-colors shadow-lg">
-                        Confirm Post
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+
+    {{--  Confirmation Modal   --}}
+    <x-ui.modal-confirm
+        name="save-announcement-confirmation"
+        title="Post Announcement?"
+        description="Your announcement will be saved and will be visible to everyone immediately. Do you want to proceed?"
+        confirmText="Confirm Post"
+        cancelText="Cancel"
+        confirmAction="confirmPost"
+    />
+
+    {{--  Cancel Modal --}}
+    <x-ui.modal-cancel
+        name="discard-announcement-confirmation"
+        title="Discard Unsaved Changes?"
+        description="Are you sure you want to close? All details will be lost."
+        discardText="Discard"
+        returnText="Keep Editing"
+        discardAction="closeModal"
+    />
+
     @endif
 </div>
 

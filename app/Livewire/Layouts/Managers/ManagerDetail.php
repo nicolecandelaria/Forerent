@@ -21,9 +21,7 @@ class ManagerDetail extends Component
     public $totalBuildings = 0;
     public $totalUnits = 0;
 
-    /*----------------------------------
-    | LISTENERS
-    ----------------------------------*/
+
     #[On('managerSelected')]
     public function loadManager(?int $managerId): void
     {
@@ -40,16 +38,13 @@ class ManagerDetail extends Component
             return;
         }
 
-        // Load Units
-        $this->units = $this->getManagedUnits($managerId);
+         $this->units = $this->getManagedUnits($managerId);
         $this->totalUnits = count($this->units);
 
-        // Load Buildings
-        $this->buildings = $this->getBuildingsManaged($this->units);
+         $this->buildings = $this->getBuildingsManaged($this->units);
         $this->totalBuildings = count($this->buildings);
 
-        // Reset selected building when switching managers
-        $this->selectedBuildingId = null;
+         $this->selectedBuildingId = null;
     }
 
     #[On('managerUpdated')]
@@ -66,9 +61,7 @@ class ManagerDetail extends Component
         }
     }
 
-    /*----------------------------------
-    | UI ACTIONS
-    ----------------------------------*/
+
     public function selectBuilding(int $buildingId): void
     {
         if (!$this->currentManagerId) {
@@ -76,20 +69,21 @@ class ManagerDetail extends Component
         }
 
         $this->selectedBuildingId = $buildingId;
-        // Reload units, but filtered by this building
-        $this->units = $this->getManagedUnits($this->currentManagerId, $buildingId);
+         $this->units = $this->getManagedUnits($this->currentManagerId, $buildingId);
     }
+
 
     public function editManager(): void
     {
         if ($this->currentManagerId) {
-            $this->dispatch('openEditManagerModal_manager-dashboard', managerId: $this->currentManagerId);
+            $this->dispatch(
+                'openManagerModal_manager-dashboard',
+                managerId: $this->currentManagerId
+            );
         }
     }
 
-    /*----------------------------------
-    | HELPERS
-    ----------------------------------*/
+
     private function resetManagerData(): void
     {
         $this->currentManagerId = null;
@@ -127,8 +121,7 @@ class ManagerDetail extends Component
 
     private function getBuildingsManaged($units)
     {
-        // Handle if $units is array or collection
-        $collection = is_array($units) ? collect($units) : $units;
+         $collection = is_array($units) ? collect($units) : $units;
 
         $propertyIds = $collection->pluck('property_id')->unique()->values();
         return Property::whereIn('property_id', $propertyIds)->get();

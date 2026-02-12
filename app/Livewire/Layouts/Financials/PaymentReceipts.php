@@ -12,12 +12,10 @@ class PaymentReceipts extends Component
     use WithPagination;
 
     public $activeTab = 'all';
-
-    // Filters
     public $filterPeriod = '';
     public $filterBuilding = '';
+    public $billingIdToMarkPaid = null; // State to hold the ID
 
-    // FIX 1: Reset to Page 1 when filters change
     public function updatedActiveTab()
     {
         $this->resetPage();
@@ -25,34 +23,49 @@ class PaymentReceipts extends Component
     public function updatedFilterPeriod()
     {
         $this->resetPage();
-    } // <--- Add this
+    }
     public function updatedFilterBuilding()
     {
         $this->resetPage();
-    } // <--- Add this
+    }
 
-    public function markAsPaid($id)
+    public function confirmPayment($id)
     {
-        DB::table('billings')->where('billing_id', $id)->update([
-            'status' => 'Paid',
-            'amount' => DB::raw('to_pay'),
-            'updated_at' => now()
-        ]);
+        $this->billingIdToMarkPaid = $id;
+        $this->dispatch('open-modal', 'mark-as-paid-confirmation');
+    }
 
-        $this->dispatch('show-toast', ['message' => 'Payment marked as Paid!']);
+    public function viewReceipt($billingId)
+    {
+        // Dispatch event to the modal component with the ID
+        $this->dispatch('open-payment-receipt', billingId: $billingId);
+    }
+
+    public function markAsPaid()
+    {
+        if ($this->billingIdToMarkPaid) {
+            DB::table('billings')->where('billing_id', $this->billingIdToMarkPaid)->update([
+                'status' => 'Paid',
+                'amount' => DB::raw('to_pay'),
+                'updated_at' => now()
+            ]);
+
+            $this->dispatch('show-toast', ['message' => 'Payment marked as Paid!']);
+
+            // FIX: Explicitly close the modal after success
+            $this->dispatch('close-modal', 'mark-as-paid-confirmation');
+
+            $this->billingIdToMarkPaid = null;
+        }
     }
 
     public function render()
     {
+        // ... (Keep your existing render logic exactly the same) ...
         $baseQuery = DB::table('billings')
             ->join('leases', 'billings.lease_id', '=', 'leases.lease_id')
             ->join('users', 'leases.tenant_id', '=', 'users.user_id')
-            ->select(
-                'billings.*',
-                'users.first_name',
-                'users.last_name',
-                'leases.contract_rate'
-            );
+            ->select('billings.*', 'users.first_name', 'users.last_name');
 
         $counts = [
             'all'      => (clone $baseQuery)->count(),
@@ -70,14 +83,7 @@ class PaymentReceipts extends Component
             default    => null,
         };
 
-        // Filter Logic
-        if ($this->filterPeriod) {
-            $query->whereMonth('billings.billing_date', $this->filterPeriod);
-        }
-
-        if ($this->filterBuilding) {
-            // Add building filter logic here if needed
-        }
+        if ($this->filterPeriod) $query->whereMonth('billings.billing_date', $this->filterPeriod);
 
         $payments = $query->orderBy('billings.billing_date', 'desc')->paginate(10);
 

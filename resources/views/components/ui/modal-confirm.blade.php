@@ -4,15 +4,16 @@
     'description',
     'confirmText' => 'Save',
     'cancelText' => 'Cancel',
-    'confirmAction' => null,   // Livewire method to call
-    'cancelUrl' => null,       // If provided, the cancel button becomes a link
+    'confirmAction' => null,
+    'cancelUrl' => null,
 ])
 
 <div
     x-data="{ show: false }"
     x-show="show"
-    x-on:open-modal.window="if ($event.detail === '{{ $name }}') show = true"
-    x-on:close-modal.window="if ($event.detail === '{{ $name }}') show = false"
+    {{-- FIX: Listen for both String and Array event formats --}}
+    x-on:open-modal.window="if ($event.detail === '{{ $name }}' || $event.detail[0] === '{{ $name }}') show = true"
+    x-on:close-modal.window="if ($event.detail === '{{ $name }}' || $event.detail[0] === '{{ $name }}') show = false"
     x-on:keydown.escape.window="show = false"
     class="fixed inset-0 z-[99] flex items-center justify-center px-4 py-6 sm:px-0"
     style="display: none;"
@@ -22,7 +23,6 @@
         <div class="absolute inset-0 bg-gray-600 opacity-50"></div>
     </div>
 
-    {{-- Modal Card --}}
     <div x-show="show" class="bg-white rounded-[20px] overflow-hidden shadow-xl transform transition-all sm:w-full sm:max-w-[480px] p-8 relative z-[100]">
 
         <button @click="show = false" class="absolute top-5 right-5 text-[#0C0B50] hover:text-blue-700">
@@ -35,7 +35,7 @@
         </div>
 
         <div class="flex justify-center gap-4 px-2">
-            {{-- Light Blue Button (Cancel / Discard) --}}
+            {{-- Cancel Button --}}
             @if($cancelUrl)
                 <a href="{{ $cancelUrl }}" class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm flex items-center justify-center">
                     {{ $cancelText }}
@@ -46,13 +46,20 @@
                 </button>
             @endif
 
-            {{-- Dark Blue Button (Save / Keep Editing) --}}
+            {{-- Confirm Button --}}
+            {{-- FIX: Removed @click="show = false" so Livewire has time to fire --}}
             <button
                 @if($confirmAction) wire:click="{{ $confirmAction }}" @endif
-                @click="show = false"
-                class="flex-1 bg-[#104EA2] hover:bg-[#0d3f82] text-white font-bold py-3 rounded-xl transition-colors shadow-md text-sm"
+                wire:loading.attr="disabled"
+                class="flex-1 bg-[#104EA2] hover:bg-[#0d3f82] text-white font-bold py-3 rounded-xl transition-colors shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {{ $confirmText }}
+                {{-- Optional: Show loading text --}}
+                <span wire:loading.remove wire:target="{{ $confirmAction }}">
+                    {{ $confirmText }}
+                </span>
+                <span wire:loading wire:target="{{ $confirmAction }}">
+                    Processing...
+                </span>
             </button>
         </div>
     </div>

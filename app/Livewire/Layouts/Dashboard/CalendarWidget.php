@@ -82,7 +82,7 @@ class CalendarWidget extends Component
 
             $propertyIds = $leases->pluck('bed.unit.property_id')->unique();
 
-            $this->dailyAnnouncements = Announcement::where('property_id', $propertyIds)
+            $this->dailyAnnouncements = Announcement::whereIn('property_id', $propertyIds)
                 ->where('recipient_role', 'tenant')
                 ->whereDate('created_at', $this->selectedDate)
                 ->orderBy('created_at', 'desc')

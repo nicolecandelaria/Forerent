@@ -31,6 +31,8 @@
         </div>
     </div>
 
+    <livewire:layouts.tenants.add-tenant-modal />
+
 @endsection
 
 @push('scripts')

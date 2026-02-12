@@ -10,13 +10,31 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="font-sans text-gray-900 antialiased min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
+{{--
+   CRITICAL CHANGE:
+   We removed "flex", "justify-center", "items-center" from this body tag.
+   It is now just a plain wrapper.
+--}}
+<body class="font-sans text-gray-900 antialiased bg-white">
 
-    {{-- 1. Keep this for standard Laravel controllers --}}
-    @yield('content')
+    {{-- MAIN GRID: Splits screen 50/50 on Desktop --}}
+    <div class="min-h-screen grid grid-cols-1 lg:grid-cols-2">
 
-    {{-- 2. ADD THIS: This is required for Livewire components to show up --}}
-    {{ $slot ?? '' }}
+        {{-- LEFT COLUMN: Login / Forgot Password Form --}}
+        <div class="flex flex-col justify-center px-4 py-0 bg-white sm:px-6 lg:px-20 xl:px-24 h-full relative z-10">
+            <div class="w-full max-w-md mx-auto">
+                {{-- Livewire Content Injected Here --}}
+                {{ $slot ?? '' }}
+                @yield('content')
+            </div>
+        </div>
+
+        {{-- RIGHT COLUMN: Blue Background (Hidden on mobile) --}}
+        <div class="hidden lg:block relative bg-[#F4F7FC] h-full w-full">
+            {{-- This empty div creates the blue side of the screen --}}
+        </div>
+
+    </div>
 
     @livewireScripts
 </body>

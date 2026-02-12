@@ -18,12 +18,12 @@
             </div>
 
             {{-- Export Button --}}
-            <button class="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[#070642] hover:bg-gray-50 rounded-full px-6 py-2.5 font-semibold text-[16px] shadow-sm transition-all w-full sm:w-auto">
+            {{-- <button class="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[#070642] hover:bg-gray-50 rounded-full px-6 py-2.5 font-semibold text-[16px] shadow-sm transition-all w-full sm:w-auto">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 Export
-            </button>
+            </button> --}}
         </div>
     </div>
 

@@ -3,9 +3,12 @@
 namespace App\Livewire\Layouts\Managers;
 
 use App\Livewire\Forms\AddUserForm;
-use App\Models\{Property, Unit, User};
+use App\Models\Property;
+use App\Models\Unit;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Livewire\{Component, WithFileUploads};
+use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\Attributes\Validate;
 
 class AddManagerModal extends Component
@@ -44,31 +47,26 @@ class AddManagerModal extends Component
     protected function getListeners(): array
     {
         return [
-            "openAddManagerModal_{$this->modalId}" => 'open',
+            "openManagerModal_{$this->modalId}" => 'open',
         ];
     }
 
-    public function open(User $manager = null): void
+    public function open($managerId = null): void
     {
         $this->resetForm();
 
-        if ($manager && $manager->exists) {
-            $this->isEditing = true;
-            $this->managerId = $manager->user_id;
-            $this->userForm->setUser($manager);
+        if ($managerId) {
+            $manager = User::find($managerId);
 
-            $this->loadExistingAssignments($manager->user_id);
+            if ($manager) {
+                $this->isEditing = true;
+                $this->managerId = $manager->user_id;
+                $this->userForm->setUser($manager);
+                $this->loadExistingAssignments($manager->user_id);
+            }
         }
 
         $this->isOpen = true;
-    }
-
-    public function close(): void
-    {
-        $this->resetForm();
-        $this->resetValidation();
-        $this->isOpen = false;
-        $this->dispatch('managerModalClosed');
     }
 
     public function loadBuildings()
@@ -80,7 +78,6 @@ class AddManagerModal extends Component
     public function updatedSelectedBuilding($propertyId)
     {
         $this->selectedFloor = '';
-        $this->selectedUnits = [];
         $this->floors = [];
         $this->availableUnits = [];
 
@@ -98,51 +95,23 @@ class AddManagerModal extends Component
         $this->availableUnits = [];
 
         if ($this->selectedBuilding && $floor) {
-            $this->availableUnits = $this->getUnitsForFloor(
-                $this->selectedBuilding,
-                $floor,
-                $this->managerId
-            );
+            $this->availableUnits = $this->getUnitsForFloor($this->selectedBuilding, $floor, $this->managerId);
         }
-    }
-
-    public function save(): void
-    {
-        $this->validate();
-
-        if ($this->isEditing && $this->managerId) {
-            $user = User::where('user_id', $this->managerId)->first();
-            $this->userForm->update($user);
-            $message = 'Manager updated successfully!';
-        } else {
-            $user = $this->userForm->store('manager');
-            $this->managerId = $user->user_id;
-            $message = 'Manager created successfully!';
-        }
-
-        if (!empty($this->selectedUnits)) {
-            $unitIds = array_keys(array_filter($this->selectedUnits));
-
-            // Assign units
-            Unit::whereIn('unit_id', $unitIds)->update(['manager_id' => $user->user_id]);
-        }
-
-        if ($this->profilePicture) {
-            $path = $this->profilePicture->store('profile-photos', 'public');
-            $user->update(['profile_img' => $path]);
-        }
-
-        session()->flash('message', $message);
-        $this->close();
-        $this->dispatch('refresh-manager-list');
     }
 
     private function loadExistingAssignments($managerId)
     {
-        $firstUnit = Unit::where('manager_id', $managerId)->first();
+        $firstUnit = Unit::where('manager_id', $managerId)
+            ->with('property')
+            ->whereHas('property', function ($q) {
+                $q->where('owner_id', Auth::id());
+            })
+            ->first();
+
         if ($firstUnit) {
             $this->selectedBuilding = $firstUnit->property_id;
             $this->updatedSelectedBuilding($firstUnit->property_id);
+
             $this->selectedFloor = $firstUnit->floor_number;
             $this->updatedSelectedFloor($firstUnit->floor_number);
 
@@ -179,6 +148,59 @@ class AddManagerModal extends Component
             'number' => "Unit {$unit->unit_number}",
             'checked' => $unit->manager_id == $managerId,
         ])->toArray();
+    }
+
+    /**
+     * NEW: Checks validation BEFORE opening the confirmation modal.
+     */
+    public function validateAndConfirm()
+    {
+        $this->validate(); // Stops here if fields are missing
+        $this->dispatch('open-modal', 'save-manager-confirmation');
+    }
+
+    public function save()
+    {
+        $this->validate();
+
+        // 1. Save Manager (Pass 'manager' string explicitly to fix DB crash)
+        $manager = $this->userForm->store('manager');
+
+        // 2. Handle Profile Picture Upload manually
+        if ($this->profilePicture && !is_string($this->profilePicture)) {
+            $path = $this->profilePicture->store('profile-photos', 'public');
+            $manager->update(['profile_photo_path' => $path]);
+        }
+
+        // 3. Save Assignments
+        if ($this->selectedBuilding && $this->selectedFloor) {
+            Unit::where('property_id', $this->selectedBuilding)
+                ->where('floor_number', $this->selectedFloor)
+                ->where('manager_id', $manager->user_id)
+                ->whereNotIn('unit_id', array_keys(array_filter($this->selectedUnits)))
+                ->update(['manager_id' => null]);
+
+            $selectedUnitIds = array_keys(array_filter($this->selectedUnits));
+
+            Unit::whereIn('unit_id', $selectedUnitIds)
+                ->update(['manager_id' => $manager->user_id]);
+        }
+
+        $this->close();
+
+        $this->dispatch('refresh-manager-list');
+        $this->dispatch('managerUpdated', managerId: $manager->user_id);
+
+        // Close the confirmation modal
+        $this->dispatch('close-modal', 'save-manager-confirmation');
+
+        session()->flash('message', $this->isEditing ? 'Manager updated successfully.' : 'Manager added successfully.');
+    }
+
+    public function close()
+    {
+        $this->isOpen = false;
+        $this->resetForm();
     }
 
     private function resetForm(): void

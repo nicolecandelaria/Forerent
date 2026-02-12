@@ -10,16 +10,21 @@ class BedSeeder extends Seeder
 {
     public function run(): void
     {
-        // Loop through all units and create beds based on unit_cap
         Unit::all()->each(function ($unit) {
             $bedCount = $unit->unit_cap ?? 4;
 
-            // Use factory to create beds
-            Bed::factory()
-                ->count($bedCount)
-                ->create([
+            for ($i = 1; $i <= $bedCount; $i++) {
+
+                $bunkNumber = ceil($i / 2);
+                $position = ($i % 2 != 0) ? 'Lower Deck' : 'Upper Deck';
+
+                Bed::create([
                     'unit_id' => $unit->unit_id,
+                    'bed_number' => "Bed {$bunkNumber} - {$position}",
+
+                    'status' => 'Vacant',
                 ]);
+            }
         });
     }
 }

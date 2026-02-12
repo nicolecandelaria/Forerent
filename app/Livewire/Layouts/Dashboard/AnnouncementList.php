@@ -39,7 +39,7 @@ class AnnouncementList extends Component
                 ->unique();
 
 
-            $this->announcements = Announcement::where('property_id', $propertyIds)
+            $this->announcements = Announcement::whereIn('property_id', $propertyIds)
                 ->where('recipient_role', 'tenant')
                 ->orderBy('created_at', 'desc')
                 ->get();

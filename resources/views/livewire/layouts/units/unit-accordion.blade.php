@@ -10,7 +10,6 @@
         </button>
     </div>
 
-    {{-- Scrollable Container for ALL accordion items --}}
     <div class="flex-1 overflow-y-auto space-y-4">
         @forelse ($units as $unit)
             @php
@@ -23,7 +22,6 @@
                  class="rounded-lg transition-all duration-200"
                  :class="{ 'ring-2 ring-blue-300': {{ $isHovered ? 'true' : 'false' }} }">
 
-                {{-- COLLAPSED STATE (Visible when unit is NOT open) --}}
                 @if (!$isOpen)
                     <button
                         wire:click="toggleUnit({{ $unit->unit_id }})"
@@ -81,9 +79,11 @@
                                     </span>
 
                                     {{-- Edit Button --}}
-                                     <button wire:click="$dispatch('openAddUnitModal_property-dashboard')"
-
-                                            class="flex items-center gap-1.5 bg-white text-[#2360E8] rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-blue-50 transition-colors border border-white">
+                                     <button
+                                        {{-- We use .prevent to stop link behavior --}}
+                                        wire:click.prevent="$dispatch('open-unit-modal', { unitId: {{ $unit->unit_id }} })"
+                                        class="flex items-center gap-1.5 bg-white text-[#2360E8] rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-blue-50 transition-colors border border-white"
+                                    >
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>

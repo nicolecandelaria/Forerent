@@ -44,31 +44,17 @@
                     type="email"
                     id="email"
                     wire:model.lazy="email"
-                    {{--
-                      Key Classes:
-                      - 'peer' is required for the floating label.
-                      - 'placeholder=" "' (a single space) is the trigger.
-                      - 'pt-4 pb-2.5' provides padding for the label.
-                      - 'rounded-xl border-2 shadow-sm' matches your image's style.
-                    --}}
+
                     class="block w-full px-4 pt-4 pb-2.5 font-semibold text-indigo-900 bg-transparent rounded-xl border-2 border-gray-300 shadow-sm appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-500 peer"
                     placeholder=" " />
 
                 <label
                     for="email"
-                    {{--
-                      Key Classes:
-                      - 'absolute' positions the label.
-                      - 'peer-placeholder-shown:*' defines the default (centered) state.
-                      - 'peer-focus:*' defines the active (top) state.
-                      - 'bg-white' creates the "cutout" effect over the border.
-                      - 'start-4' matches the input's 'px-4'.
-                    --}}
+
                     class="absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 start-4">
                     Email
                 </label>
             </div>
-            {{-- Validation error remains outside the relative div --}}
             @error('email') <p class="text-red-500 text-xs mt-1.5">{{ $message }}</p> @enderror
         </div>
 

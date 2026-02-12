@@ -281,17 +281,17 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-center pb-6">
-                        <button
-                            type="button"
-                            wire:click="$dispatch('open-modal', 'save-manager-confirmation')"
-                            class="px-20 py-2.5 bg-[#070589] text-white text-sm font-semibold rounded-lg hover:bg-[#001445] focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            wire:loading.attr="disabled"
-                        >
-                            <span wire:loading.remove wire:target="save">{{ $managerId ? 'Update Manager' : 'Save Manager' }}</span>
-                            <span wire:loading wire:target="save">{{ $managerId ? 'Updating...' : 'Saving...' }}</span>
-                        </button>
-                    </div>
+                <div class="flex justify-end px-6 pb-6">
+                    <button
+    type="button"
+    wire:click="validateAndConfirm"
+    class="px-8 py-2.5 bg-[#070589] text-white text-sm font-semibold rounded-lg hover:bg-[#001445] focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    wire:loading.attr="disabled"
+>
+    <span wire:loading.remove wire:target="save">{{ $managerId ? 'Update Manager' : 'Save Manager' }}</span>
+    <span wire:loading wire:target="save">{{ $managerId ? 'Updating...' : 'Saving...' }}</span>
+</button>
+                </div>
                 </div>
             </div>
         </div>
@@ -305,44 +305,14 @@
             confirmAction="save"
         />
 
-        <div
-            x-data="{ show: false }"
-            x-show="show"
-            x-on:open-modal.window="if ($event.detail === 'discard-manager-confirmation') show = true"
-            x-on:close-modal.window="if ($event.detail === 'discard-manager-confirmation') show = false"
-            x-on:keydown.escape.window="show = false"
-            class="fixed inset-0 z-[60] flex items-center justify-center px-4 py-6 sm:px-0"
-            style="display: none;"
-        >
-            <div x-show="show" class="fixed inset-0 transform transition-all" x-on:click="show = false">
-                <div class="absolute inset-0 bg-gray-600 opacity-50"></div>
-            </div>
-
-            <div x-show="show" class="bg-white rounded-[20px] overflow-hidden shadow-xl transform transition-all sm:w-full sm:max-w-[480px] p-8 relative z-[100]">
-                <button @click="show = false" class="absolute top-5 right-5 text-[#0C0B50] hover:text-blue-700">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-
-                <div class="text-center mt-4 mb-8">
-                    <h3 class="text-2xl font-bold text-[#0C0B50] mb-3">Discard Unsaved Changes?</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed px-4">Are you sure you want to close? All details will be lost.</p>
-                </div>
-
-                <div class="flex justify-center gap-4 px-2">
-                    <button
-                        wire:click="close"
-                        class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm">
-                        Discard
-                    </button>
-
-                    <button
-                        @click="show = false"
-                        class="flex-1 bg-[#104EA2] hover:bg-[#0d3f82] text-white font-bold py-3 rounded-xl transition-colors shadow-md text-sm">
-                        Keep Editing
-                    </button>
-                </div>
-            </div>
-        </div>
+        <x-ui.modal-cancel
+            name="discard-manager-confirmation"
+            title="Discard Unsaved Changes?"
+            description="Are you sure you want to close? All details will be lost."
+            discardText="Discard"
+            returnText="Keep Editing"
+            discardAction="close"
+        />
 
     @endif
 </div>

@@ -1,8 +1,9 @@
-import Alpine from 'alpinejs';
+// import Alpine from 'alpinejs';
+// window.Alpine = Alpine;
+// Alpine.start();
+
 import 'flowbite';
 
-window.Alpine = Alpine;
-Alpine.start();
 
 // Initialize Flowbite dropdowns
 document.addEventListener('DOMContentLoaded', function() {
@@ -11,7 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
         toggle.addEventListener('click', function() {
             const targetId = this.getAttribute('data-collapse-toggle');
             const target = document.getElementById(targetId);
-            target.classList.toggle('hidden');
+            if (target) {
+                target.classList.toggle('hidden');
+            }
         });
     });
 });

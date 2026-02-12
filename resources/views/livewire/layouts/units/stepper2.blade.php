@@ -4,11 +4,11 @@
     <h3 class="text-lg font-semibold text-[#021C3F] mb-6">
         Unit Amenities (for Price Prediction)
     </h3>
-    
+
     <div class="p-4 rounded-lg border border-[#D1E0FF] bg-[#F7FAFF]">
         {{-- This grid has 3 columns on large screens --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            
+
             {{-- This loops over all 18 amenities from your CSV file --}}
             @foreach ($amenity_labels as $key => $label)
                 <div class="flex items-center bg-white p-4 rounded-lg border border-[#E8F0FE]">

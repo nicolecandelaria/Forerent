@@ -13,8 +13,7 @@
         <h3 class="text-2xl font-bold text-[#070642]">Financial Overview</h3>
 
         {{--  Blue Cards (Donut) --}}
-        {{-- ROW 1: Blue Cards (Donut) --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
 
             <livewire:layouts.dashboard.donut-stat-card
                 title="Total Rent Collected"
@@ -39,7 +38,7 @@
         </div>
 
         {{-- White Cards (Gauge) --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
 
             {{-- Revenue --}}
             <livewire:layouts.dashboard.gauge-stat

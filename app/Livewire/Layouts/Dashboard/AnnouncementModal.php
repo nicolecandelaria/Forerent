@@ -1,18 +1,21 @@
 <?php
 
 namespace App\Livewire\Layouts\Dashboard;
+
 use App\Models\Announcement;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\NewAnnouncement;
+use Illuminate\Support\Facades\Auth; // ← ADD THIS IMPORT
 use Illuminate\Support\Facades\Notification;
 use Livewire\Component;
 
 class AnnouncementModal extends Component
 {
     public $showModal = false;
-    public $showConfirmation = false;
+    // Removed: public $showConfirmation = false; (No longer needed)
+
     public $headline = '';
     public $details = '';
     public $propertyId = null;
@@ -35,14 +38,14 @@ class AnnouncementModal extends Component
 
     public function mount()
     {
-        if (auth()->user()->role == "landlord")
+        if (Auth::user()->role == "landlord") // ← CHANGE TO Auth::user()
         {
-            $this->properties = Property::where('owner_id', auth()->id())
+            $this->properties = Property::where('owner_id', Auth::id()) // ← CHANGE TO Auth::id()
                 ->orderBy('building_name')
                 ->get();
-        } else if (auth()->user()->role == "manager")
+        } else if (Auth::user()->role == "manager") // ← CHANGE TO Auth::user()
         {
-            $propertyIds = Unit::where('manager_id', auth()->id())
+            $propertyIds = Unit::where('manager_id', Auth::id()) // ← CHANGE TO Auth::id()
                 ->pluck('property_id')
                 ->unique();
 
@@ -61,7 +64,7 @@ class AnnouncementModal extends Component
     public function closeModal()
     {
         $this->showModal = false;
-        $this->showConfirmation = false;
+        // Removed: $this->showConfirmation = false;
         $this->resetForm();
     }
 
@@ -73,27 +76,17 @@ class AnnouncementModal extends Component
         $this->resetValidation();
     }
 
-    public function save()
-    {
-        $this->validate();
-        $this->showConfirmation = true;
-    }
-
-    public function cancelConfirmation()
-    {
-        $this->showConfirmation = false;
-    }
-
+    // This is the final action called by the <x-ui.modal-confirm> component
     public function confirmPost()
     {
         $this->validate();
 
         $announcement = new Announcement();
 
-        if (auth()->user()->role === "landlord")
+        if (Auth::user()->role === "landlord") // ← CHANGE TO Auth::user()
         {
             $announcement = $this->saveToDatabase('manager');
-        } else if (auth()->user()->role === "manager") {
+        } else if (Auth::user()->role === "manager") { // ← CHANGE TO Auth::user()
             $announcement = $this->saveToDatabase('tenant');
         }
 
@@ -108,11 +101,11 @@ class AnnouncementModal extends Component
     private function saveToDatabase($recipientRole)
     {
         $announcement = Announcement::create([
-            'author_id' => auth()->id(),
+            'author_id' => Auth::id(), // ← CHANGE TO Auth::id()
             'property_id' => $this->propertyId,
             'headline' => $this->headline,
             'details' => $this->details,
-            'sender_role' => auth()->user()->role,
+            'sender_role' => Auth::user()->role, // ← CHANGE TO Auth::user()
             'recipient_role' => $recipientRole,
             'created_at' => now()
         ]);
@@ -124,12 +117,12 @@ class AnnouncementModal extends Component
     {
         $property = Property::find($this->propertyId);
 
-        if (auth()->user()->role === "landlord") {
+        if (Auth::user()->role === "landlord") { // ← CHANGE TO Auth::user()
             $managers = $property->managers;
 
             Notification::send($managers, new NewAnnouncement($announcement));
-        } else if (auth()->user()->role === "manager") {
-            $tenants = $property->tenantsForManager(auth()->id())->get();
+        } else if (Auth::user()->role === "manager") { // ← CHANGE TO Auth::user()
+            $tenants = $property->tenantsForManager(Auth::id())->get(); // ← CHANGE TO Auth::id()
 
             Notification::send($tenants, new NewAnnouncement($announcement));
         }

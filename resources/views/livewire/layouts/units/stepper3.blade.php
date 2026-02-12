@@ -155,10 +155,6 @@
         </div>
     </div>
 
-
-    {{-- ================================================= --}}
-    {{-- NAVIGATION BUTTONS (CANCEL BUTTON REMOVED) --}}
-    {{-- ================================================= --}}
     <div class="flex justify-between items-center mt-6">
 
         {{-- Previous Button --}}
@@ -202,4 +198,3 @@
     />
 
 </div>
-

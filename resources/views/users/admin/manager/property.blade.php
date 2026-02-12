@@ -14,7 +14,7 @@
         </div>
     @endif
 
-     
+
     <livewire:layouts.properties.building-cards-section
         :show-add-button="false"
         title="Buildings"
@@ -37,4 +37,5 @@
     </script>
     @endpush
 
+    
 @endsection

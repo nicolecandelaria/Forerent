@@ -87,7 +87,12 @@
 
             <x-slot:body>
                 @forelse ($payments as $payment)
-                    <x-ui.tr wire:key="payment-{{ $payment->billing_id }}">
+                    <x-ui.tr
+                        wire:key="payment-{{ $payment->billing_id }}"
+                        wire:click="viewReceipt({{ $payment->billing_id }})"
+                        class="cursor-pointer hover:bg-blue-50 transition-colors"
+                    >
+                        {{-- Table cells remain the same... --}}
                         <x-ui.td class="font-bold text-[#1E0E4B]">
                             FT-{{ 202300 + $payment->billing_id }}
                         </x-ui.td>
@@ -140,8 +145,9 @@
                             @endphp
 
                             @if($status !== 'paid')
+                                {{-- UPDATED: Now calls confirmPayment instead of markAsPaid directly --}}
                                 <button
-                                    wire:click="markAsPaid({{ $payment->billing_id }})"
+                                    wire:click="confirmPayment({{ $payment->billing_id }})"
                                     class="inline-flex items-center justify-center px-4 py-1 rounded border border-[#22C55E] text-[#22C55E] text-xs font-bold hover:bg-[#22C55E] hover:text-white transition-all min-w-[100px]"
                                 >
                                     Mark As Paid
@@ -169,4 +175,15 @@
         </x-slot:footer>
 
     </x-ui.card-with-tabs>
+
+    {{-- ADDED: Confirmation Modal --}}
+    <x-ui.modal-confirm
+        name="mark-as-paid-confirmation"
+        title="Confirm Payment"
+        description="Are you sure you want to mark this transaction as PAID? This action will update the status immediately."
+        confirmText="Yes, Confirm"
+        cancelText="Cancel"
+        confirmAction="markAsPaid"
+    />
+
 </div>

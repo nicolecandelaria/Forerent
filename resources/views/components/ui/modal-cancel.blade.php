@@ -4,7 +4,8 @@
     'description' => 'Are you sure you want to close? All unsaved progress will be lost.',
     'discardText' => 'Discard',
     'returnText' => 'Keep Editing',
-    'route' => '#', // The URL to go to if they click Discard
+    'route' => null,         // For links (e.g., href="/dashboard")
+    'discardAction' => null, // NEW: For Livewire methods (e.g., "closeModal")
 ])
 
 <div
@@ -38,15 +39,24 @@
         {{-- Buttons --}}
         <div class="flex justify-center gap-4 px-2">
 
-            {{-- Left: Discard (Link) - Light Blue --}}
-            <a
-                href="{{ $route }}"
-                class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm flex items-center justify-center"
-            >
-                {{ $discardText }}
-            </a>
+            {{-- Discard Button (Supports both Route and Livewire Action) --}}
+            @if($discardAction)
+                <button
+                    wire:click="{{ $discardAction }}"
+                    class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm flex items-center justify-center"
+                >
+                    {{ $discardText }}
+                </button>
+            @else
+                <a
+                    href="{{ $route ?? '#' }}"
+                    class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm flex items-center justify-center"
+                >
+                    {{ $discardText }}
+                </a>
+            @endif
 
-            {{-- Right: Keep Editing (Close Modal) - Dark Blue --}}
+            {{-- Right: Keep Editing (Close Modal) --}}
             <button
                 @click="show = false"
                 class="flex-1 bg-[#104EA2] hover:bg-[#0d3f82] text-white font-bold py-3 rounded-xl transition-colors shadow-md text-sm"
