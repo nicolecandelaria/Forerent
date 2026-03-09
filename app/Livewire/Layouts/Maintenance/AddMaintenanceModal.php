@@ -7,28 +7,31 @@ use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Livewire\Attributes\On; // Import the attribute
+use Livewire\Attributes\On;
 
 class AddMaintenanceModal extends Component
 {
     use WithFileUploads;
+
     public $modalId;
     public $isOpen = false;
 
-    // Form Fields
-    public $category = 'HVAC';
-    public $description = '';
-    public $image = null;
+    public $category    = 'Plumbing';
+    public $description = '';       // Owned by Alpine via setDescription(), NOT wire:model
+    public $urgency     = 'Level 2'; // Auto-assigned, not shown to tenant
+    public $images      = [];        // Up to 3 images
 
-    // Display Data
-    public $residentName = '';
-    public $unitNumber = '';
-    public $buildingName = '';
-    public $ticketNumber = '';
-    public $reportedDate = '';
+    public $residentName  = '';
+    public $unitNumber    = '';
+    public $buildingName  = '';
+    public $ticketNumber  = '';
+    public $leaseId       = null;
 
-    // Hidden Data
-    public $leaseId = null;
+    // Called by Alpine @input handler — completely bypasses Livewire DOM morphing
+    public function setDescription(string $value): void
+    {
+        $this->description = $value;
+    }
 
     #[On('open-maintenance-modal')]
     public function open()
@@ -54,10 +57,9 @@ class AddMaintenanceModal extends Component
     public function loadTenantDetails()
     {
         $user = Auth::user();
-        $this->residentName = $user->name ?? $user->first_name . ' ' . $user->last_name;
-        $this->reportedDate = Carbon::now()->format('F j, Y');
+        $this->residentName = $user->first_name . ' ' . $user->last_name;
 
-        $nextId = DB::table('maintenance_requests')->max('request_id') + 1;
+        $nextId = (DB::table('maintenance_requests')->max('request_id') ?? 0) + 1;
         $this->ticketNumber = 'MR-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
 
         $leaseDetails = DB::table('leases')
@@ -66,20 +68,16 @@ class AddMaintenanceModal extends Component
             ->join('properties', 'units.property_id', '=', 'properties.property_id')
             ->where('leases.tenant_id', $user->user_id)
             ->where('leases.status', 'Active')
-            ->select(
-                'leases.lease_id',
-                'units.unit_number',
-                'properties.building_name'
-            )
+            ->select('leases.lease_id', 'units.unit_number', 'properties.building_name')
             ->first();
 
         if ($leaseDetails) {
-            $this->leaseId = $leaseDetails->lease_id;
-            $this->unitNumber = 'Unit ' . $leaseDetails->unit_number;
+            $this->leaseId      = $leaseDetails->lease_id;
+            $this->unitNumber   = 'Unit ' . $leaseDetails->unit_number;
             $this->buildingName = $leaseDetails->building_name;
         } else {
-            $this->leaseId = null;
-            $this->unitNumber = 'No Active Unit';
+            $this->leaseId      = null;
+            $this->unitNumber   = 'No Active Unit';
             $this->buildingName = 'N/A';
         }
     }
@@ -92,9 +90,10 @@ class AddMaintenanceModal extends Component
     public function validateAndConfirm()
     {
         $this->validate([
-            'category' => 'required',
-            'description' => 'required|min:10',
-            'image' => 'nullable|image|max:5120',
+            'category'    => 'required|in:Plumbing,Electrical,Structural,Appliance,Pest Control',
+            'description' => 'required|string|min:10|max:2000',
+            'images'      => 'nullable|array|max:3',
+            'images.*'    => 'image|max:5120',
         ]);
 
         if (!$this->leaseId) {
@@ -107,29 +106,38 @@ class AddMaintenanceModal extends Component
 
     public function save()
     {
-        $imagePath = null;
-        if ($this->image) {
-            $imagePath = $this->image->store('maintenance_photos', 'public');
+        // Store up to 3 images as JSON array in image_path column
+        $imagePaths = [];
+        if (!empty($this->images)) {
+            foreach (array_slice($this->images, 0, 3) as $img) {
+                $imagePaths[] = $img->store('maintenance_photos', 'public');
+            }
         }
 
-        $urgency = 'Normal';
+        $user = Auth::user();
 
         DB::table('maintenance_requests')->insert([
-            'lease_id' => $this->leaseId,
+            'lease_id'      => $this->leaseId,
             'ticket_number' => $this->ticketNumber,
-            'problem' => $this->description,
-            'status' => 'Pending',
-            'urgency' => $urgency,
-            'log_date' => Carbon::now()->format('Y-m-d'),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'problem'       => $this->description,
+            'category'      => $this->category,
+            'status'        => 'Pending',
+            'urgency'       => $this->urgency,
+            'logged_by'     => $user->first_name . ' ' . $user->last_name,
+            'log_date'      => Carbon::now()->format('Y-m-d'),
+            'image_path'    => !empty($imagePaths) ? json_encode($imagePaths) : null,
+            'created_at'    => now(),
+            'updated_at'    => now(),
         ]);
-
-        session()->flash('message', 'Maintenance request submitted successfully!');
 
         $this->dispatch('close-modal', 'save-maintenance-confirmation');
         $this->dispatch('refresh-maintenance-list');
         $this->close();
+    }
+
+    public function removeImage($index)
+    {
+        array_splice($this->images, $index, 1);
     }
 
     public function close()
@@ -140,7 +148,9 @@ class AddMaintenanceModal extends Component
 
     private function resetForm()
     {
-        $this->reset(['description', 'image', 'category', 'leaseId']);
+        $this->reset(['description', 'images', 'leaseId']);
+        $this->category = 'Plumbing';
+        $this->urgency  = 'Level 2';
         $this->resetValidation();
     }
 

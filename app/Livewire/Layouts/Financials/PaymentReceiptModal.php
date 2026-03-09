@@ -19,12 +19,11 @@ class PaymentReceiptModal extends Component
         $record = DB::table('billings')
             ->join('leases', 'billings.lease_id', '=', 'leases.lease_id')
             ->join('users', 'leases.tenant_id', '=', 'users.user_id')
-            // Add these joins so your formatReceiptData function doesn't fail
             ->join('beds', 'leases.bed_id', '=', 'beds.bed_id')
             ->join('units', 'beds.unit_id', '=', 'units.unit_id')
             ->join('properties', 'units.property_id', '=', 'properties.property_id')
             ->where('billings.billing_id', $billingId)
-            ->select('billings.*', 'users.*', 'units.unit_number', 'properties.building_name', 'properties.location')
+            ->select('billings.*', 'users.*', 'units.unit_number', 'properties.building_name', 'properties.address')
             ->first();
 
         if ($record) {
@@ -35,15 +34,12 @@ class PaymentReceiptModal extends Component
         }
     }
 
-    /**
-     * Format the data for the high-fidelity UI
-     */
+    
     private function formatReceiptData($record)
     {
         $billingDate = \Carbon\Carbon::parse($record->billing_date);
 
         return [
-            // Ensure these keys match the Blade variables exactly
             'invoice_no'  => '20250825-' . str_pad($record->billing_id, 3, '0', STR_PAD_LEFT),
             'issued_date' => $billingDate->format('F d, Y'),
             'due_date'    => $billingDate->copy()->addDays(20)->format('F d, Y'),
@@ -52,7 +48,7 @@ class PaymentReceiptModal extends Component
                 'name'     => $record->first_name . ' ' . $record->last_name,
                 'unit'     => 'Unit ' . $record->unit_number,
                 'building' => $record->building_name,
-                'address'  => $record->location,
+                'address'  => $record->address,
                 'contact'  => $record->tenant_contact ?? 'N/A',
             ],
 

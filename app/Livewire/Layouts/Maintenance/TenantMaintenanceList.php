@@ -9,12 +9,13 @@ use Illuminate\Support\Facades\DB;
 class TenantMaintenanceList extends Component
 {
     public $activeRequestId = null;
-    public $sort = 'newest'; // Default sort
-    public $renderControls = false; // Decides if we render the dropdown or the list
+    public $activeTab = 'all';
 
-    public function updatedSort()
+    public function setTab($tab)
     {
-        // When dropdown changes, just re-render
+        $this->activeTab = $tab;
+        $this->activeRequestId = null;
+        $this->dispatch('tenantMaintenanceSelected', requestId: null);
     }
 
     public function selectRequest($id)
@@ -25,50 +26,62 @@ class TenantMaintenanceList extends Component
 
     public function refreshList()
     {
-        // This empty method is enough to trigger a re-render of the component
+        // This empty method triggers a re-render
     }
 
     public function render()
     {
-        // If we are just rendering the controls (the dropdown), skip the query
-        if ($this->renderControls) {
-             return view('livewire.layouts.maintenance.tenant-maintenance-list-controls');
-        }
+        $tenantLeaseIds = DB::table('leases')
+            ->where('tenant_id', Auth::id())
+            ->pluck('lease_id');
 
-        // Determine sort order
-        $orderBy = 'created_at';
-        $direction = 'desc';
+        $baseCountQuery = DB::table('maintenance_requests')
+            ->whereIn('lease_id', $tenantLeaseIds);
 
-        switch ($this->sort) {
-            case 'oldest':
-                $direction = 'asc';
-                break;
-            case 'status':
-                $orderBy = 'status';
-                $direction = 'asc';
-                break;
-            default: // newest
-                $direction = 'desc';
-                break;
-        }
+        $statusCountsRaw = (clone $baseCountQuery)
+            ->select('status', DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
 
-        // Query Tenant's Requests
-        $requests = DB::table('maintenance_requests')
-            ->join('leases', 'maintenance_requests.lease_id', '=', 'leases.lease_id')
-            ->where('leases.tenant_id', Auth::id())
+        $counts = [
+            'all'         => (clone $baseCountQuery)->count(),
+            'pending'     => $statusCountsRaw['Pending'] ?? 0,
+            'ongoing'     => ($statusCountsRaw['In Progress'] ?? 0) + ($statusCountsRaw['Ongoing'] ?? 0),
+            'completed'   => ($statusCountsRaw['Completed'] ?? 0) + ($statusCountsRaw['Resolved'] ?? 0),
+        ];
+
+        $query = DB::table('maintenance_requests')
+            ->whereIn('lease_id', $tenantLeaseIds)
             ->select(
-                'maintenance_requests.request_id',
-                'maintenance_requests.status',
-                'maintenance_requests.urgency',
-                'maintenance_requests.problem',
-                'maintenance_requests.created_at',
-                'maintenance_requests.ticket_number'
-            )
-            ->orderBy($orderBy, $direction)
-            ->get();
+                'request_id',
+                'status',
+                'urgency',
+                'category',      // <--- ADDED THIS LINE
+                'problem',
+                'created_at',
+                'ticket_number'
+            );
+
+        switch ($this->activeTab) {
+            case 'pending':
+                $query->where('status', 'Pending');
+                break;
+            case 'ongoing':
+                $query->whereIn('status', ['In Progress', 'Ongoing']);
+                break;
+            case 'completed':
+                $query->whereIn('status', ['Completed', 'Resolved']);
+                break;
+        }
+
+        $requests = $query->orderBy('created_at', 'desc')->get();
 
         return view('livewire.layouts.maintenance.tenant-maintenance-list', [
-            'requests' => $requests
+            'requests' => $requests,
+            'counts' => $counts,
+            'activeTab' => $this->activeTab,
+            'activeRequestId' => $this->activeRequestId
         ]);
     }
 }

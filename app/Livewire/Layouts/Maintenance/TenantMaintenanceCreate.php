@@ -6,23 +6,26 @@ use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
+use Carbon\Carbon;
 
 class TenantMaintenanceCreate extends Component
 {
-    public $problem = '';
-    public $urgency = 'Normal'; // Default value
+    public $problem   = '';
+    public $urgency   = 'Level 2';
+    public $category  = 'Plumbing';
 
-    // Validation Rules
     protected $rules = [
-        'problem' => 'required|string|min:10|max:1000',
-        'urgency' => 'required|in:Low,Normal,High,Emergency',
+        'problem'  => 'required|string|min:10|max:1000',
+        'urgency'  => 'required|in:Level 1,Level 2,Level 3,Level 4',
+        'category' => 'required|in:Plumbing,Electrical,Structural,Appliance,Pest Control',
     ];
 
-    // Reset form when modal is closed or opened fresh
     #[On('reset-modal')]
     public function resetForm()
     {
-        $this->reset(['problem', 'urgency']);
+        $this->reset(['problem', 'urgency', 'category']);
+        $this->urgency  = 'Level 2';
+        $this->category = 'Plumbing';
         $this->resetValidation();
     }
 
@@ -32,42 +35,35 @@ class TenantMaintenanceCreate extends Component
 
         $user = Auth::user();
 
-        // 1. Find Tenant's Active Lease
         $activeLease = DB::table('leases')
             ->where('tenant_id', $user->user_id)
             ->where('status', 'Active')
             ->first();
 
         if (!$activeLease) {
-            $this->addError('problem', 'You do not have an active lease to submit a request for.');
+            $this->addError('problem', 'You do not have an active lease to submit a request.');
             return;
         }
 
-        // 2. Create Ticket Number (Simple auto-increment style)
-        $latestId = DB::table('maintenance_requests')->max('request_id') ?? 0;
-        $ticketNumber = 'MR-' . str_pad($latestId + 1, 5, '0', STR_PAD_LEFT);
+        $latestId     = DB::table('maintenance_requests')->max('request_id') ?? 0;
+        $ticketNumber = 'MR-' . str_pad($latestId + 1, 4, '0', STR_PAD_LEFT);
 
-        // 3. Insert Record
         DB::table('maintenance_requests')->insert([
-            'lease_id' => $activeLease->lease_id,
-            'problem' => $this->problem,
-            'urgency' => $this->urgency,
-            'status' => 'Pending',
+            'lease_id'      => $activeLease->lease_id,
+            'problem'       => $this->problem,
+            'urgency'       => $this->urgency,
+            'category'      => $this->category,
+            'status'        => 'Pending',
             'ticket_number' => $ticketNumber,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'logged_by'     => $user->first_name . ' ' . $user->last_name,
+            'log_date'      => Carbon::now()->format('Y-m-d'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
         ]);
 
-        // 4. Reset Form
         $this->resetForm();
-
-        // 5. Dispatch Events
-        // Close the modal in the frontend
         $this->dispatch('close-modal');
-        // Tell the list component to refresh so the new item appears
         $this->dispatch('refresh-maintenance-list');
-        // Optional: Show a success notification (if you have a toaster setup)
-        // $this->dispatch('notify', message: 'Request submitted successfully!');
     }
 
     public function render()

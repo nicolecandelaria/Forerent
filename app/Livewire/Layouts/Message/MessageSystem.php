@@ -7,48 +7,60 @@ use Livewire\WithFileUploads;
 use App\Models\User;
 use App\Models\Message;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class MessageSystem extends Component
 {
     use WithFileUploads;
 
-    public $activeTab = ''; // Will be set dynamically
-    public $allowedTabs = []; // To control which tabs are visible
+    public $activeTab = '';
+    public $allowedTabs = [];
+    public $tabLabels = [];
 
     public $search = '';
     public $selectedUserId = null;
     public $messageInput = '';
     public $showProfile = false;
-    public $attachment;
+    public $attachment = null;
+    public $mediaTab = 'images'; // 'images' or 'documents'
 
     public function mount()
     {
         $userRole = Auth::user()->role;
 
-        // 1. Determine which tabs (roles) this user can see
+        // Role-based chat restrictions:
+        // - landlord (owner): can chat with other owners and managers ONLY
+        // - manager: can chat with owners, managers, and tenants
+        // - tenant: can only chat with managers
         match ($userRole) {
-            'landlord' => $this->allowedTabs = ['manager', 'tenant'],
-            'manager'  => $this->allowedTabs = ['landlord', 'tenant'],
-            'tenant'   => $this->allowedTabs = ['landlord', 'manager'],
+            'landlord' => $this->allowedTabs = ['landlord', 'manager'],
+            'manager'  => $this->allowedTabs = ['landlord', 'manager', 'tenant'],
+            'tenant'   => $this->allowedTabs = ['manager'],
             default    => $this->allowedTabs = ['manager'],
         };
 
-        // 2. Set default active tab to the first allowed role
+        $this->tabLabels = [
+            'landlord' => 'Owner',
+            'manager'  => 'Manager',
+            'tenant'   => 'Tenant',
+        ];
+
         $this->activeTab = $this->allowedTabs[0];
 
-        // 3. Select first chat automatically
+        // Auto-select first chat
         $firstChat = $this->getChatsProperty()->first();
         if ($firstChat) {
             $this->selectedUserId = $firstChat->user_id;
         }
     }
 
-    // Function to switch tabs (e.g., from "Managers" to "Tenants")
     public function setTab($tabName)
     {
         if (in_array($tabName, $this->allowedTabs)) {
             $this->activeTab = $tabName;
-            $this->selectedUserId = null; // Reset selection when switching tabs
+            $this->selectedUserId = null;
+            $this->showProfile = false;
         }
     }
 
@@ -56,41 +68,167 @@ class MessageSystem extends Component
     {
         $myId = Auth::id();
 
-        return User::where('user_id', '!=', $myId)
-            // Filter users based on the currently selected tab (Role)
+        $users = User::where('user_id', '!=', $myId)
             ->where('role', $this->activeTab)
-            ->where(function ($q) use ($myId) {
-                // Logic: Users I have chatted with OR users matching the role
-                // You might want to remove the 'whereHas' check if you want to list ALL users of that role
-                // For now, let's list ALL users of that role so you can start new chats
-                $q->where('first_name', 'like', "%$this->search%")
-                    ->orWhere('last_name', 'like', "%$this->search%");
+            ->where(function ($q) {
+                $q->where('first_name', 'like', "%{$this->search}%")
+                    ->orWhere('last_name', 'like', "%{$this->search}%");
             })
             ->get();
+
+        return $users->map(function ($user) use ($myId) {
+            $lastMsg = Message::where(function ($q) use ($myId, $user) {
+                $q->where('sender_id', $myId)->where('receiver_id', $user->user_id);
+            })->orWhere(function ($q) use ($myId, $user) {
+                $q->where('sender_id', $user->user_id)->where('receiver_id', $myId);
+            })->latest()->first();
+
+            $user->last_message = $lastMsg
+                ? ($lastMsg->type === 'file' ? '📎 ' . $lastMsg->message : $lastMsg->message)
+                : 'No messages yet';
+
+            $user->last_time = $lastMsg
+                ? $this->formatChatTime($lastMsg->created_at)
+                : '';
+
+            $user->last_message_at = $lastMsg ? $lastMsg->created_at : null;
+
+            $user->unread_count = Message::where('sender_id', $user->user_id)
+                ->where('receiver_id', $myId)
+                ->where('is_read', false)
+                ->count();
+
+            return $user;
+        })->sortByDesc('last_message_at')->values();
     }
 
-    // ... (Keep selectChat, sendMessage, toggleProfile, render as they were) ...
+    private function formatChatTime(Carbon $time): string
+    {
+        if ($time->isToday()) return $time->format('g:i A');
+        if ($time->isYesterday()) return 'Yesterday';
+        if ($time->greaterThan(now()->subDays(7))) return $time->format('D'); // Mon, Tue...
+        return $time->format('d/m/y');
+    }
+
     public function selectChat($userId)
-    { /* ... */
+    {
+        $this->selectedUserId = $userId;
+        $this->showProfile = false;
+        $this->attachment = null;
+
+        // Mark messages as read
+        Message::where('sender_id', $userId)
+            ->where('receiver_id', Auth::id())
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
     }
+
     public function sendMessage()
-    { /* ... */
+    {
+        if (!$this->selectedUserId) return;
+
+        $myId = Auth::id();
+        $sent = false;
+
+        // Handle file attachment
+        if ($this->attachment) {
+            $this->validate(['attachment' => 'file|max:10240']); // 10MB max
+
+            $path = $this->attachment->store('messages', 'public');
+            $mimeType = $this->attachment->getMimeType();
+            $isImage = str_starts_with($mimeType, 'image/');
+
+            Message::create([
+                'sender_id'  => $myId,
+                'receiver_id' => $this->selectedUserId,
+                'message'    => $this->attachment->getClientOriginalName(),
+                'type'       => 'file',
+                'file_path'  => $path,
+                'file_type'  => $isImage ? 'image' : 'document',
+                'is_read'    => false,
+            ]);
+
+            $this->attachment = null;
+            $sent = true;
+        }
+
+        // Handle text message
+        if (trim($this->messageInput) !== '') {
+            Message::create([
+                'sender_id'  => $myId,
+                'receiver_id' => $this->selectedUserId,
+                'message'    => trim($this->messageInput),
+                'type'       => 'text',
+                'is_read'    => false,
+            ]);
+
+            $this->messageInput = '';
+            $sent = true;
+        }
+
+        if ($sent) {
+            $this->dispatch('scroll-to-bottom');
+        }
     }
+
     public function toggleProfile()
-    { /* ... */
+    {
+        $this->showProfile = !$this->showProfile;
+    }
+
+    public function setMediaTab($tab)
+    {
+        $this->mediaTab = $tab;
     }
 
     public function render()
     {
-        return view('livewire.layouts.message.message-system', [
-            'chats' => $this->getChatsProperty(),
-            'activeMessages' => $this->selectedUserId ? Message::where(function ($q) {
-                $q->where('sender_id', Auth::id())->where('receiver_id', $this->selectedUserId);
-            })->orWhere(function ($q) {
-                $q->where('sender_id', $this->selectedUserId)->where('receiver_id', Auth::id());
-            })->orderBy('created_at', 'asc')->get() : [],
+        $myId = Auth::id();
 
-            'activeChatUser' => $this->selectedUserId ? User::find($this->selectedUserId) : null,
+        // Conversation messages
+        $activeMessages = collect();
+        $groupedMessages = collect();
+        $mediaImages = collect();
+        $mediaDocuments = collect();
+        $activeChatUser = null;
+
+        if ($this->selectedUserId) {
+            $activeChatUser = User::find($this->selectedUserId);
+
+            $activeMessages = Message::where(function ($q) use ($myId) {
+                $q->where('sender_id', $myId)->where('receiver_id', $this->selectedUserId);
+            })->orWhere(function ($q) use ($myId) {
+                $q->where('sender_id', $this->selectedUserId)->where('receiver_id', $myId);
+            })->orderBy('created_at', 'asc')->get();
+
+            // Group by date for date separators
+            $groupedMessages = $activeMessages->groupBy(function ($msg) {
+                return $msg->created_at->format('Y-m-d');
+            });
+
+            // Media files shared in this conversation
+            $allMedia = Message::where('type', 'file')
+                ->where(function ($q) use ($myId) {
+                    $q->where(function ($inner) use ($myId) {
+                        $inner->where('sender_id', $myId)->where('receiver_id', $this->selectedUserId);
+                    })->orWhere(function ($inner) use ($myId) {
+                        $inner->where('sender_id', $this->selectedUserId)->where('receiver_id', $myId);
+                    });
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $mediaImages    = $allMedia->where('file_type', 'image')->values();
+            $mediaDocuments = $allMedia->where('file_type', 'document')->values();
+        }
+
+        return view('livewire.layouts.message.message-system', [
+            'chats'           => $this->getChatsProperty(),
+            'activeMessages'  => $activeMessages,
+            'groupedMessages' => $groupedMessages,
+            'activeChatUser'  => $activeChatUser,
+            'mediaImages'     => $mediaImages,
+            'mediaDocuments'  => $mediaDocuments,
         ]);
     }
 }

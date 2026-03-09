@@ -4,86 +4,94 @@ namespace App\Livewire\Layouts\Maintenance;
 
 use Livewire\Component;
 use Livewire\Attributes\On;
-use App\Models\MaintenanceRequest;
-use App\Models\Unit;
-use App\Models\Bed;
-use App\Models\Lease;
+use Illuminate\Support\Facades\DB;
 
 class ManagerMaintenanceDetail extends Component
 {
-    public $requestId = null;
-    public $unit = null;
-    public $beds = [];
-    public $activeBedNum = 1;
-    public $selectedBedData = []; // Default to empty array
-    public $ticket = null;
+    public $ticket          = null;
+    public $ticketIdDisplay = '';
+    public $successMessage  = '';
+    public $feedback        = null; // tenant's feedback for this ticket
 
     #[On('managerMaintenanceSelected')]
     public function loadRequest($requestId)
     {
-        $this->requestId = $requestId;
-
-        $this->ticket = MaintenanceRequest::with('lease.bed.unit.property')->find($requestId);
-
-        if ($this->ticket && $this->ticket->lease && $this->ticket->lease->bed && $this->ticket->lease->bed->unit) {
-            $unitModel = $this->ticket->lease->bed->unit;
-
-            $this->unit = [
-                'name' => 'Unit ' . $unitModel->unit_number,
-                'building' => $unitModel->property->building_name ?? 'Unknown Building',
-                'address' => $unitModel->property->address ?? 'Taguig, Metro Manila',
-                'floor' => ($unitModel->floor_number ?? 1) . 'th Floor',
-                'status' => 'Occupied',
-                'specs' => [
-                    'Room Capacity' => $unitModel->room_cap ?? 0,
-                    'Unit Capacity' => $unitModel->unit_cap ?? 0,
-                    'Room Type' => $unitModel->room_type ?? 'Standard',
-                    'Bed Type' => $unitModel->bed_type ?? 'Single',
-                    'Utility Subsidy' => 'Yes',
-                    'Occupied Unit' => $unitModel->beds()->where('status', 'Occupied')->count() . ' of ' . ($unitModel->unit_cap ?? 4),
-                    'Base Rate' => '₱ ' . number_format($unitModel->price ?? 0),
-                ],
-            ];
-
-            $this->beds = Bed::where('unit_id', $unitModel->unit_id)->orderBy('bed_number')->get();
-
-            // Try to extract bed number from string "101-B1" -> 1
-            $bedNum = 1;
-            if (preg_match('/B(\d+)$/', $this->ticket->lease->bed->bed_number, $matches)) {
-                $bedNum = (int)$matches[1];
-            }
-            $this->selectBed($bedNum);
+        if ($requestId === null) {
+            $this->ticket   = null;
+            $this->feedback = null;
+            return;
         }
+
+        $this->ticket = DB::table('maintenance_requests')
+            ->where('request_id', $requestId)
+            ->first();
+
+        if ($this->ticket) {
+            $this->ticketIdDisplay = $this->ticket->ticket_number
+                ?? 'TKT-' . str_pad($this->ticket->request_id, 4, '0', STR_PAD_LEFT);
+
+            // Load tenant feedback for this ticket (if submitted)
+            $this->feedback = DB::table('maintenance_feedback')
+                ->where('request_id', $this->ticket->request_id)
+                ->first();
+        }
+
+        $this->successMessage = '';
     }
 
-    public function selectBed($bedNumber)
+    /**
+     * Manager marks the request as Ongoing (In Progress).
+     * This updates the DB status — tenant sees it immediately on their next load.
+     */
+    public function markAsOngoing()
     {
-        $this->activeBedNum = $bedNumber;
-        $bedIndex = $bedNumber - 1;
+        if (!$this->ticket) return;
 
-        if (isset($this->beds[$bedIndex])) {
-            $bed = $this->beds[$bedIndex];
+        DB::table('maintenance_requests')
+            ->where('request_id', $this->ticket->request_id)
+            ->update([
+                'status'     => 'Ongoing',
+                'updated_at' => now(),
+            ]);
 
-            $lease = Lease::where('bed_id', $bed->bed_id)
-                ->where('status', 'Active')
-                ->with('tenant')
-                ->first();
+        // Reload ticket so the view reflects the new status
+        $this->ticket = DB::table('maintenance_requests')
+            ->where('request_id', $this->ticket->request_id)
+            ->first();
 
-            $this->selectedBedData = [
-                'Tenant' => $lease ? ($lease->tenant->first_name . ' ' . $lease->tenant->last_name) : 'Vacant',
-                'Lease Start' => $lease ? $lease->move_in->format('F d, Y') : '-',
-                'Lease End' => $lease ? $lease->end_date->format('F d, Y') : '-',
-                'Status' => $lease ? 'Monthly' : 'Available',
-            ];
-        } else {
-            // Fallback if bed index not found
-            $this->selectedBedData = [
-                'Tenant' => 'N/A',
-                'Lease Start' => '-',
-                'Lease End' => '-',
-                'Status' => '-'
-            ];
-        }
+        $this->successMessage = 'Status updated to Ongoing.';
+
+        // Tell both list components to refresh
+        $this->dispatch('refresh-maintenance-list');
+        $this->dispatch('refreshDashboard');
+    }
+
+    /**
+     * Manager marks the request as Completed.
+     */
+    public function markAsCompleted()
+    {
+        if (!$this->ticket) return;
+
+        DB::table('maintenance_requests')
+            ->where('request_id', $this->ticket->request_id)
+            ->update([
+                'status'     => 'Completed',
+                'updated_at' => now(),
+            ]);
+
+        $this->ticket = DB::table('maintenance_requests')
+            ->where('request_id', $this->ticket->request_id)
+            ->first();
+
+        $this->feedback = DB::table('maintenance_feedback')
+            ->where('request_id', $this->ticket->request_id)
+            ->first();
+
+        $this->successMessage = 'Request marked as Completed.';
+
+        $this->dispatch('refresh-maintenance-list');
+        $this->dispatch('refreshDashboard');
     }
 
     public function render()

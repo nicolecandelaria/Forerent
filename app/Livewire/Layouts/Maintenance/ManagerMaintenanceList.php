@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class ManagerMaintenanceList extends Component
 {
-    public $activeTab = 'all'; // 'all', 'open', 'pending', 'closed'
+    // CHANGED: tabs are now all/pending/ongoing/completed (was all/open/pending/closed)
+    public $activeTab = 'all';
     public $activeRequestId = null;
 
     protected $listeners = ['refreshDashboard' => '$refresh'];
@@ -16,12 +17,12 @@ class ManagerMaintenanceList extends Component
     public function setTab($tab)
     {
         $this->activeTab = $tab;
+        $this->activeRequestId = null;
     }
 
     public function selectRequest($id)
     {
         $this->activeRequestId = $id;
-        // This dispatches the event to the Detail component
         $this->dispatch('managerMaintenanceSelected', requestId: $id);
     }
 
@@ -29,7 +30,7 @@ class ManagerMaintenanceList extends Component
     {
         $managerId = Auth::id();
 
-        // Base Query
+        // Base query — joins through lease → bed → unit to find tickets for this manager's units
         $baseQuery = DB::table('maintenance_requests')
             ->join('leases', 'maintenance_requests.lease_id', '=', 'leases.lease_id')
             ->join('beds', 'leases.bed_id', '=', 'beds.bed_id')
@@ -39,35 +40,42 @@ class ManagerMaintenanceList extends Component
             ->select(
                 'maintenance_requests.request_id',
                 'maintenance_requests.status',
+                'maintenance_requests.category',
+                'maintenance_requests.ticket_number',
+                'maintenance_requests.created_at',
                 'units.unit_number',
                 DB::raw("CONCAT(users.first_name, ' ', users.last_name) as tenant_name")
             );
 
-        // 1. Calculate Counts
-        $allCount = (clone $baseQuery)->count();
-        $openCount = (clone $baseQuery)->where('maintenance_requests.status', 'Ongoing')->count();
-        $pendingCount = (clone $baseQuery)->where('maintenance_requests.status', 'Pending')->count();
-        $closedCount = (clone $baseQuery)->where('maintenance_requests.status', 'Completed')->count();
+        // Tab counts
+        $allCount       = (clone $baseQuery)->count();
+        $pendingCount   = (clone $baseQuery)->where('maintenance_requests.status', 'Pending')->count();
+        $ongoingCount   = (clone $baseQuery)->where('maintenance_requests.status', 'Ongoing')->count();
+        $completedCount = (clone $baseQuery)->where('maintenance_requests.status', 'Completed')->count();
 
-        // 2. Filter List
-        $listQuery = $baseQuery;
-
-        if ($this->activeTab === 'open') {
-            $listQuery->where('maintenance_requests.status', 'Ongoing');
-        } elseif ($this->activeTab === 'pending') {
-            $listQuery->where('maintenance_requests.status', 'Pending');
-        } elseif ($this->activeTab === 'closed') {
-            $listQuery->where('maintenance_requests.status', 'Completed');
+        // Apply tab filter
+        $listQuery = clone $baseQuery;
+        switch ($this->activeTab) {
+            case 'pending':
+                $listQuery->where('maintenance_requests.status', 'Pending');
+                break;
+            case 'ongoing':
+                $listQuery->where('maintenance_requests.status', 'Ongoing');
+                break;
+            case 'completed':
+                $listQuery->where('maintenance_requests.status', 'Completed');
+                break;
+                // 'all' — no extra filter
         }
 
         return view('livewire.layouts.maintenance.manager-maintenance-list', [
             'requests' => $listQuery->orderBy('maintenance_requests.created_at', 'desc')->get(),
             'counts' => [
-                'all' => $allCount,
-                'open' => $openCount,
-                'pending' => $pendingCount,
-                'closed' => $closedCount,
-            ]
+                'all'       => $allCount,
+                'pending'   => $pendingCount,
+                'ongoing'   => $ongoingCount,
+                'completed' => $completedCount,
+            ],
         ]);
     }
 }

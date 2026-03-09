@@ -7,7 +7,6 @@
     >
         {{-- FILTERS SLOT --}}
         <x-slot:filters>
-            {{-- Keep your existing filter dropdowns here --}}
         </x-slot:filters>
 
         {{-- TABLE SLOT --}}
@@ -22,10 +21,6 @@
 
             <x-slot:body>
                 @forelse ($payments as $payment)
-                    {{--
-                        This is the "onclick" and "ID value" logic:
-                        We pass $payment->billing_id to the viewReceipt function
-                    --}}
                     <x-ui.tr wire:key="payment-{{ $payment->billing_id }}"
                             wire:click="viewReceipt({{ $payment->billing_id }})"
                             class="cursor-pointer hover:bg-gray-50 transition-colors group">
@@ -48,26 +43,15 @@
                             </span>
                         </x-ui.td>
 
-                        <x-ui.td class="text-center space-x-2" @click.stop>
-                            {{--
-                                @click.stop prevents the row-click from firing
-                                when clicking these specific buttons
-                            --}}
-                            <button
-                                wire:click="viewReceipt({{ $payment->billing_id }})"
-                                class="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-bold hover:bg-blue-100 transition-colors"
-                            >
-                                View Receipt
-                            </button>
-
+                        <x-ui.td class="text-center" @click.stop>
                             @if($payment->status !== 'Paid')
-                                <button
-                                    wire:click="confirmPayment({{ $payment->billing_id }})"
-                                    class="inline-flex items-center px-3 py-1 bg-[#070589] text-white rounded-md text-xs font-bold hover:bg-[#000060] transition-colors"
-                                >
-                                    Mark As Paid
-                                </button>
-                            @endif
+                            <button
+                                wire:click="confirmPayment({{ $payment->billing_id }})"
+                                class="inline-flex items-center px-3 py-1 bg-[#070589] text-white rounded-md text-xs font-bold hover:bg-[#000060] transition-colors"
+                            >
+                                Mark As Paid
+                            </button>
+                        @endif
                         </x-ui.td>
                     </x-ui.tr>
                 @empty
@@ -85,7 +69,6 @@
         </x-slot:footer>
     </x-ui.card-with-tabs>
 
-    {{-- The Modal Component must be present to listen for the event --}}
    <livewire:layouts.financials.payment-receipt-modal />
 
     <x-ui.modal-confirm

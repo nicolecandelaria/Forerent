@@ -14,7 +14,7 @@ class PaymentReceipts extends Component
     public $activeTab = 'all';
     public $filterPeriod = '';
     public $filterBuilding = '';
-    public $billingIdToMarkPaid = null; // State to hold the ID
+    public $billingIdToMarkPaid = null;  
 
     public function updatedActiveTab()
     {
@@ -53,7 +53,6 @@ class PaymentReceipts extends Component
 
             $this->dispatch('show-toast', ['message' => 'Payment marked as Paid!']);
 
-            // FIX: Explicitly close the modal after success
             $this->dispatch('close-modal', 'mark-as-paid-confirmation');
 
             $this->billingIdToMarkPaid = null;
@@ -62,7 +61,6 @@ class PaymentReceipts extends Component
 
     public function render()
     {
-        // ... (Keep your existing render logic exactly the same) ...
         $baseQuery = DB::table('billings')
             ->join('leases', 'billings.lease_id', '=', 'leases.lease_id')
             ->join('users', 'leases.tenant_id', '=', 'users.user_id')

@@ -1,59 +1,109 @@
-<div class="h-full flex flex-col">
-    {{-- Scrollable Area --}}
-    <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-        @forelse($requests as $req)
+{{--
+    LAYOUT FIXES:
+    - Added pb-6 to outer wrapper so panels don't clip at the bottom when scrolling
+    - Removed p-2 from right panel — detail component fills edge-to-edge (no inner gap)
+    - Left panel keeps its p-2 (internal padding for list scroll area looks better)
+--}}
+<div class="flex flex-col w-full pb-6">
+
+    {{-- TABS & ACTIONS ROW --}}
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 flex-shrink-0 gap-4">
+
+        {{-- Tabs --}}
+        <div class="flex items-center gap-8 border-b-2 border-gray-100 w-full md:w-auto overflow-x-auto px-2">
             @php
-                $isActive = $activeRequestId === $req->request_id;
-
-                $statusStyles = match($req->status) {
-                    'Completed', 'Resolved' => 'bg-green-100 text-green-700',
-                    'Pending' => 'bg-orange-100 text-orange-700',
-                    'In Progress', 'Ongoing' => 'bg-yellow-100 text-yellow-800',
-                    default => 'bg-gray-100 text-gray-700'
-                };
-
-                $ticketId = $req->ticket_number ?? 'TKT-'.str_pad($req->request_id, 4, '0', STR_PAD_LEFT);
+                $tabs = [
+                    'all'       => 'All',
+                    'pending'   => 'Pending',
+                    'ongoing'   => 'Ongoing',
+                    'completed' => 'Completed',
+                ];
             @endphp
 
-            <div
-                wire:click="selectRequest({{ $req->request_id }})"
-                class="cursor-pointer p-4 rounded-xl border transition-all duration-200 group bg-white
-                {{ $isActive
-                    ? 'border-[#2B66F5] shadow-sm'
-                    : 'border-gray-100 hover:border-blue-200 hover:shadow-sm'
-                }}"
-            >
-                {{-- Top Row: ID, Date, Status --}}
-                <div class="flex justify-between items-start mb-3">
-                    <div>
-                        <h3 class="font-bold text-[#2B66F5]">{{ $ticketId }}</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">
-                            {{ \Carbon\Carbon::parse($req->created_at)->format('M d, Y') }}
-                        </p>
+            @foreach($tabs as $key => $label)
+                @php
+                    $isActive = $activeTab === $key;
+                    $count = $counts[$key] ?? 0;
+                    $stateClasses = $isActive
+                        ? "border-[#063D84] text-[#063D84]"
+                        : "border-transparent text-[#A5A7A9] hover:text-gray-600";
+                @endphp
+                <button
+                    wire:click="setTab('{{ $key }}')"
+                    class="group flex items-baseline gap-2 pb-3 border-b-4 transition-all {{ $stateClasses }}"
+                    style="font-family: 'Open Sans', sans-serif;"
+                >
+                    <span class="font-bold text-[24px]">{{ $label }}</span>
+                    <span class="font-bold text-lg opacity-60">{{ $count }}</span>
+                </button>
+            @endforeach
+        </div>
+
+        {{-- Add Request Button --}}
+        <x-ui.button-add
+            href="#"
+            text="Add Maintenance Request"
+            @click="$dispatch('open-maintenance-modal')"
+            class="bg-[#070642] hover:bg-[#1a1955]"
+        />
+    </div>
+
+    {{-- MAIN CONTENT GRID --}}
+    <div class="flex flex-col lg:flex-row gap-6 w-full">
+
+        {{-- LEFT PANEL: LIST --}}
+        <div class="w-full lg:w-[30%] flex-shrink-0 h-[750px] bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden p-2">
+            <div class="p-4 pb-2 border-b border-gray-50 flex-shrink-0">
+                <h3 class="text-xl font-bold text-[#070642]">Maintenance Requests</h3>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-2.5" style="scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent;">
+                @forelse($requests as $req)
+                    @php
+                        $isActive = $activeRequestId === $req->request_id;
+                        $statusStyles = match($req->status) {
+                            'Completed', 'Resolved'  => 'bg-green-100 text-green-700',
+                            'Pending'                => 'bg-orange-100 text-orange-700',
+                            'In Progress', 'Ongoing' => 'bg-yellow-100 text-yellow-800',
+                            default                  => 'bg-gray-100 text-gray-700'
+                        };
+                        $ticketId = $req->ticket_number ?? 'TKT-' . str_pad($req->request_id, 4, '0', STR_PAD_LEFT);
+                    @endphp
+
+                    <div wire:click="selectRequest({{ $req->request_id }})"
+                         class="cursor-pointer p-4 rounded-2xl border-2 transition-all duration-200
+                            {{ $isActive ? 'border-[#2B66F5] bg-[#EEF3FF] shadow-md' : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm' }}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-bold text-[#2B66F5] text-sm">{{ $ticketId }}</h3>
+                                <p class="text-[10px] text-gray-400 mt-0.5">{{ \Carbon\Carbon::parse($req->created_at)->format('M d, Y') }}</p>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold {{ $statusStyles }}">{{ $req->status }}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2 font-medium">{{ $req->category ?? 'General Maintenance' }}</p>
                     </div>
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $statusStyles }}">
-                        {{ $req->status }}
-                    </span>
-                </div>
-
-                {{-- Category/Priority --}}
-                <h4 class="font-semibold text-[#070642] mb-1">
-                    {{ ucfirst($req->urgency) }} Priority Issue
-                </h4>
-
-                {{-- Description Preview --}}
-                <p class="text-sm text-gray-500 line-clamp-2">
-                    {{ $req->problem }}
-                </p>
+                @empty
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                        <div class="bg-[#F4F7FF] p-6 rounded-full mb-4">
+                            <svg class="h-10 w-10 text-[#2B66F5] opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                        </div>
+                        <p class="font-semibold text-gray-500 text-sm">No requests found</p>
+                        <p class="text-xs text-gray-400 mt-1">Submit a new request to get started.</p>
+                    </div>
+                @endforelse
             </div>
-        @empty
-            {{-- Empty State --}}
-             <div class="flex flex-col items-center justify-center h-full text-gray-400 py-10">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <p>No requests found.</p>
-            </div>
-        @endforelse
+        </div>
+
+        {{--
+            RIGHT PANEL: DETAIL
+            Removed p-2 so the detail component (blue header especially) fills edge-to-edge.
+            overflow-hidden clips the detail's content to the rounded-3xl corners.
+        --}}
+        <div class="w-full lg:w-[70%] h-[750px] bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            <livewire:layouts.maintenance.tenant-maintenance-detail />
+        </div>
+
     </div>
 </div>

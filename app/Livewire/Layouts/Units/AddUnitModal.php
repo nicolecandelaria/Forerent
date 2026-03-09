@@ -37,6 +37,7 @@ class AddUnitModal extends Component
     public $actual_price;
     public $is_predicting = false;
 
+    // Fixed the missing comma here
     protected $rules = [
         'property_id' => 'required|integer|exists:properties,property_id',
         'floor_number' => 'required|integer|min:0',
@@ -45,7 +46,7 @@ class AddUnitModal extends Component
         'room_type' => 'required|in:Standard,Deluxe,Suite',
         'room_cap' => 'required|integer|min:1',
         'unit_cap' => 'required|integer|min:1',
-        'actual_price' => 'required|numeric|min:0|max:999999.99'
+        'actual_price' => 'required|numeric|min:0|max:999999.99',
     ];
 
     public function mount($modalId = null)
@@ -57,6 +58,14 @@ class AddUnitModal extends Component
             $this->properties = collect([]);
         }
         $this->initializeAmenities();
+    }
+
+    protected function getListeners(): array
+    {
+        return [
+            "openAddUnitModal_{$this->modalId}" => 'open',
+            'open-unit-modal' => 'loadUnitForEditing',
+        ];
     }
 
     #[On('open-add-unit-modal')]
@@ -95,18 +104,6 @@ class AddUnitModal extends Component
             $this->isOpen = true;
             $this->currentStep = 1;
         }
-    }
-
-    // app/Livewire/Layouts/Units/AddUnitModal.php
-
-    protected function getListeners(): array
-    {
-        return [
-            // This allows the specific dashboard instance to trigger it
-            "openAddUnitModal_{$this->modalId}" => 'open',
-            // This allows the Edit button in the accordion to trigger it
-            'open-unit-modal' => 'loadUnitForEditing',
-        ];
     }
 
     public function close(): void
@@ -232,24 +229,12 @@ class AddUnitModal extends Component
             if ($unit) {
                 $unit->update($data);
                 session()->flash('message', 'Unit updated successfully!');
-            } else {
-                session()->flash('error', 'Unit not found for updating.');
             }
         } else {
             try {
-                Unit::create([
-                    'property_id' => $this->property_id,
-                    'unit_number' => $this->generateUniqueUnitNumber($this->property_id, $this->floor_number), // ← Auto-generate
-                    'floor_number' => $this->floor_number,
-                    'm/f' => $this->m_f,
-                    'bed_type' => $this->bed_type,
-                    'room_type' => $this->room_type,
-                    'room_cap' => $this->room_cap,
-                    'unit_cap' => $this->unit_cap,
-                    'price' => $this->actual_price,
-                    'amenities' => json_encode($checkedAmenities),
-                ]);
-
+                Unit::create(array_merge($data, [
+                    'unit_number' => $this->generateUniqueUnitNumber($this->property_id, $this->floor_number)
+                ]));
                 session()->flash('message', 'New unit created successfully!');
             } catch (\Exception $e) {
                 session()->flash('error', 'Error creating unit: ' . $e->getMessage());
@@ -258,23 +243,17 @@ class AddUnitModal extends Component
 
         $this->close();
         $this->dispatch('refresh-unit-list');
-        $this->dispatch('unitUpdated');
     }
 
     private function generateUniqueUnitNumber($propertyId, $floorNumber): string
     {
-        $baseNumber = sprintf("F%dU%d", $floorNumber, rand(100, 999)); // e.g., F2U456
-
+        $baseNumber = sprintf("F%dU%d", $floorNumber, rand(100, 999));
         while (Unit::where('property_id', $propertyId)->where('unit_number', $baseNumber)->exists()) {
             $baseNumber = sprintf("F%dU%d", $floorNumber, rand(1000, 9999));
         }
-
         return $baseNumber;
     }
 
-    /*----------------------------------
-    | HELPER METHODS
-    ----------------------------------*/
     private function resetForm(): void
     {
         $this->reset([
@@ -297,8 +276,6 @@ class AddUnitModal extends Component
 
     public function render()
     {
-        return view('livewire.layouts.units.add-unit-modal', [
-            'editingUnitId' => $this->editingUnitId,
-        ]);
+        return view('livewire.layouts.units.add-unit-modal');
     }
 }
