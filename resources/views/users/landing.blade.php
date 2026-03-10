@@ -5,594 +5,256 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ForeRent – Predict Your Property Success</title>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    opacity: { '85': '0.85' }
+                }
+            }
+        }
+    </script>
     <style>
-        *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* Base resets — cannot be done in Tailwind CDN */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; font-family: 'Open Sans', sans-serif; overflow-x: hidden; }
+
+        /* Navbar — FIXED so it stays on all scroll */
+        .navbar-glass {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 999;
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            transition: box-shadow 0.35s ease, background 0.35s ease;
+        }
+        .navbar-glass.scrolled {
+            background: rgba(255,255,255,0.38) !important;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.14);
         }
 
-        html, body {
-            height: 100%;
-            font-family: 'Open Sans', sans-serif;
-            overflow-x: hidden;
-        }
+        /* Push page content below fixed nav */
+        body > section:first-of-type { padding-top: 0; }
+        #hero-section { margin-top: 0; }
 
-        /* ─── HERO SECTION ─────────────────────────────────────────────── */
-        .hero {
+        /* Nav link — clean underline slide animation, no rounded corners */
+        .nav-link {
             position: relative;
-            width: 100%;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* SVG background */
-        .hero-bg {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            z-index: 0;
-        }
-
-        /* Dark overlay for readability */
-        .hero-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                135deg,
-                rgba(3, 18, 72, 0.55) 0%,
-                rgba(11, 31, 107, 0.40) 50%,
-                rgba(3, 18, 72, 0.60) 100%
-            );
-            z-index: 1;
-        }
-
-        /* ─── NAVBAR ────────────────────────────────────────────────────── */
-        .navbar {
-            position: relative;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 18px 60px;
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(22px) saturate(180%);
-            -webkit-backdrop-filter: blur(22px) saturate(180%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-        }
-
-        .navbar-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-
-        .navbar-logo svg {
-            width: 36px;
-            height: 36px;
-            flex-shrink: 0;
-        }
-
-        .navbar-logo-text {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: #ffffff;
-            letter-spacing: 0.5px;
-        }
-
-        .navbar-logo-text span {
-            color: #60a5fa;
-        }
-
-        .navbar-links {
-            display: flex;
-            align-items: center;
-            gap: 36px;
-            list-style: none;
-        }
-
-        .navbar-links a {
-            color: rgba(255, 255, 255, 0.90);
-            text-decoration: none;
+            padding: 8px 4px;
+            font-weight: 600;
             font-size: 0.92rem;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-            transition: color 0.2s;
+            letter-spacing: 0.4px;
+            text-decoration: none;
+            color: rgba(255,255,255,0.82);
+            transition: color 0.22s ease;
+            display: inline-block;
         }
-
-        .navbar-links a:hover {
-            color: #ffffff;
+        /* Bottom underline that slides in from left */
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 2px;
+            background: #fff;
+            transform: scaleX(0);
+            transform-origin: left center;
+            transition: transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
+        .nav-link:hover { color: #fff; }
+        .nav-link:hover::after { transform: scaleX(1); }
 
-        .navbar-links a.active {
-            color: #ffffff;
+        /* Active — always show underline + bright white */
+        .nav-link.active {
+            color: #fff;
             font-weight: 700;
-            border-bottom: 2px solid #60a5fa;
-            padding-bottom: 2px;
+        }
+        .nav-link.active::after {
+            transform: scaleX(1);
+            background: #fff;
+            height: 2.5px;
         }
 
-        .navbar-cta {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        /* Log In shimmer */
+        .login-btn { position: relative; overflow: hidden; transition: all 0.25s ease; }
+        .login-btn::after {
+            content: '';
+            position: absolute; top: -50%; left: -75%;
+            width: 50%; height: 200%;
+            background: linear-gradient(120deg, transparent, rgba(255,255,255,0.30), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.5s ease;
         }
+        .login-btn:hover::after { left: 130%; }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,63,191,0.52); }
 
-        .btn-login {
-            padding: 9px 26px;
-            border-radius: 8px;
-            border: 1.5px solid rgba(255, 255, 255, 0.70);
-            background: transparent;
-            color: #ffffff;
-            font-family: 'Open Sans', sans-serif;
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s;
-            text-decoration: none;
+        /* Navbar theme transitions */
+        #mainNav { transition: background 0.35s ease, box-shadow 0.35s ease; }
+        #mainNav .nav-link,
+        #mainNav .nav-logo-text { transition: color 0.3s ease; }
+        #mainNav .nav-link::after { transition: transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.3s ease; }
+
+        /* DARK theme — white text (over dark/hero backgrounds) */
+        #mainNav.nav-dark .nav-link { color: rgba(255,255,255,0.85); }
+        #mainNav.nav-dark .nav-link:hover { color: #fff; }
+        #mainNav.nav-dark .nav-link.active { color: #fff; }
+        #mainNav.nav-dark .nav-link::after { background: #fff; }
+        #mainNav.nav-dark { border-bottom-color: rgba(255,255,255,0.28); }
+
+        /* LIGHT theme — dark navy text (over white/light backgrounds) */
+        #mainNav.nav-light { background: rgba(255,255,255,0.92) !important; box-shadow: 0 2px 24px rgba(0,0,0,0.12); border-bottom-color: rgba(0,0,0,0.08); }
+        #mainNav.nav-light .nav-link { color: #1a3fbf !important; }
+        #mainNav.nav-light .nav-link:hover { color: #0b1f6b !important; }
+        #mainNav.nav-light .nav-link.active { color: #0b1f6b !important; font-weight: 700; }
+        #mainNav.nav-light .nav-link::after { background: #1a3fbf !important; }
+        #mainNav.nav-light .nav-logo-text { color: #0b1f6b; }
+
+        /* Page transition overlay */
+        #page-transition {
+            position: fixed; inset: 0; z-index: 9999;
+            background: linear-gradient(135deg, #0b1f6b 0%, #1a3fbf 100%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.35s ease;
         }
+        #page-transition.active { opacity: 1; pointer-events: all; }
 
-        .btn-login:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #ffffff;
-        }
-
-        .btn-register {
-            padding: 9px 26px;
-            border-radius: 8px;
-            border: none;
-            background: linear-gradient(135deg, #1a3fbf, #0b1f6b);
-            color: #ffffff;
-            font-family: 'Open Sans', sans-serif;
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s, transform 0.15s;
-            text-decoration: none;
-        }
-
-        .btn-register:hover {
-            opacity: 0.88;
-            transform: translateY(-1px);
-        }
-
-        /* ─── HERO BODY ─────────────────────────────────────────────────── */
-        .hero-body {
-            position: relative;
-            z-index: 2;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 60px 60px 120px;
-        }
-
-        /* Glassmorphism hero card */
-        .hero-card {
-            width: 100%;
-            max-width: 490px;
-            background: rgba(255, 255, 255, 0.13);
+        /* Hero card glassmorphism backdrop */
+        .hero-card-glass {
             backdrop-filter: blur(28px) saturate(160%);
             -webkit-backdrop-filter: blur(28px) saturate(160%);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            border-radius: 20px;
-            padding: 48px 44px 44px;
-            box-shadow:
-                0 8px 32px rgba(0, 0, 0, 0.28),
-                inset 0 1px 0 rgba(255, 255, 255, 0.25);
         }
 
-        .hero-eyebrow {
-            display: inline-block;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #93c5fd;
-            margin-bottom: 14px;
-        }
-
-        .hero-title {
-            font-size: 2.25rem;
-            font-weight: 800;
-            color: #ffffff;
-            line-height: 1.25;
-            margin-bottom: 16px;
-        }
-
-        .hero-title span {
-            color: #60a5fa;
-        }
-
-        .hero-subtitle {
-            font-size: 0.97rem;
-            color: rgba(255, 255, 255, 0.80);
-            line-height: 1.65;
-            margin-bottom: 36px;
-        }
-
-        .hero-actions {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            padding: 13px 32px;
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(135deg, #1a3fbf 0%, #0b1f6b 100%);
-            color: #ffffff;
-            font-family: 'Open Sans', sans-serif;
-            font-size: 0.92rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.18s, box-shadow 0.18s;
-            text-decoration: none;
-            display: inline-block;
-            box-shadow: 0 4px 18px rgba(26, 63, 191, 0.45);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(26, 63, 191, 0.55);
-        }
-
-        .btn-secondary {
-            padding: 13px 32px;
-            border-radius: 10px;
-            border: 1.5px solid rgba(255, 255, 255, 0.60);
-            background: transparent;
-            color: #ffffff;
-            font-family: 'Open Sans', sans-serif;
-            font-size: 0.92rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.18s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        /* ─── SEARCH BAR ────────────────────────────────────────────────── */
-        .search-wrapper {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translate(-50%, 50%);
-            z-index: 20;
-            width: calc(100% - 120px);
-            max-width: 1100px;
-        }
-
-        .search-bar {
-            display: flex;
-            align-items: center;
-            background: #ffffff;
-            border-radius: 14px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
-            padding: 10px 10px 10px 20px;
-            gap: 0;
-        }
-
-        .search-field {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 8px 20px;
-            border-right: 1px solid #e5e7eb;
-            min-width: 0;
-        }
-
-        .search-field:last-of-type {
-            border-right: none;
-        }
-
-        .search-label {
-            font-size: 0.70rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: #0b1f6b;
-            margin-bottom: 4px;
-        }
-
+        /* Search bar select — remove native appearance */
         .search-field select,
         .search-field input {
-            border: none;
-            outline: none;
+            border: none; outline: none;
             font-family: 'Open Sans', sans-serif;
-            font-size: 0.88rem;
-            color: #374151;
-            background: transparent;
-            width: 100%;
-            cursor: pointer;
-            appearance: none;
-            -webkit-appearance: none;
+            font-size: 0.88rem; color: #374151;
+            background: transparent; width: 100%;
+            cursor: pointer; appearance: none; -webkit-appearance: none;
+        }
+        .search-field select option { color: #374151; }
+
+        /* Neural section radial glow pseudo-element */
+        .neural-section::before {
+            content: '';
+            position: absolute; top: -40%; right: -10%;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(96,165,250,0.08) 0%, transparent 70%);
+            border-radius: 50%; pointer-events: none;
         }
 
-        .search-field select option {
-            color: #374151;
+        /* Module card hover shimmer */
+        .module-card::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(96,165,250,0.15), rgba(139,92,246,0.15));
+            opacity: 0; transition: opacity 0.35s ease;
+            pointer-events: none; border-radius: 16px;
+        }
+        .module-card:hover::before { opacity: 1; }
+        .module-card:hover .module-dot-first { background: #60a5fa; }
+        .module-card:hover .module-arrow-btn {
+            background: #60a5fa; color: #0f172a; transform: translateX(4px);
         }
 
-        .search-btn {
-            flex-shrink: 0;
-            padding: 14px 30px;
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(135deg, #1a3fbf 0%, #0b1f6b 100%);
-            color: #ffffff;
-            font-family: 'Open Sans', sans-serif;
-            font-size: 0.92rem;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: opacity 0.2s, transform 0.15s;
-            white-space: nowrap;
+        /* Eco-card pseudo-elements (CSS vars & ::before/::after) */
+        .eco-card::before {
+            content: ''; position: absolute; inset: 0;
+            background-image: var(--card-bg-image);
+            background-size: cover; background-position: center;
+            opacity: 0.35; filter: blur(0px);
+            transition: opacity 0.5s ease, filter 0.5s ease; z-index: 1;
         }
-
-        .search-btn:hover {
-            opacity: 0.90;
-            transform: translateY(-1px);
+        .eco-card.active::before { opacity: 0.7; filter: blur(5px) brightness(1.05); }
+        .eco-card::after {
+            content: ''; position: absolute; inset: 0;
+            background: rgba(255,255,255,0.55);
+            backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+            opacity: 1; transition: opacity 0.5s ease, backdrop-filter 0.5s ease;
+            z-index: 2; pointer-events: none;
         }
-
-        .search-btn svg {
-            width: 16px;
-            height: 16px;
+        .eco-card.active::after {
+            background: linear-gradient(160deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
+            opacity: 0.8; backdrop-filter: none; -webkit-backdrop-filter: none;
         }
-
-        /* ─── SECTION BELOW HERO ────────────────────────────────────────── */
-        .below-hero {
-            padding-top: 90px;
-            background: #f8faff;
+        .eco-card-features li::before {
+            content: '✓'; display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px; min-width: 18px;
+            background: rgba(255,255,255,0.25); border-radius: 50%;
+            color: #fff; font-size: 0.72rem; font-weight: 700;
         }
-
-        /* ─── STATS STRIP ───────────────────────────────────────────────── */
-        .stats-strip {
-            display: flex;
-            justify-content: center;
-            gap: 0;
-            padding: 56px 60px 48px;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .stat-item {
-            flex: 1;
-            text-align: center;
-            padding: 0 32px;
-            border-right: 1px solid #dde3f0;
-        }
-
-        .stat-item:last-child {
-            border-right: none;
-        }
-
-        .stat-number {
-            font-size: 2.4rem;
-            font-weight: 800;
-            color: #0b1f6b;
-            line-height: 1;
-            margin-bottom: 6px;
-        }
-
-        .stat-number span {
-            color: #1a3fbf;
-        }
-
-        .stat-label {
-            font-size: 0.84rem;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        /* ─── FEATURES ──────────────────────────────────────────────────── */
-        .features-section {
-            padding: 60px 60px 80px;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 52px;
-        }
-
-        .section-eyebrow {
-            display: inline-block;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 2.5px;
-            text-transform: uppercase;
-            color: #1a3fbf;
-            margin-bottom: 12px;
-        }
-
-        .section-title {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #0b1f6b;
-            line-height: 1.2;
-        }
-
-        .section-title span {
-            color: #1a3fbf;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 28px;
-        }
-
-        .feature-card {
-            background: #ffffff;
-            border: 1px solid #e8edf7;
-            border-radius: 16px;
-            padding: 36px 30px;
-            transition: transform 0.22s, box-shadow 0.22s;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 36px rgba(11, 31, 107, 0.10);
-        }
-
-        .feature-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #dbeafe, #eff6ff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .feature-icon svg {
-            width: 26px;
-            height: 26px;
-            color: #1a3fbf;
-        }
-
-        .feature-title {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: #0b1f6b;
-            margin-bottom: 10px;
-        }
-
-        .feature-desc {
-            font-size: 0.88rem;
-            color: #6b7280;
-            line-height: 1.65;
-        }
-
-        /* ─── FOOTER ────────────────────────────────────────────────────── */
-        .footer {
-            background: #0b1f6b;
-            color: rgba(255,255,255,0.65);
-            text-align: center;
-            padding: 28px 60px;
-            font-size: 0.82rem;
-        }
-
-        .footer a {
-            color: #93c5fd;
-            text-decoration: none;
-        }
-
-        /* ─── RESPONSIVE ────────────────────────────────────────────────── */
-        @media (max-width: 1024px) {
-            .navbar { padding: 16px 32px; }
-            .hero-body { padding: 40px 32px 120px; }
-            .search-wrapper { width: calc(100% - 64px); }
-            .features-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 768px) {
-            .navbar-links { display: none; }
-            .hero-body { justify-content: center; padding: 40px 20px 130px; }
-            .hero-card { max-width: 100%; }
-            .hero-title { font-size: 1.75rem; }
-            .search-bar { flex-wrap: wrap; gap: 8px; padding: 16px; }
-            .search-field { border-right: none; border-bottom: 1px solid #e5e7eb; padding: 8px 0; }
-            .search-field:last-of-type { border-bottom: none; }
-            .search-btn { width: 100%; justify-content: center; }
-            .stats-strip { flex-direction: column; gap: 28px; padding: 40px 20px; }
-            .stat-item { border-right: none; border-bottom: 1px solid #dde3f0; padding-bottom: 24px; }
-            .stat-item:last-child { border-bottom: none; }
-            .features-section { padding: 40px 20px 60px; }
-            .features-grid { grid-template-columns: 1fr; }
-        }
+        .eco-card.owner   { --card-bg-image: url('/images/Owner.svg');   --card-gradient-start: #1a2847; --card-gradient-end: #0f1a2e; }
+        .eco-card.manager { --card-bg-image: url('/images/Manager.svg'); --card-gradient-start: #1a3fbf; --card-gradient-end: #0a2878; }
+        .eco-card.tenant  { --card-bg-image: url('/images/Tenant.svg');  --card-gradient-start: #0a1c4d; --card-gradient-end: #051028; }
     </style>
 </head>
 <body>
 
+<!-- Page transition overlay -->
+<div id="page-transition"></div>
+
 <!-- ═══════════════════════════════════════════════════════════════
      HERO
 ═══════════════════════════════════════════════════════════════ -->
-<section class="hero">
+<section id="hero-section" class="relative w-full min-h-screen flex flex-col" style="padding-top: 80px;">
 
     <!-- Background: your uploaded SVG -->
-    <img
-        class="hero-bg"
-        src="{{ asset('images/Group_5999.svg') }}"
-        alt="City skyline background"
-    >
-
-    <!-- Overlay -->
-    <div class="hero-overlay"></div>
+    <img src="/images/Landing_Page_Bg.svg" alt="Landing Page Background" class="absolute inset-0 w-full h-full object-cover object-center z-0">
 
     <!-- Navbar -->
-    <nav class="navbar">
-        <a href="#" class="navbar-logo">
-            <!-- Building icon -->
-            <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="36" height="36" rx="8" fill="rgba(255,255,255,0.15)"/>
-                <path d="M8 28V12l8-4v20H8z" fill="#60a5fa"/>
-                <path d="M16 28V8l12 3v17H16z" fill="white"/>
-                <rect x="18" y="12" width="3" height="3" rx="0.5" fill="#1a3fbf"/>
-                <rect x="23" y="12" width="3" height="3" rx="0.5" fill="#1a3fbf"/>
-                <rect x="18" y="18" width="3" height="3" rx="0.5" fill="#1a3fbf"/>
-                <rect x="23" y="18" width="3" height="3" rx="0.5" fill="#1a3fbf"/>
-                <rect x="10" y="16" width="2.5" height="2.5" rx="0.5" fill="white" fill-opacity="0.8"/>
-                <rect x="10" y="21" width="2.5" height="2.5" rx="0.5" fill="white" fill-opacity="0.8"/>
-                <rect x="20" y="23" width="4" height="5" rx="0.5" fill="#1a3fbf"/>
-            </svg>
-            <span class="navbar-logo-text">Fore<span>Rent</span></span>
+    <nav id="mainNav" class="navbar-glass flex items-center justify-between px-16 py-4 border-b border-white/[0.28]" style="background: rgba(255,255,255,0.22);">
+
+        <!-- Logo -->
+        <a href="#" class="flex items-center gap-3 no-underline group" style="flex-shrink:0;">
+            <img src="/images/ForeRent_Logo.svg" alt="ForeRent Logo"
+                 style="height: 56px; width: auto; transition: transform 0.3s ease; filter: drop-shadow(0 2px 8px rgba(26,63,191,0.18));"
+                 onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
         </a>
 
-        <ul class="navbar-links">
-            <li><a href="#" class="active">Home</a></li>
-            <li><a href="#">Listings</a></li>
-            <li><a href="#">Predictions</a></li>
-            <li><a href="#">About</a></li>
-            <li><a href="#">Contact</a></li>
+        <!-- Nav Links -->
+        <ul class="flex items-center gap-10 list-none">
+            <li><a href="#" class="nav-link active">Home</a></li>
+            <li><a href="#features" class="nav-link">Features</a></li>
+            <li><a href="#about" class="nav-link">About</a></li>
+            <li><a href="#contact" class="nav-link">Contacts</a></li>
         </ul>
 
-        <div class="navbar-cta">
-            <a href="/login" class="btn-login">Log In</a>
-            <a href="/login" class="btn-register">Get Started</a>
+        <!-- CTA -->
+        <div class="flex items-center" style="flex-shrink:0;">
+            <a href="/login"
+               class="login-btn px-7 py-[10px] rounded-full text-white text-[0.9rem] font-bold no-underline transition-all duration-300 cursor-pointer"
+               style="background: linear-gradient(135deg, #1a3fbf, #0b1f6b); box-shadow: 0 4px 16px rgba(26,63,191,0.38);">
+                Log In
+            </a>
         </div>
     </nav>
 
     <!-- Hero body -->
-    <div class="hero-body">
-        <div class="hero-card">
-            <span class="hero-eyebrow">Smart Property Intelligence</span>
-            <h1 class="hero-title">
+    <div class="relative z-[2] flex-1 flex items-center justify-end px-16 pt-16 pb-32">
+        <div class="hero-card-glass w-full max-w-[490px] bg-white/[0.22] border border-white/[0.30] rounded-[20px] px-11 py-12 shadow-[0_8px_32px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.35)]">
+            <h1 class="text-[2.25rem] font-extrabold text-white leading-tight mb-4">
                 Let's Predict Your<br>
-                <span>Property Success</span>
+                Property Success
             </h1>
-            <p class="hero-subtitle">
-                ForeRent uses advanced forecasting to help landlords and tenants
-                find the right rental at the right price — powered by real market data.
+            <p class="text-[0.97rem] text-white/85 leading-[1.65] mb-9">
+                We've created the smartest way to manage your property
+                by creating the smartest way to predict.
             </p>
-            <div class="hero-actions">
-                <a href="/login" class="btn-primary">Get Started</a>
-                <a href="#features" class="btn-secondary">Learn More</a>
+            <div class="flex gap-3.5 flex-wrap">
+                <a href="/login" class="inline-flex items-center gap-2 px-8 py-[13px] rounded-[10px] text-white text-[0.92rem] font-bold no-underline transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,63,191,0.55)] shadow-[0_4px_18px_rgba(26,63,191,0.45)] cursor-pointer" style="background: linear-gradient(135deg, #1a3fbf 0%, #0b1f6b 100%);">Get Started <span class="text-lg">→</span></a>
             </div>
         </div>
     </div>
 
     <!-- Floating search bar -->
-    <div class="search-wrapper">
-        <div class="search-bar">
+    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-20 w-[calc(100%-120px)] max-w-[1100px]">
+        <div class="flex items-center bg-white rounded-[14px] shadow-[0_12px_40px_rgba(0,0,0,0.22)] pl-5 pr-2.5 py-2.5 gap-0">
 
-            <div class="search-field">
-                <span class="search-label">City</span>
-                <select>
-                    <option value="" disabled selected>Select city</option>
+            <div class="search-field flex-1 flex flex-col px-5 py-2 border-r border-gray-200 min-w-0">
+                <span class="text-[0.70rem] font-bold uppercase tracking-[0.8px] text-gray-400 mb-1">City <span class="text-gray-400">∨</span></span>
+                <select class="font-semibold text-gray-800">
+                    <option value="" disabled selected>Choose Location</option>
                     <option>Manila</option>
                     <option>Cebu City</option>
                     <option>Davao</option>
@@ -603,22 +265,21 @@
                 </select>
             </div>
 
-            <div class="search-field">
-                <span class="search-label">Property Type</span>
-                <select>
-                    <option value="" disabled selected>Select type</option>
-                    <option>Dormitory</option>
-                    <option>Apartment</option>
-                    <option>Condo Unit</option>
-                    <option>Boarding House</option>
-                    <option>Studio</option>
+            <div class="search-field flex-1 flex flex-col px-5 py-2 border-r border-gray-200 min-w-0">
+                <span class="text-[0.70rem] font-bold uppercase tracking-[0.8px] text-gray-400 mb-1">Dormitory Type <span class="text-gray-400">∨</span></span>
+                <select class="font-semibold text-gray-800">
+                    <option value="all-female" selected>All Female</option>
+                    <option>All Male</option>
+                    <option>Mixed</option>
+                    <option>Couple</option>
+                    <option>Family</option>
                 </select>
             </div>
 
-            <div class="search-field">
-                <span class="search-label">Price Range</span>
-                <select>
-                    <option value="" disabled selected>Select range</option>
+            <div class="search-field flex-1 flex flex-col px-5 py-2 border-r border-gray-200 min-w-0">
+                <span class="text-[0.70rem] font-bold uppercase tracking-[0.8px] text-gray-400 mb-1">Price <span class="text-gray-400">∨</span></span>
+                <select class="font-semibold text-gray-800">
+                    <option value="24000" selected>₱ 24,000</option>
                     <option>₱1,000 – ₱3,000</option>
                     <option>₱3,000 – ₱6,000</option>
                     <option>₱6,000 – ₱10,000</option>
@@ -627,10 +288,10 @@
                 </select>
             </div>
 
-            <div class="search-field">
-                <span class="search-label">Unit Size</span>
-                <select>
-                    <option value="" disabled selected>Select size</option>
+            <div class="search-field flex-1 flex flex-col px-5 py-2 min-w-0">
+                <span class="text-[0.70rem] font-bold uppercase tracking-[0.8px] text-gray-400 mb-1">Unit Size <span class="text-gray-400">∨</span></span>
+                <select class="font-semibold text-gray-800">
+                    <option value="24000" selected>₱ 24,000</option>
                     <option>Small (≤ 20 sqm)</option>
                     <option>Medium (21–40 sqm)</option>
                     <option>Large (41–70 sqm)</option>
@@ -638,12 +299,8 @@
                 </select>
             </div>
 
-            <button class="search-btn">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="11" cy="11" r="7"/>
-                    <path d="m21 21-4.35-4.35" stroke-linecap="round"/>
-                </svg>
-                Search
+            <button class="flex-shrink-0 ml-3 w-14 h-14 rounded-[10px] border-none text-white flex items-center justify-center transition-all duration-200 hover:opacity-90 cursor-pointer" style="background: linear-gradient(135deg, #1a3fbf 0%, #0b1f6b 100%);">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
             </button>
         </div>
     </div>
@@ -653,98 +310,366 @@
 <!-- ═══════════════════════════════════════════════════════════════
      BELOW HERO
 ═══════════════════════════════════════════════════════════════ -->
-<div class="below-hero">
+<div class="pt-[90px] bg-[#f8faff]">
 
     <!-- Stats -->
-    <div class="stats-strip">
-        <div class="stat-item">
-            <div class="stat-number">12<span>K+</span></div>
-            <div class="stat-label">Properties Listed</div>
+    <div class="flex justify-center max-w-[1100px] mx-auto px-16 pt-14 pb-12">
+        <div class="flex-1 text-center px-8 border-r border-[#dde3f0]">
+            <div class="text-[2.4rem] font-extrabold text-[#0b1f6b] leading-none mb-1.5">12<span class="text-[#1a3fbf]">K+</span></div>
+            <div class="text-[0.84rem] text-gray-500 font-medium">Properties Listed</div>
         </div>
-        <div class="stat-item">
-            <div class="stat-number">8<span>K+</span></div>
-            <div class="stat-label">Happy Tenants</div>
+        <div class="flex-1 text-center px-8 border-r border-[#dde3f0]">
+            <div class="text-[2.4rem] font-extrabold text-[#0b1f6b] leading-none mb-1.5">8<span class="text-[#1a3fbf]">K+</span></div>
+            <div class="text-[0.84rem] text-gray-500 font-medium">Happy Tenants</div>
         </div>
-        <div class="stat-item">
-            <div class="stat-number">95<span>%</span></div>
-            <div class="stat-label">Prediction Accuracy</div>
+        <div class="flex-1 text-center px-8 border-r border-[#dde3f0]">
+            <div class="text-[2.4rem] font-extrabold text-[#0b1f6b] leading-none mb-1.5">95<span class="text-[#1a3fbf]">%</span></div>
+            <div class="text-[0.84rem] text-gray-500 font-medium">Prediction Accuracy</div>
         </div>
-        <div class="stat-item">
-            <div class="stat-number">50<span>+</span></div>
-            <div class="stat-label">Cities Covered</div>
+        <div class="flex-1 text-center px-8">
+            <div class="text-[2.4rem] font-extrabold text-[#0b1f6b] leading-none mb-1.5">50<span class="text-[#1a3fbf]">+</span></div>
+            <div class="text-[0.84rem] text-gray-500 font-medium">Cities Covered</div>
         </div>
     </div>
 
-    <!-- Features -->
-    <section id="features" class="features-section">
-        <div class="section-header">
-            <span class="section-eyebrow">Why ForeRent</span>
-            <h2 class="section-title">Everything you need to<br><span>rent smarter</span></h2>
+    <!-- Neural Architecture Section -->
+    <section id="about" class="neural-section relative overflow-hidden py-20 px-16"
+             style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);">
+
+        <div class="max-w-[1100px] mx-auto relative z-[1]">
+
+            {{-- Header --}}
+            <div class="flex items-end justify-between gap-16 mb-[68px]">
+
+                {{-- Left: eyebrow + title --}}
+                <div class="flex-none">
+                    <div class="inline-block text-[0.70rem] font-bold tracking-[2px] uppercase text-[#60a5fa] mb-4">
+                        Neural Architecture
+                    </div>
+                    <h2 class="text-[2.8rem] font-extrabold text-white leading-tight max-w-[600px]">
+                        Beyond Data.<br>
+                        <span class="text-[#60a5fa] italic">Pure Intelligence.</span>
+                    </h2>
+                </div>
+
+                {{-- Right: subtitle with left border --}}
+                <div class="flex-none pl-12 border-l border-[rgba(96,165,250,0.3)] pb-2">
+                    <p class="text-[0.95rem] text-white/70 leading-relaxed max-w-[420px]">
+                        Our proprietary Intelligence Layer transforms raw property
+                        metrics into executable strategic directives.
+                    </p>
+                </div>
+            </div>
+
+            {{-- Cards Grid --}}
+            <div class="grid grid-cols-3 gap-8">
+
+                {{-- Module S1 --}}
+                <div class="module-card relative overflow-hidden rounded-2xl p-10 cursor-pointer
+                            border border-[rgba(96,165,250,0.2)]
+                            bg-[rgba(30,58,95,0.6)]
+                            transition-all duration-300 ease-in-out
+                            hover:bg-[rgba(96,165,250,0.15)] hover:border-[rgba(96,165,250,0.5)]
+                            hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(96,165,250,0.2)]">
+                    {{-- Icon --}}
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 text-[1.8rem]"
+                         style="background: linear-gradient(135deg, #60a5fa, #3b82f6);">🏗️</div>
+                    <span class="inline-block text-[0.65rem] font-bold tracking-[1.8px] uppercase text-[#93c5fd] mb-3">MODULE S1</span>
+                    <h3 class="text-[1.4rem] font-extrabold text-white leading-tight mb-4">Hierarchical Clustering</h3>
+                    <p class="text-[0.88rem] text-white/70 leading-[1.68]">Group similar properties or maintenance requests to optimize resource allocation and enable proactive maintenance planning.</p>
+                    {{-- Nav --}}
+                    <div class="flex justify-between items-center mt-6 pt-6 border-t border-[rgba(96,165,250,0.15)]">
+                        <div class="flex gap-1.5">
+                            <span class="module-dot-first w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)] transition-colors duration-300"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)]"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)]"></span>
+                        </div>
+                        <div class="module-arrow-btn w-8 h-8 rounded-full flex items-center justify-center text-[#60a5fa]
+                                    bg-[rgba(96,165,250,0.2)] border border-[rgba(96,165,250,0.3)]
+                                    transition-all duration-300 cursor-pointer">→</div>
+                    </div>
+                </div>
+
+                {{-- Module S2 --}}
+                <div class="module-card relative overflow-hidden rounded-2xl p-10 cursor-pointer
+                            border border-[rgba(96,165,250,0.2)]
+                            bg-[rgba(30,58,95,0.6)]
+                            transition-all duration-300 ease-in-out
+                            hover:bg-[rgba(96,165,250,0.15)] hover:border-[rgba(96,165,250,0.5)]
+                            hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(96,165,250,0.2)]">
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 text-[1.8rem]"
+                         style="background: linear-gradient(135deg, #60a5fa, #3b82f6);">🎯</div>
+                    <span class="inline-block text-[0.65rem] font-bold tracking-[1.8px] uppercase text-[#93c5fd] mb-3">MODULE S2</span>
+                    <h3 class="text-[1.4rem] font-extrabold text-white leading-tight mb-4">Rental Price Prediction</h3>
+                    <p class="text-[0.88rem] text-white/70 leading-[1.68]">Utilize Multiple Regression to suggest optimal rental prices based on area, bedrooms, and location attributes.</p>
+                    <div class="flex justify-between items-center mt-6 pt-6 border-t border-[rgba(96,165,250,0.15)]">
+                        <div class="flex gap-1.5">
+                            <span class="module-dot-first w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)] transition-colors duration-300"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)]"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)]"></span>
+                        </div>
+                        <div class="module-arrow-btn w-8 h-8 rounded-full flex items-center justify-center text-[#60a5fa]
+                                    bg-[rgba(96,165,250,0.2)] border border-[rgba(96,165,250,0.3)]
+                                    transition-all duration-300 cursor-pointer">→</div>
+                    </div>
+                </div>
+
+                {{-- Module S3 --}}
+                <div class="module-card relative overflow-hidden rounded-2xl p-10 cursor-pointer
+                            border border-[rgba(96,165,250,0.2)]
+                            bg-[rgba(30,58,95,0.6)]
+                            transition-all duration-300 ease-in-out
+                            hover:bg-[rgba(96,165,250,0.15)] hover:border-[rgba(96,165,250,0.5)]
+                            hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(96,165,250,0.2)]">
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 text-[1.8rem]"
+                         style="background: linear-gradient(135deg, #60a5fa, #3b82f6);">📈</div>
+                    <span class="inline-block text-[0.65rem] font-bold tracking-[1.8px] uppercase text-[#93c5fd] mb-3">MODULE S3</span>
+                    <h3 class="text-[1.4rem] font-extrabold text-white leading-tight mb-4">Financial Forecasting</h3>
+                    <p class="text-[0.88rem] text-white/70 leading-[1.68]">Institutional-grade estimates for future rental income and maintenance costs so drive data-driven decisions.</p>
+                    <div class="flex justify-between items-center mt-6 pt-6 border-t border-[rgba(96,165,250,0.15)]">
+                        <div class="flex gap-1.5">
+                            <span class="module-dot-first w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)] transition-colors duration-300"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)]"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-[rgba(96,165,250,0.4)]"></span>
+                        </div>
+                        <div class="module-arrow-btn w-8 h-8 rounded-full flex items-center justify-center text-[#60a5fa]
+                                    bg-[rgba(96,165,250,0.2)] border border-[rgba(96,165,250,0.3)]
+                                    transition-all duration-300 cursor-pointer">→</div>
+                    </div>
+                </div>
+
+            </div>
         </div>
+    </section>
 
-        <div class="features-grid">
+    <!-- Unified Ecosystem Section -->
+    <section class="bg-[#f8faff] py-20 px-16 relative overflow-hidden">
+        <div class="max-w-[1100px] mx-auto">
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                </div>
-                <h3 class="feature-title">AI-Powered Predictions</h3>
-                <p class="feature-desc">Our model analyzes thousands of data points to forecast rental prices and market trends with high accuracy.</p>
+            {{-- Header --}}
+            <div class="text-center mb-16">
+                <span class="inline-block text-[0.72rem] font-bold tracking-[2.5px] uppercase text-[#1a3fbf] mb-3">Unified Ecosystem</span>
+                <h2 class="text-[2.2rem] font-extrabold text-[#0b1f6b] leading-tight mb-3">
+                    Three distinct modules, one seamless<br>loop of property productivity.
+                </h2>
+                <p class="text-[0.95rem] text-gray-500 leading-relaxed max-w-[520px] mx-auto">
+                    Tailored solutions for property owners, managers, and empowered tenants.
+                </p>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
+            {{-- Cards --}}
+            <div id="ecosystemCards" class="flex gap-6 items-stretch h-[520px] justify-start">
+
+                {{-- The Visionary Owner --}}
+                <div class="eco-card owner active relative rounded-[20px] overflow-hidden cursor-pointer
+                            flex flex-col justify-end p-8 min-h-[520px] shadow-[0_8px_24px_rgba(0,0,0,0.1)]
+                            bg-gradient-to-br from-[#f5f5f7] to-[#eeeff2]
+                            [flex:0_0_18%] opacity-85
+                            [transition:flex_0.5s_ease-in-out,opacity_0.5s_ease-in-out]
+                            [&.active]:[flex:0_0_60%] [&.active]:opacity-100"
+                     data-card="owner">
+                    <div class="relative z-[3] flex flex-col h-full">
+                        <span class="eco-card-pill inline-block text-[0.65rem] font-bold tracking-[1.5px] uppercase
+                                     px-[14px] py-[6px] rounded-full bg-white/20 text-white mb-4 w-fit
+                                     opacity-0 transition-opacity duration-500 delay-100
+                                     [.active_&]:opacity-100">
+                            PROPERTY OWNER
+                        </span>
+                        <h3 class="eco-card-title text-[1.4rem] font-extrabold text-[#1a1a1a] leading-tight mb-4
+                                   transition-all duration-500
+                                   [.active_&]:text-white [.active_&]:text-[1.9rem]">
+                            The Visionary<br>Owner
+                        </h3>
+                        <ul class="eco-card-features list-none flex flex-col gap-3 flex-1 mt-auto mb-4
+                                   opacity-0 transition-opacity duration-500 delay-150
+                                   [.active_&]:opacity-100">
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">AI-powered financial performance dashboard.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Secure centralized document vault.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Manager assignment and oversight controls.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Occupancy trend visualization and tracking.</li>
+                        </ul>
+                        <a href="#" class="eco-card-expand text-[0.75rem] font-bold tracking-[1px] uppercase
+                                           text-[#1a3fbf] no-underline transition-opacity duration-500
+                                           [.active_&]:opacity-0 [.active_&]:pointer-events-none">
+                            Expand Module +
+                        </a>
+                    </div>
                 </div>
-                <h3 class="feature-title">Location Intelligence</h3>
-                <p class="feature-desc">Explore rentals by neighborhood with detailed insights on accessibility, amenities, and nearby developments.</p>
+
+                {{-- The Strategic Manager --}}
+                <div class="eco-card manager relative rounded-[20px] overflow-hidden cursor-pointer
+                            flex flex-col justify-end p-8 min-h-[520px] shadow-[0_8px_24px_rgba(0,0,0,0.1)]
+                            bg-gradient-to-br from-[#f5f5f7] to-[#eeeff2]
+                            [flex:0_0_18%] opacity-85
+                            [transition:flex_0.5s_ease-in-out,opacity_0.5s_ease-in-out]
+                            [&.active]:[flex:0_0_60%] [&.active]:opacity-100"
+                     data-card="manager">
+                    <div class="relative z-[3] flex flex-col h-full">
+                        <span class="eco-card-pill inline-block text-[0.65rem] font-bold tracking-[1.5px] uppercase
+                                     px-[14px] py-[6px] rounded-full bg-white/20 text-white mb-4 w-fit
+                                     opacity-0 transition-opacity duration-500 delay-100
+                                     [.active_&]:opacity-100">
+                            PROPERTY MANAGER
+                        </span>
+                        <h3 class="eco-card-title text-[1.4rem] font-extrabold text-[#1a1a1a] leading-tight mb-4
+                                   transition-all duration-500
+                                   [.active_&]:text-white [.active_&]:text-[1.9rem]">
+                            The Strategic<br>Manager
+                        </h3>
+                        <ul class="eco-card-features list-none flex flex-col gap-3 flex-1 mt-auto mb-4
+                                   opacity-0 transition-opacity duration-500 delay-150
+                                   [.active_&]:opacity-100">
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Full tenant lifecycle management tools.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Integrated real-time messenger system.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Maintenance ticket &amp; technician tracking.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Rent collection &amp; automated reminders.</li>
+                        </ul>
+                        <a href="#" class="eco-card-expand text-[0.75rem] font-bold tracking-[1px] uppercase
+                                           text-[#1a3fbf] no-underline transition-opacity duration-500
+                                           [.active_&]:opacity-0 [.active_&]:pointer-events-none">
+                            Expand Module +
+                        </a>
+                    </div>
+                </div>
+
+                {{-- The Empowered Tenant --}}
+                <div class="eco-card tenant relative rounded-[20px] overflow-hidden cursor-pointer
+                            flex flex-col justify-end p-8 min-h-[520px] shadow-[0_8px_24px_rgba(0,0,0,0.1)]
+                            bg-gradient-to-br from-[#f5f5f7] to-[#eeeff2]
+                            [flex:0_0_18%] opacity-85
+                            [transition:flex_0.5s_ease-in-out,opacity_0.5s_ease-in-out]
+                            [&.active]:[flex:0_0_60%] [&.active]:opacity-100"
+                     data-card="tenant">
+                    <div class="relative z-[3] flex flex-col h-full">
+                        <span class="eco-card-pill inline-block text-[0.65rem] font-bold tracking-[1.5px] uppercase
+                                     px-[14px] py-[6px] rounded-full bg-white/20 text-white mb-4 w-fit
+                                     opacity-0 transition-opacity duration-500 delay-100
+                                     [.active_&]:opacity-100">
+                            TENANT
+                        </span>
+                        <h3 class="eco-card-title text-[1.4rem] font-extrabold text-[#1a1a1a] leading-tight mb-4
+                                   transition-all duration-500
+                                   [.active_&]:text-white [.active_&]:text-[1.9rem]">
+                            The Empowered<br>Tenant
+                        </h3>
+                        <ul class="eco-card-features list-none flex flex-col gap-3 flex-1 mt-auto mb-4
+                                   opacity-0 transition-opacity duration-500 delay-150
+                                   [.active_&]:opacity-100">
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">One-click payment history &amp; receipt access.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Submit and track maintenance live status.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Instant broadcast announcements receiver.</li>
+                            <li class="flex items-center gap-2.5 text-[0.88rem] text-white/85">Direct chat with property management staff.</li>
+                        </ul>
+                        <a href="#" class="eco-card-expand text-[0.75rem] font-bold tracking-[1px] uppercase
+                                           text-[#1a3fbf] no-underline transition-opacity duration-500
+                                           [.active_&]:opacity-0 [.active_&]:pointer-events-none">
+                            Expand Module +
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <!-- Features / Why ForeRent Section -->
+    <section id="features" class="bg-[#f0f4ff] py-16 px-16">
+        <div class="max-w-[1100px] mx-auto">
+
+            {{-- Header --}}
+            <div class="text-center mb-14">
+                <span class="inline-block text-[0.72rem] font-bold tracking-[2.5px] uppercase text-[#1a3fbf] mb-3">Why ForeRent</span>
+                <h2 class="text-[2rem] font-extrabold text-[#0b1f6b] leading-tight">
+                    Everything you need to<br>
+                    <span class="text-[#1a3fbf]">rent smarter</span>
+                </h2>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                    </svg>
-                </div>
-                <h3 class="feature-title">Verified Listings</h3>
-                <p class="feature-desc">Every property is verified to ensure accurate details, genuine photos, and legitimate landlord contacts.</p>
-            </div>
+            {{-- Cards Grid --}}
+            <div class="grid grid-cols-3 gap-7">
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                {{-- AI-Powered Predictions --}}
+                <div class="bg-white border border-[#e8edf7] rounded-2xl p-9 transition-all duration-200
+                            hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(11,31,107,0.10)]">
+                    <div class="w-13 h-13 rounded-xl flex items-center justify-center mb-5
+                                bg-gradient-to-br from-[#dbeafe] to-[#eff6ff]"
+                         style="width:52px;height:52px;">
+                        <svg class="w-[26px] h-[26px] text-[#1a3fbf]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-[1.05rem] font-bold text-[#0b1f6b] mb-2.5">AI-Powered Predictions</h3>
+                    <p class="text-[0.88rem] text-gray-500 leading-[1.65]">Our model analyzes thousands of data points to forecast rental prices and market trends with high accuracy.</p>
                 </div>
-                <h3 class="feature-title">Price Fairness Score</h3>
-                <p class="feature-desc">Instantly see if a listing is fairly priced, overpriced, or a great deal compared to similar units in the area.</p>
-            </div>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
+                {{-- Location Intelligence --}}
+                <div class="bg-white border border-[#e8edf7] rounded-2xl p-9 transition-all duration-200
+                            hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(11,31,107,0.10)]">
+                    <div class="flex items-center justify-center rounded-xl mb-5 bg-gradient-to-br from-[#dbeafe] to-[#eff6ff]"
+                         style="width:52px;height:52px;">
+                        <svg class="w-[26px] h-[26px] text-[#1a3fbf]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-[1.05rem] font-bold text-[#0b1f6b] mb-2.5">Location Intelligence</h3>
+                    <p class="text-[0.88rem] text-gray-500 leading-[1.65]">Explore rentals by neighborhood with detailed insights on accessibility, amenities, and nearby developments.</p>
                 </div>
-                <h3 class="feature-title">Real-Time Alerts</h3>
-                <p class="feature-desc">Get notified the moment a new listing matching your criteria becomes available in your preferred area.</p>
-            </div>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
+                {{-- Verified Listings --}}
+                <div class="bg-white border border-[#e8edf7] rounded-2xl p-9 transition-all duration-200
+                            hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(11,31,107,0.10)]">
+                    <div class="flex items-center justify-center rounded-xl mb-5 bg-gradient-to-br from-[#dbeafe] to-[#eff6ff]"
+                         style="width:52px;height:52px;">
+                        <svg class="w-[26px] h-[26px] text-[#1a3fbf]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-[1.05rem] font-bold text-[#0b1f6b] mb-2.5">Verified Listings</h3>
+                    <p class="text-[0.88rem] text-gray-500 leading-[1.65]">Every property is verified to ensure accurate details, genuine photos, and legitimate landlord contacts.</p>
                 </div>
-                <h3 class="feature-title">Market Reports</h3>
-                <p class="feature-desc">Access monthly reports on rental market trends, average prices, and forecasts by city and property type.</p>
-            </div>
 
+                {{-- Price Fairness Score --}}
+                <div class="bg-white border border-[#e8edf7] rounded-2xl p-9 transition-all duration-200
+                            hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(11,31,107,0.10)]">
+                    <div class="flex items-center justify-center rounded-xl mb-5 bg-gradient-to-br from-[#dbeafe] to-[#eff6ff]"
+                         style="width:52px;height:52px;">
+                        <svg class="w-[26px] h-[26px] text-[#1a3fbf]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-[1.05rem] font-bold text-[#0b1f6b] mb-2.5">Price Fairness Score</h3>
+                    <p class="text-[0.88rem] text-gray-500 leading-[1.65]">Instantly see if a listing is fairly priced, overpriced, or a great deal compared to similar units in the area.</p>
+                </div>
+
+                {{-- Real-Time Alerts --}}
+                <div class="bg-white border border-[#e8edf7] rounded-2xl p-9 transition-all duration-200
+                            hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(11,31,107,0.10)]">
+                    <div class="flex items-center justify-center rounded-xl mb-5 bg-gradient-to-br from-[#dbeafe] to-[#eff6ff]"
+                         style="width:52px;height:52px;">
+                        <svg class="w-[26px] h-[26px] text-[#1a3fbf]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-[1.05rem] font-bold text-[#0b1f6b] mb-2.5">Real-Time Alerts</h3>
+                    <p class="text-[0.88rem] text-gray-500 leading-[1.65]">Get notified the moment a new listing matching your criteria becomes available in your preferred area.</p>
+                </div>
+
+                {{-- Market Reports --}}
+                <div class="bg-white border border-[#e8edf7] rounded-2xl p-9 transition-all duration-200
+                            hover:-translate-y-1 hover:shadow-[0_12px_36px_rgba(11,31,107,0.10)]">
+                    <div class="flex items-center justify-center rounded-xl mb-5 bg-gradient-to-br from-[#dbeafe] to-[#eff6ff]"
+                         style="width:52px;height:52px;">
+                        <svg class="w-[26px] h-[26px] text-[#1a3fbf]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-[1.05rem] font-bold text-[#0b1f6b] mb-2.5">Market Reports</h3>
+                    <p class="text-[0.88rem] text-gray-500 leading-[1.65]">Access monthly reports on rental market trends, average prices, and forecasts by city and property type.</p>
+                </div>
+
+            </div>
         </div>
     </section>
 
@@ -753,12 +678,237 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FOOTER
 ═══════════════════════════════════════════════════════════════ -->
-<footer class="footer">
-    <p>&copy; {{ date('Y') }} ForeRent. All rights reserved. &nbsp;·&nbsp;
-        <a href="#">Privacy Policy</a> &nbsp;·&nbsp;
-        <a href="#">Terms of Service</a>
-    </p>
+<footer style="background: linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 100%);" class="text-white">
+
+    {{-- Main footer body --}}
+    <div class="max-w-[1200px] mx-auto px-16 pt-16 pb-12">
+        <div class="flex gap-16">
+
+            {{-- Brand column --}}
+            <div class="flex-none w-64">
+                {{-- Logo --}}
+                <a href="#" class="flex items-center gap-3 no-underline mb-5">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                         style="background: linear-gradient(135deg, #1a3fbf, #3b82f6);">
+                        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <span class="text-white font-extrabold text-xl tracking-wider uppercase">ForeRent</span>
+                </a>
+
+                {{-- Tagline --}}
+                <p class="text-white/50 text-[0.88rem] leading-relaxed mb-8">
+                    Pioneering AI-driven property management solutions for the modern enterprise.
+                </p>
+
+                {{-- Social icon buttons --}}
+                <div class="flex gap-3">
+                    {{-- Settings / Owner Portal --}}
+                    <a href="#" class="w-10 h-10 rounded-full border border-white/20 bg-white/[0.06] hover:bg-white/[0.14] hover:border-[#3b82f6] flex items-center justify-center transition-all duration-200">
+                        <svg class="w-4 h-4 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </a>
+                    {{-- Team / Tenants --}}
+                    <a href="#" class="w-10 h-10 rounded-full border border-white/20 bg-white/[0.06] hover:bg-white/[0.14] hover:border-[#3b82f6] flex items-center justify-center transition-all duration-200">
+                        <svg class="w-4 h-4 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </a>
+                    {{-- Chat / Support --}}
+                    <a href="#" class="w-10 h-10 rounded-full border border-white/20 bg-white/[0.06] hover:bg-white/[0.14] hover:border-[#3b82f6] flex items-center justify-center transition-all duration-200">
+                        <svg class="w-4 h-4 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            {{-- Nav columns --}}
+            <div class="flex-1 grid grid-cols-3 gap-8 pt-1">
+
+                {{-- Platform --}}
+                <div>
+                    <h4 class="text-[0.68rem] font-bold tracking-[2.5px] uppercase text-[#3b82f6] mb-6">Platform</h4>
+                    <ul class="list-none flex flex-col gap-4">
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Owner Portal</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Manager Suite</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Tenant App</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">AI Insights</a></li>
+                    </ul>
+                </div>
+
+                {{-- Company --}}
+                <div>
+                    <h4 class="text-[0.68rem] font-bold tracking-[2.5px] uppercase text-[#3b82f6] mb-6">Company</h4>
+                    <ul class="list-none flex flex-col gap-4">
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Our Vision</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Methodology</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Support</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Contact</a></li>
+                    </ul>
+                </div>
+
+                {{-- Enterprise --}}
+                <div>
+                    <h4 class="text-[0.68rem] font-bold tracking-[2.5px] uppercase text-[#3b82f6] mb-6">Enterprise</h4>
+                    <ul class="list-none flex flex-col gap-4">
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Data Privacy</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Terms of Use</a></li>
+                        <li><a href="#" class="text-[0.78rem] font-bold tracking-[1.5px] uppercase text-white/55 hover:text-white no-underline transition-colors duration-200">Security</a></li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    {{-- Bottom bar --}}
+    <div class="border-t border-white/[0.08] max-w-[1200px] mx-auto px-16 py-5 flex items-center justify-between">
+        <span class="text-[0.68rem] font-bold tracking-[2px] uppercase text-white/35">
+            &copy; {{ date('Y') }} ForeRent Inc. Built for Scale.
+        </span>
+        <div class="flex items-center gap-8">
+            <a href="#" class="text-[0.68rem] font-bold tracking-[2px] uppercase text-white/35 hover:text-white no-underline transition-colors duration-200">Instagram</a>
+            <a href="#" class="text-[0.68rem] font-bold tracking-[2px] uppercase text-white/35 hover:text-white no-underline transition-colors duration-200">LinkedIn</a>
+            <a href="#" class="text-[0.68rem] font-bold tracking-[2px] uppercase text-white/35 hover:text-white no-underline transition-colors duration-200">Twitter</a>
+        </div>
+    </div>
+
 </footer>
+
+<script>
+    // ─── NAVBAR THEME: Light vs Dark based on scroll position ───────────────
+    // We use explicit section color mapping — much more reliable than
+    // getComputedStyle (which returns transparent for most sections).
+
+    // Sections that have a DARK background (white text is fine)
+    const DARK_SECTION_IDS = ['hero-section', 'about'];
+
+    function updateNavTheme() {
+        const nav = document.getElementById('mainNav');
+        const scrollY = window.scrollY;
+        const navBottom = nav.offsetHeight + scrollY;
+
+        // Scrolled glass effect
+        if (scrollY > 30) nav.classList.add('scrolled');
+        else nav.classList.remove('scrolled');
+
+        let isDark = true; // default: assume dark (hero)
+
+        // Check every tracked section
+        document.querySelectorAll('section[id], #hero-section').forEach(section => {
+            const rect = section.getBoundingClientRect();
+            const top = rect.top + scrollY;
+            const bottom = rect.bottom + scrollY;
+            // Is the navbar bottom edge inside this section?
+            if (navBottom >= top && navBottom <= bottom) {
+                isDark = DARK_SECTION_IDS.includes(section.id);
+            }
+        });
+
+        // Also check the light wrapper div (stats + features area)
+        const lightWrapper = document.querySelector('div.pt-\\[90px\\]');
+        if (lightWrapper) {
+            const r = lightWrapper.getBoundingClientRect();
+            const top = r.top + scrollY;
+            const bottom = r.bottom + scrollY;
+            if (navBottom >= top && navBottom <= bottom) {
+                // Check if we're NOT inside a dark sub-section
+                let insideDarkSub = false;
+                DARK_SECTION_IDS.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && id !== 'hero-section') {
+                        const er = el.getBoundingClientRect();
+                        if (navBottom >= er.top + scrollY && navBottom <= er.bottom + scrollY) {
+                            insideDarkSub = true;
+                        }
+                    }
+                });
+                if (!insideDarkSub) isDark = false;
+            }
+        }
+
+        if (isDark) {
+            nav.classList.remove('nav-light');
+            nav.classList.add('nav-dark');
+        } else {
+            nav.classList.remove('nav-dark');
+            nav.classList.add('nav-light');
+        }
+    }
+
+    window.addEventListener('scroll', updateNavTheme, { passive: true });
+    window.addEventListener('load', updateNavTheme);
+    document.addEventListener('DOMContentLoaded', updateNavTheme);
+
+    // ─── SMOOTH SCROLL WITH PAGE FLASH ANIMATION ────────────────────────────
+    const overlay = document.getElementById('page-transition');
+
+    function animatedScrollTo(targetEl, linkEl) {
+        if (!targetEl) return;
+
+        // Set active link
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        if (linkEl) linkEl.classList.add('active');
+
+        // Flash overlay in
+        overlay.classList.add('active');
+
+        setTimeout(() => {
+            // Scroll to target
+            const yOffset = -document.getElementById('mainNav').offsetHeight;
+            const y = targetEl.getBoundingClientRect().top + window.scrollY + yOffset;
+            window.scrollTo({ top: y, behavior: 'instant' });
+
+            // Fade overlay out
+            setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 80);
+        }, 280);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Home link → hero section
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const href = link.getAttribute('href');
+
+            if (href === '#' || href === '' || link.textContent.trim() === 'Home') {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const hero = document.getElementById('hero-section');
+                    animatedScrollTo(hero, this);
+                });
+
+            } else if (href === '#about' || link.textContent.trim() === 'About') {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const about = document.getElementById('about');
+                    animatedScrollTo(about, this);
+                });
+
+            } else if (href && href.startsWith('#')) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) animatedScrollTo(target, this);
+                });
+            }
+        });
+
+        // ─── ECOSYSTEM CARD INTERACTIONS ────────────────────────────────────
+        const ecoCards = document.querySelectorAll('.eco-card');
+        ecoCards.forEach(card => {
+            card.addEventListener('click', function (e) {
+                e.preventDefault();
+                ecoCards.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    });
+</script>
 
 </body>
 </html>

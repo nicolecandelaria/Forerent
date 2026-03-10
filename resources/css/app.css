@@ -1,9 +1,9 @@
 /* --- IMPORTS --- */
-@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap");
 
-@import 'tailwindcss';
-@import '../../vendor/livewire/flux/dist/flux.css';
-@import 'flowbite/src/themes/default';
+@import "tailwindcss";
+@import "../../vendor/livewire/flux/dist/flux.css";
+@import "flowbite/src/themes/default";
 
 @plugin 'flowbite/plugin';
 
@@ -21,11 +21,11 @@
     --font-lato: "Lato", sans-serif;
     --font-opensans: "Open Sans", sans-serif;
 
-    --color-primary:  #0C0A84;
-    --color-secondary: #1080FC;
+    --color-primary: #0c0a84;
+    --color-secondary: #1080fc;
     --color-confirm: #004086;
-    --color-decline: #B2E1FF;
-    --color-action: #152C73;
+    --color-decline: #b2e1ff;
+    --color-action: #152c73;
     --border-default: 1rem;
     --border-action: 3rem;
     --border-button: 1.25rem;
@@ -47,7 +47,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #BEBABA; 
+    background: #bebaba;
     border-radius: 10px;
 }
 
@@ -57,7 +57,7 @@
 
 .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #BEBABA transparent;
+    scrollbar-color: #bebaba transparent;
 }
 
 /* --- COMPONENT STYLES --- */
@@ -67,7 +67,9 @@
 
 .maintenance-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.1), 0 6px 8px -5px rgba(0, 0, 0, 0.04);
+    box-shadow:
+        0 8px 20px -5px rgba(0, 0, 0, 0.1),
+        0 6px 8px -5px rgba(0, 0, 0, 0.04);
 }
 
 .building-name {
@@ -76,6 +78,35 @@
 
 .cost-amount {
     @apply text-2xl font-bold text-white mb-2;
+}
+
+/* --- LANDING PAGE CUSTOM UTILITIES --- */
+@layer utilities {
+    .cubic-bezier-custom {
+        @apply transition-all;
+        transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .saturate-180 {
+        filter: saturate(1.8);
+        -webkit-backdrop-filter: saturate(1.8);
+    }
+
+    .bg-radial-gradient {
+        background-image: radial-gradient(
+            circle,
+            rgba(96, 165, 250, 0.08) 0%,
+            transparent 70%
+        );
+    }
+
+    .top--40 {
+        top: -40%;
+    }
+
+    .right--10 {
+        right: -10%;
+    }
 }
 
 .percentage-change {

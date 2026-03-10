@@ -13,16 +13,14 @@
     {{-- Lottie Web Player --}}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 </head>
-<body class="font-sans text-gray-900 antialiased bg-white">
+<body class="font-sans text-gray-900 antialiased" style="background-color: #EEF2FA;">
 
     <div class="min-h-screen grid grid-cols-1 lg:grid-cols-2">
 
-        {{-- LEFT: Login Form (unchanged) --}}
-        <div class="flex flex-col justify-center px-4 py-0 bg-white sm:px-6 lg:px-20 xl:px-24 h-full relative z-10">
-            <div class="w-full max-w-md mx-auto">
-                {{ $slot ?? '' }}
-                @yield('content')
-            </div>
+        {{-- LEFT: Login Form --}}
+        <div class="flex items-center justify-center relative z-10">
+            {{ $slot ?? '' }}
+            @yield('content')
         </div>
 
         {{-- RIGHT: Branded Panel --}}
