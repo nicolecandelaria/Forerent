@@ -56,12 +56,7 @@
                     @endphp
 
                     <div wire:click="selectRequest({{ $req->request_id }})"
-                         {{--
-                            STATE MANAGEMENT:
-                            Inactive base: border-transparent, bg-white, grey ring
-                            Inactive HOVER: Light blue background (`#EEF3FF`) and border (`#93C5FD` / blue-300)
-                            Active CLICKED: Darker blue background (`#1679FA`) and border (`#0044F1`)
-                         --}}
+
                          class="cursor-pointer p-4 rounded-2xl transition-all duration-200 border-2
                             {{ $isActive
                                 ? 'border-[#0044F1] bg-[#1679FA] shadow-md'

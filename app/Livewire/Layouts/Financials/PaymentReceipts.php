@@ -14,7 +14,7 @@ class PaymentReceipts extends Component
     public $activeTab = 'all';
     public $filterPeriod = '';
     public $filterBuilding = '';
-    public $billingIdToMarkPaid = null;  
+    public $billingIdToMarkPaid = null;
 
     public function updatedActiveTab()
     {
@@ -88,7 +88,7 @@ class PaymentReceipts extends Component
 
         return view('livewire.layouts.financials.payment-receipts', [
             'payments' => $payments,
-            'counts' => $counts
+            'counts' => $counts,
         ]);
     }
 }

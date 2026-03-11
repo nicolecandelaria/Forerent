@@ -1,7 +1,13 @@
 <div x-data="{
-    sidebarOpen: window.innerWidth >= 1024,
     sidebarExpanded: true,
-    mobileMenuOpen: false
+    mobileMenuOpen: false,
+    toggleMobileSidebar() {
+        this.mobileMenuOpen = !this.mobileMenuOpen;
+        this.sidebarExpanded = true;
+    },
+    toggleDesktopSidebar() {
+        this.sidebarExpanded = !this.sidebarExpanded;
+    }
 }"
 x-init="
     window.addEventListener('resize', () => {
@@ -22,7 +28,7 @@ class="relative h-screen flex">
 class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-900/30 backdrop-blur-[3px] z-40 lg:hidden"     style="display: none;">
 </div>
 
-    <button @click="mobileMenuOpen = !mobileMenuOpen; sidebarExpanded = true"
+    <button @click="toggleMobileSidebar()"
             class="fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg lg:hidden hover:bg-gray-100 transition-colors">
         <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -30,14 +36,13 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
     </button>
 
     <nav :class="{
-            'w-64': sidebarExpanded,
-            'w-20': !sidebarExpanded,
             '-translate-x-full': !mobileMenuOpen,
             'translate-x-0': mobileMenuOpen
          }"
-         class="fixed lg:relative left-0 top-0 h-full z-50 flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out lg:translate-x-0 group">
+         :style="`width: ${sidebarExpanded ? 256 : 80}px; transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1), transform 300ms cubic-bezier(0.4, 0, 0.2, 1);`"
+         class="fixed lg:relative left-0 top-0 h-full z-50 flex-shrink-0 bg-white border-r border-gray-200 will-change-[transform,width] lg:translate-x-0">
 
-        <button @click="sidebarExpanded = !sidebarExpanded"
+        <button @click="toggleDesktopSidebar()"
                 class="absolute -right-3 top-10 z-50 hidden lg:flex items-center justify-center w-6 h-6 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 focus:outline-none transform transition-transform duration-300"
                 :class="!sidebarExpanded ? 'rotate-180' : ''">
             <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,11 +55,25 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                 <a :href="sidebarExpanded ? '{{ route($navigations['dashboard']['route']) }}' : '#'"
                    class="transition-all duration-300 flex items-center gap-2">
 
-                    <div x-show="sidebarExpanded" x-cloak>
+                    <div x-show="sidebarExpanded"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-x-2"
+                         x-transition:enter-end="opacity-100 translate-x-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-x-0"
+                         x-transition:leave-end="opacity-0 -translate-x-2"
+                         x-cloak>
                         <x-icons.logoprimary class="h-10 w-auto" />
                     </div>
 
-                    <div x-show="!sidebarExpanded" x-cloak>
+                    <div x-show="!sidebarExpanded"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         x-cloak>
                         <x-icons.logosecondary class="w-10 h-10" />
                     </div>
 
@@ -75,14 +94,19 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                                                 open = !open;
                                             }
                                         "
-                                        class="flex items-center w-full p-3 rounded-lg {{ $this->getActiveClass(null) }} transition-colors relative"
+                                        class="group flex items-center w-full p-3 rounded-lg text-[#6B7280] hover:bg-[#DFE8FC] hover:text-[#070642] transition-all duration-200 hover:translate-x-1 hover:shadow-sm active:scale-[0.98] relative"
                                         :class="!sidebarExpanded && 'justify-center'"
                                         :title="!sidebarExpanded ? '{{ $navigation['label'] }}' : ''">
 
-                                    <x-dynamic-component :component="$navigation['icon']" class="w-5 h-5 flex-shrink-0" />
+                                    <x-dynamic-component :component="$navigation['icon']" class="w-5 h-5 flex-shrink-0 text-[#6B7280] transition-transform duration-200 group-hover:scale-110 group-hover:text-[#070642]" />
 
                                     <span x-show="sidebarExpanded"
-                                          x-transition
+                                        x-transition:enter="transition ease-out duration-200"
+                                        x-transition:enter-start="opacity-0 -translate-x-2"
+                                        x-transition:enter-end="opacity-100 translate-x-0"
+                                        x-transition:leave="transition ease-in duration-150"
+                                        x-transition:leave-start="opacity-100 translate-x-0"
+                                        x-transition:leave-end="opacity-0 -translate-x-2"
                                           class="flex-1 ms-3 text-left whitespace-nowrap">
                                         {{ $navigation['label'] }}
                                     </span>
@@ -99,12 +123,17 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                                 </button>
 
                                 <ul x-show="open && sidebarExpanded"
-                                    x-transition
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 -translate-y-1"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    x-transition:leave="transition ease-in duration-150"
+                                    x-transition:leave-start="opacity-100 translate-y-0"
+                                    x-transition:leave-end="opacity-0 -translate-y-1"
                                     class="py-2 space-y-2">
                                     @foreach ($navigation['children'] as $child)
                                         <li>
                                             <a href="{{ route($navigation['route'], $child['query'] ?? []) }}"
-                                               class="flex items-center w-full p-2 pl-11 rounded-lg text-gray-700 hover:bg-[#DFE8FC] hover:text-[#070642] transition-colors">
+                                               class="group flex items-center w-full p-2 pl-11 rounded-lg text-[#6B7280] hover:bg-[#DFE8FC] hover:text-[#070642] transition-all duration-200 hover:translate-x-1">
                                                 {{ $child['label'] }}
                                             </a>
                                         </li>
@@ -114,12 +143,17 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                         @else
                             <li>
                                 <a href="{{ route($navigation['route']) }}"
-                                   class="flex items-center p-3 rounded-lg {{ $this->getActiveClass($navigation['route']) }} transition-colors group"
+                                   class="group flex items-center p-3 rounded-lg {{ $this->getActiveClass($navigation['route']) }} transition-all duration-200 hover:translate-x-1 hover:shadow-sm active:scale-[0.98]"
                                    :class="!sidebarExpanded && 'justify-center'"
                                    :title="!sidebarExpanded ? '{{ $navigation['label'] }}' : ''">
-                                    <x-dynamic-component :component="$navigation['icon']" class="flex-shrink-0" />
+                                    <x-dynamic-component :component="$navigation['icon']" class="flex-shrink-0 transition-transform duration-200 group-hover:scale-110 {{ request()->routeIs($navigation['route']) ? 'text-[#070642]' : 'text-[#6B7280] group-hover:text-[#070642]' }}" />
                                     <span x-show="sidebarExpanded"
-                                          x-transition
+                                        x-transition:enter="transition ease-out duration-200"
+                                        x-transition:enter-start="opacity-0 -translate-x-2"
+                                        x-transition:enter-end="opacity-100 translate-x-0"
+                                        x-transition:leave="transition ease-in duration-150"
+                                        x-transition:leave-start="opacity-100 translate-x-0"
+                                        x-transition:leave-end="opacity-0 -translate-x-2"
                                           class="ms-3 whitespace-nowrap">
                                         {{ $navigation['label'] }}
                                     </span>
@@ -132,7 +166,12 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                 <div class="border-t border-gray-200 my-4"></div>
 
                 <p x-show="sidebarExpanded"
-                   x-transition
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-x-2"
+                         x-transition:enter-end="opacity-100 translate-x-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-x-0"
+                         x-transition:leave-end="opacity-0 -translate-x-2"
                    class="px-3 mb-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Others
                 </p>
@@ -141,12 +180,17 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                 <ul class="space-y-2 font-medium">
                     <li>
                         <a href="{{ route('settings') }}"
-                           class="flex items-center p-3 text-gray-700 rounded-lg hover:bg-[#DFE8FC] hover:text-[#070642] transition-colors group"
+                           class="group flex items-center p-3 rounded-lg transition-all duration-200 hover:translate-x-1 hover:shadow-sm active:scale-[0.98] {{ request()->routeIs('settings') ? 'bg-[#DFE8FC] text-[#070642]' : 'text-[#6B7280] hover:bg-[#DFE8FC] hover:text-[#070642]' }}"
                            :class="!sidebarExpanded && 'justify-center'"
                            :title="!sidebarExpanded ? 'Settings' : ''">
-                            <x-icons.settings class="flex-shrink-0" />
+                            <x-icons.settings class="flex-shrink-0 transition-transform duration-200 group-hover:scale-110 {{ request()->routeIs('settings') ? 'text-[#070642]' : 'text-[#6B7280] group-hover:text-[#070642]' }}" />
                             <span x-show="sidebarExpanded"
-                                  x-transition
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 -translate-x-2"
+                                    x-transition:enter-end="opacity-100 translate-x-0"
+                                    x-transition:leave="transition ease-in duration-150"
+                                    x-transition:leave-start="opacity-100 translate-x-0"
+                                    x-transition:leave-end="opacity-0 -translate-x-2"
                                   class="ms-3 whitespace-nowrap">
                                 Settings
                             </span>
@@ -154,12 +198,17 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                     </li>
                     <li>
                         <a href="{{ route('logout') }}"
-                           class="flex items-center p-3 text-gray-700 rounded-lg hover:bg-[#DFE8FC] hover:text-[#070642] transition-colors group"
+                           class="group flex items-center p-3 text-[#6B7280] rounded-lg hover:bg-[#DFE8FC] hover:text-[#070642] transition-all duration-200 hover:translate-x-1 hover:shadow-sm active:scale-[0.98]"
                            :class="!sidebarExpanded && 'justify-center'"
                            :title="!sidebarExpanded ? 'Log Out' : ''">
-                            <x-icons.logout class="flex-shrink-0" />
+                            <x-icons.logout class="flex-shrink-0 text-[#6B7280] transition-transform duration-200 group-hover:scale-110 group-hover:text-[#070642]" />
                             <span x-show="sidebarExpanded"
-                                  x-transition
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 -translate-x-2"
+                                    x-transition:enter-end="opacity-100 translate-x-0"
+                                    x-transition:leave="transition ease-in duration-150"
+                                    x-transition:leave-start="opacity-100 translate-x-0"
+                                    x-transition:leave-end="opacity-0 -translate-x-2"
                                   class="ms-3 whitespace-nowrap">
                                 Log Out
                             </span>

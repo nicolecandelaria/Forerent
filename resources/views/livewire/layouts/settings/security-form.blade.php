@@ -1,5 +1,20 @@
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 9999px white inset !important;
+        box-shadow: 0 0 0 9999px white inset !important;
+        -webkit-text-fill-color: #374151 !important;
+        transition: background-color 9999s ease-in-out 0s;
+    }
+</style>
+
 <div
-    class="flex flex-col items-end w-full"
+    class="flex flex-col w-full"
+    style="font-family: 'Open Sans', sans-serif;"
     x-data="{
         showCurrent: false,
         showNew: false,
@@ -11,6 +26,9 @@
             special: false,
             capital: false
         },
+        get allMet() {
+            return this.requirements.length && this.requirements.number && this.requirements.special && this.requirements.capital;
+        },
         validatePassword() {
             this.requirements.length = this.password.length >= 8;
             this.requirements.number = /[0-9]/.test(this.password);
@@ -21,114 +39,188 @@
     x-init="$watch('password', () => validatePassword())"
 >
 
-    <div class="w-full bg-white rounded-[25px] shadow-sm p-10 md:p-14 border border-slate-100">
-
-        <div class="space-y-6">
+    <div class="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-6 md:p-8">
+        <div class="space-y-5">
 
             {{-- 1. CURRENT PASSWORD --}}
-            <div class="relative w-full">
-                <input
-                    :type="showCurrent ? 'text' : 'password'"
-                    wire:model="current_password"
-                    id="current_password_input"
-                    autocomplete="off"
-                    class="peer w-full h-14 border border-gray-400 rounded-lg pl-4 pr-12 pt-4 pb-1 outline-none text-gray-800 placeholder-transparent focus:border-[#0C0B50] focus:ring-1 focus:ring-[#0C0B50] transition-all bg-transparent z-10 relative"
-                    placeholder=" "
-                />
-                <label for="current_password_input" class="absolute left-4 top-4 text-gray-500 text-sm transition-all duration-200 pointer-events-none peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-[#0C0B50] peer-focus:bg-white peer-focus:px-1 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-white peer-not-placeholder-shown:px-1 z-10">
-                    Current Password
-                </label>
-                <button type="button" @click="showCurrent = !showCurrent" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0C0B50] z-50 cursor-pointer p-2 focus:outline-none">
-                    <svg x-show="!showCurrent" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    <svg x-show="showCurrent" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                </button>
-                @error('current_password') <span class="text-xs text-red-500 mt-1 ml-1 block">{{ $message }}</span> @enderror
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Current Password</label>
+                <div class="flex items-center border border-gray-200 rounded-xl px-4 h-12 bg-white shadow-sm focus-within:border-[#3B82F6] focus-within:ring-1 focus-within:ring-[#3B82F6] transition-all duration-200">
+                    {{-- Icon --}}
+                    <div class="shrink-0 mr-3">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                    </div>
+                    <input
+                        :type="showCurrent ? 'text' : 'password'"
+                        wire:model="current_password"
+                        autocomplete="off"
+                        placeholder="Enter current password"
+                        class="flex-1 bg-transparent outline-none border-0 ring-0 focus:ring-0 focus:outline-none focus:border-0 text-gray-700 text-sm placeholder-gray-300"
+                    />
+                    <button type="button" @click="showCurrent = !showCurrent" class="ml-2 flex items-center text-gray-400 hover:text-[#0C0B50] transition-colors focus:outline-none">
+                        <svg x-show="!showCurrent" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <svg x-show="showCurrent" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                        </svg>
+                    </button>
+                </div>
+                @error('current_password') <p class="text-xs text-red-500 mt-1.5 ml-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- 2. NEW PASSWORD --}}
-            <div class="relative w-full">
-                <input
-                    :type="showNew ? 'text' : 'password'"
-                    wire:model.live="password"
-                    id="new_password_input"
-                    autocomplete="new-password"
-                    class="peer w-full h-14 border border-gray-400 rounded-lg pl-4 pr-12 pt-4 pb-1 outline-none text-gray-800 placeholder-transparent focus:border-[#0C0B50] focus:ring-1 focus:ring-[#0C0B50] transition-all bg-transparent z-10 relative"
-                    placeholder=" "
-                />
-                <label for="new_password_input" class="absolute left-4 top-4 text-gray-500 text-sm transition-all duration-200 pointer-events-none peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-[#0C0B50] peer-focus:bg-white peer-focus:px-1 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-white peer-not-placeholder-shown:px-1 z-10">
-                    New Password
-                </label>
-                <button type="button" @click="showNew = !showNew" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0C0B50] z-50 cursor-pointer p-2 focus:outline-none">
-                    <svg x-show="!showNew" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    <svg x-show="showNew" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                </button>
-                @error('password') <span class="text-xs text-red-500 mt-1 ml-1 block">{{ $message }}</span> @enderror
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">New Password</label>
+                <div class="flex items-center border border-gray-200 rounded-xl px-4 h-12 bg-white shadow-sm focus-within:border-[#3B82F6] focus-within:ring-1 focus-within:ring-[#3B82F6] transition-all duration-200">
+                    {{-- Icon --}}
+                    <div class="shrink-0 mr-3">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <input
+                        :type="showNew ? 'text' : 'password'"
+                        wire:model.live="password"
+                        autocomplete="off"
+                        placeholder="Enter new password"
+                        class="flex-1 bg-transparent outline-none border-0 ring-0 focus:ring-0 focus:outline-none focus:border-0 text-gray-700 text-sm placeholder-gray-300"
+                    />
+                    <button type="button" @click="showNew = !showNew" class="ml-2 flex items-center text-gray-400 hover:text-[#0C0B50] transition-colors focus:outline-none">
+                        <svg x-show="!showNew" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <svg x-show="showNew" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                        </svg>
+                    </button>
+                </div>
+                @error('password') <p class="text-xs text-red-500 mt-1.5 ml-1">{{ $message }}</p> @enderror
             </div>
 
-            {{-- 3. CHECKLIST (JavaScript-driven validation) --}}
-            <div class="bg-gray-50 rounded-lg p-4 text-xs space-y-2 border border-slate-100 transition-all duration-300">
-                <p class="font-bold text-gray-700 mb-2">Your password must contain:</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2">
+            {{-- 3. PASSWORD REQUIREMENTS --}}
+            <div class="bg-[#EEF2FF] border border-[#C7D2FE] rounded-xl p-4">
+                <p class="flex items-center gap-2 text-xs font-bold text-[#0C0B50] uppercase tracking-wide mb-3">
+                    <span class="inline-block w-2 h-2 rounded-full bg-[#3B5BDB] shrink-0"></span>
+                    Your password must contain:
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
-                    {{-- Length Rule --}}
-                    <div class="flex items-center gap-2 transition-all" :class="requirements.length ? 'text-green-600 font-bold' : 'text-slate-500'">
-                        <span x-show="requirements.length" class="text-green-600">✓</span>
-                        <span x-show="!requirements.length" class="text-red-500">✗</span>
+                    {{-- Length --}}
+                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                         :class="requirements.length ? 'text-green-600' : 'text-gray-500'">
+                        <svg x-show="requirements.length" class="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <svg x-show="!requirements.length" class="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
                         <span>A minimum of 8 characters</span>
                     </div>
 
-                    {{-- Special Char Rule --}}
-                    <div class="flex items-center gap-2 transition-all" :class="requirements.special ? 'text-green-600 font-bold' : 'text-slate-500'">
-                        <span x-show="requirements.special" class="text-green-600">✓</span>
-                        <span x-show="!requirements.special" class="text-red-500">✗</span>
-                        <span>At least 1 special character</span>
-                    </div>
-
-                    {{-- Number Rule --}}
-                    <div class="flex items-center gap-2 transition-all" :class="requirements.number ? 'text-green-600 font-bold' : 'text-slate-500'">
-                        <span x-show="requirements.number" class="text-green-600">✓</span>
-                        <span x-show="!requirements.number" class="text-red-500">✗</span>
+                    {{-- Number --}}
+                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                         :class="requirements.number ? 'text-green-600' : 'text-gray-500'">
+                        <svg x-show="requirements.number" class="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <svg x-show="!requirements.number" class="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
                         <span>At least one number</span>
                     </div>
 
-                    {{-- Capital Rule --}}
-                    <div class="flex items-center gap-2 transition-all" :class="requirements.capital ? 'text-green-600 font-bold' : 'text-slate-500'">
-                        <span x-show="requirements.capital" class="text-green-600">✓</span>
-                        <span x-show="!requirements.capital" class="text-red-500">✗</span>
+                    {{-- Special --}}
+                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                         :class="requirements.special ? 'text-green-600' : 'text-gray-500'">
+                        <svg x-show="requirements.special" class="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <svg x-show="!requirements.special" class="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>At least 1 special character</span>
+                    </div>
+
+                    {{-- Capital --}}
+                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                         :class="requirements.capital ? 'text-green-600' : 'text-gray-500'">
+                        <svg x-show="requirements.capital" class="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <svg x-show="!requirements.capital" class="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
                         <span>At least one uppercase letter</span>
                     </div>
+
                 </div>
             </div>
 
             {{-- 4. CONFIRM PASSWORD --}}
-            <div class="relative w-full">
-                <input
-                    :type="showConfirm ? 'text' : 'password'"
-                    wire:model="password_confirmation"
-                    id="confirm_password_input"
-                    autocomplete="new-password"
-                    class="peer w-full h-14 border border-gray-400 rounded-lg pl-4 pr-12 pt-4 pb-1 outline-none text-gray-800 placeholder-transparent focus:border-[#0C0B50] focus:ring-1 focus:ring-[#0C0B50] transition-all bg-transparent z-10 relative"
-                    placeholder=" "
-                />
-                <label for="confirm_password_input" class="absolute left-4 top-4 text-gray-500 text-sm transition-all duration-200 pointer-events-none peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-[#0C0B50] peer-focus:bg-white peer-focus:px-1 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-white peer-not-placeholder-shown:px-1 z-10">
-                    Confirm New Password
-                </label>
-                <button type="button" @click="showConfirm = !showConfirm" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0C0B50] z-50 cursor-pointer p-2 focus:outline-none">
-                    <svg x-show="!showConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    <svg x-show="showConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                </button>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Confirm New Password</label>
+                <div class="flex items-center border border-gray-200 rounded-xl px-4 h-12 bg-white shadow-sm focus-within:border-[#3B82F6] focus-within:ring-1 focus-within:ring-[#3B82F6] transition-all duration-200">
+                    {{-- Icon --}}
+                    <div class="shrink-0 mr-3">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                    </div>
+                    <input
+                        :type="showConfirm ? 'text' : 'password'"
+                        wire:model="password_confirmation"
+                        autocomplete="off"
+                        placeholder="Confirm new password"
+                        class="flex-1 bg-transparent outline-none border-0 ring-0 focus:ring-0 focus:outline-none focus:border-0 text-gray-700 text-sm placeholder-gray-300"
+                    />
+                    <button type="button" @click="showConfirm = !showConfirm" class="ml-2 flex items-center text-gray-400 hover:text-[#0C0B50] transition-colors focus:outline-none">
+                        <svg x-show="!showConfirm" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <svg x-show="showConfirm" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
         </div>
-    </div>
 
-    <div class="mt-6">
-        <button
-            wire:click="updatePassword"
-            class="bg-[#0C0B50] hover:bg-[#1a196e] text-white font-bold py-3 px-16 rounded-xl shadow-md transition-transform active:scale-95 text-sm"
-        >
-            Save
-        </button>
+        {{-- ACTION BUTTONS --}}
+        <div class="mt-8 flex items-center justify-end gap-4">
+            <button
+                type="button"
+                wire:click="clearFields"
+                @click="
+                    showCurrent = false;
+                    showNew = false;
+                    showConfirm = false;
+                    requirements.length = false;
+                    requirements.number = false;
+                    requirements.special = false;
+                    requirements.capital = false;
+                "
+                class="text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors"
+            >
+                Clear
+            </button>
+            <button
+                wire:click="updatePassword"
+                :disabled="!allMet"
+                :class="allMet ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer focus:ring-blue-500' : 'bg-blue-600 opacity-50 cursor-not-allowed focus:ring-blue-500'"
+                class="flex items-center gap-2 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+                Save
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                </svg>
+            </button>
+        </div>
     </div>
 
 </div>

@@ -18,6 +18,7 @@
             <input
                 type="text"
                 wire:model.live.debounce.300ms="searchQuery"
+                autocomplete="off"
                 class="w-full pl-12 pr-10 py-3 text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm"
                 placeholder="Search properties, units, tenants...">
 

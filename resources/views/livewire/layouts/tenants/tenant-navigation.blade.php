@@ -1,62 +1,62 @@
 {{-- resources/views/livewire/layouts/tenant-navigation.blade.php --}}
+{{-- Using reusable list panel structure --}}
 
-<div class="w-full bg-white p-4 md:p-6 rounded-2xl shadow-md h-full flex flex-col">
+<div class="w-full bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden p-2 h-full">
     {{-- Header Section with Title and Add Button --}}
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl md:text-2xl font-bold text-gray-800">Tenants</h2>
+    <div class="p-4 pb-2 border-b border-gray-50 flex-shrink-0 flex items-center justify-between">
+        <h3 class="text-xl font-bold text-[#070642]">Tenants</h3>
         <button
-    type="button"
-    {{-- CHANGED: Use a unique event name with NO parameters to prevent type errors --}}
-    x-on:click="$dispatch('open-add-tenant-modal')"
-    class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-    </svg>
-    Add Tenant
-</button>
+            type="button"
+            x-on:click="$dispatch('open-add-tenant-modal')"
+            class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+            <span class="text-sm">Add</span>
+        </button>
     </div>
 
-    {{-- Tenant List Container --}}
-    <div class="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-3">
+    {{-- List Body --}}
+    <div class="flex-1 overflow-y-auto p-4 space-y-2.5" style="scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent;">
         {{-- Loop through the tenants --}}
         @forelse ($tenants as $tenant)
             @php
-                $baseClasses = 'w-full text-left font-semibold p-4 rounded-lg border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400';
                 $isActive = ($tenant['id'] == $activeTenantId);
-
-                if ($isActive) {
-                    $buttonClasses = 'bg-blue-600 text-white border-blue-600 shadow-lg';
-                } else {
-                    $buttonClasses = 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-500';
-                }
             @endphp
 
             <button
                 type="button"
                 wire:click="selectTenant({{ $tenant['id'] }})"
-                class="{{ $baseClasses }} {{ $buttonClasses }}"
+                class="cursor-pointer w-full text-left p-4 rounded-2xl transition-all duration-200 border-2
+                    {{ $isActive
+                        ? 'border-[#0044F1] bg-[#1679FA] shadow-md'
+                        : 'border-transparent bg-white ring-1 ring-gray-100 hover:border-[#93C5FD] hover:bg-[#EEF3FF] hover:shadow-sm' }}"
             >
                 <div class="flex justify-between items-start">
                     <div class="flex-1 text-left">
-                        <h4 class="font-semibold text-base mb-1">{{ $tenant['first_name'] }} {{ $tenant['last_name'] }}</h4>
-                        <p class="text-sm opacity-90">{{ $tenant['unit'] }} • {{ $tenant['bed_number'] }}</p>
+                        <h4 class="font-semibold text-base {{ $isActive ? 'text-white' : 'text-gray-900' }} mb-1">
+                            {{ $tenant['first_name'] }} {{ $tenant['last_name'] }}
+                        </h4>
+                        <p class="text-xs font-bold uppercase tracking-wide {{ $isActive ? 'text-blue-100' : 'text-[#070642]' }}">
+                            {{ $tenant['unit'] }} • {{ $tenant['bed_number'] }}
+                        </p>
                     </div>
 
                     {{-- Payment Status Badge --}}
-                    <div class="flex-shrink-0 ml-2">
+                    <div class="shrink-0 ml-2">
                         @if($tenant['payment_status'] === 'Paid')
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
                                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 Paid
                             </span>
                         @elseif($tenant['payment_status'] === 'Overdue')
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
                                 Overdue
                             </span>
                         @else
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800">
                                 Pending
                             </span>
                         @endif
@@ -64,43 +64,15 @@
                 </div>
             </button>
         @empty
-            <div class="text-center py-8">
-                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-                </svg>
-                <p class="text-gray-500 mb-4">No tenants found.</p>
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
-                >
-                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                <div class="bg-[#F4F7FF] p-6 rounded-full mb-4">
+                    <svg class="h-10 w-10 text-[#2B66F5] opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
                     </svg>
-                    Add Your First Tenant
-                </button>
+                </div>
+                <p class="font-semibold text-gray-500 text-sm">No tenants found</p>
+                <p class="text-xs text-gray-400 mt-1">There are currently no tenants in this property.</p>
             </div>
         @endforelse
     </div>
 </div>
-
-@push('styles')
-<style>
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #0039C6;
-        border-radius: 10px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #002A8F;
-    }
-</style>
-@endpush

@@ -1,5 +1,5 @@
 <div>
-    <svg class="w-5 h-5 text-gray-500 transition duration-75 group-hover:text-[#070642]"
+    <svg class="w-5 h-5 text-current transition-colors duration-200"
          width="29" height="37" viewBox="0 0 29 37" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M0 6.47878L9.75082 0.537109V36.1871H0V6.47878Z" fill="currentColor" />
         <path d="M18.4219 5.93863L10.2962 0.537109V36.1871H18.4219V5.93863Z" fill="currentColor" />

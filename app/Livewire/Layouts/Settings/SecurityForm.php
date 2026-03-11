@@ -14,6 +14,12 @@ class SecurityForm extends Component
     public $password = '';
     public $password_confirmation = '';
 
+    public function clearFields()
+    {
+        $this->reset(['current_password', 'password', 'password_confirmation']);
+        $this->resetValidation();
+    }
+
     public function updatePassword()
     {
         $this->validate([

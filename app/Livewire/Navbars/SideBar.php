@@ -144,7 +144,7 @@ class SideBar extends Component
     {
         return request()->routeIs($routeName)
             ? 'bg-[#DFE8FC] text-[#070642]'
-            : 'text-gray-700 hover:bg-[#DFE8FC] hover:text-[#070642]';
+            : 'text-[#6B7280] hover:bg-[#DFE8FC] hover:text-[#070642]';
     }
 
     public function render()

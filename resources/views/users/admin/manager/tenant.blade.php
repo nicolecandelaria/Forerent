@@ -20,12 +20,12 @@
 
      <div class="mt-6">
         <div class="w-full">
-            <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-400px)] min-h-[600px]">
-                 <div class="lg:w-1/3">
+            <div class="flex flex-col lg:flex-row gap-6 h-[750px]">
+                 <div class="lg:w-[30%]">
                     <livewire:layouts.tenants.tenant-navigation />
                 </div>
 
-                 <div class="lg:w-2/3">
+                 <div class="lg:w-[70%]">
                     <livewire:layouts.tenants.tenant-detail />
                 </div>
             </div>

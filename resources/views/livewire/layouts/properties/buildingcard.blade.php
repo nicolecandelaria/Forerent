@@ -1,13 +1,14 @@
 
-<div class="bg-white rounded-lg shadow-md overflow-hidden flex-shrink-0 w-64 transition-all hover:shadow-lg cursor-pointer"
+<div class="bg-white rounded-lg shadow-md overflow-hidden shrink-0 w-64 transition-all cursor-pointer hover:shadow-xl"
+     style="border-radius: 0.5rem;"
      onclick="Livewire.dispatch('buildingSelected', { buildingId: {{ $property->property_id }} })">
 
     {{-- Image Container --}}
-    <div class="relative h-48 overflow-hidden">
+    <div class="relative h-48 overflow-hidden rounded-t-lg">
         <img
             src="{{ $property->image ? asset('storage/' . $property->image) : asset('office-building.png') }}"
             alt="{{ $property->building_name }}"
-            class="w-full h-full object-cover">
+            class="w-full h-full object-cover transition-transform hover:scale-110 duration-300">
     </div>
 
     {{-- Content Container --}}

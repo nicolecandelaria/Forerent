@@ -18,7 +18,7 @@
     <div class="min-h-screen grid grid-cols-1 lg:grid-cols-2">
 
         {{-- LEFT: Login Form --}}
-        <div class="flex items-center justify-center relative z-10">
+        <div class="flex items-center justify-center relative z-10" style="background-color: inherit;">
             {{ $slot ?? '' }}
             @yield('content')
         </div>
@@ -53,13 +53,13 @@
                         padding-bottom: 90%;
                         border-radius: 50%;
                         background: linear-gradient( 135deg,
-                        rgba(255, 255, 255, 0.05) 0%,
-                        rgba(255, 255, 255, 0.06) 60%,
-                        rgba(255, 255, 255, 0.03) 100%
-                         );
+                        rgba(255, 255, 255, 0.02) 0%,
+                        rgba(255, 255, 255, 0.03) 60%,
+                        rgba(255, 255, 255, 0.01) 100%
+                             );
                         backdrop-filter: blur(24px);
                         -webkit-backdrop-filter: blur(24px);
-                        border: 1.5px solid rgba(255, 255, 255, 0.25);
+                        border: 1.5px solid rgba(255, 255, 255, 0.10);
                         box-shadow:
                             0 8px 40px rgba(0, 0, 0, 0.22),
                             inset 0 1.5px 0 rgba(255, 255, 255, 0.4),

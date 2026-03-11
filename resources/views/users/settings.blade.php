@@ -1,15 +1,14 @@
 @extends('layouts.app')
 
 @section('header-title', 'SETTINGS')
-@section('header-subtitle', 'View and record property or unit')
+@section('header-subtitle', 'Manage your account preferences and security protocols.')
 
 @section('content')
 
-    <div class="w-full h-full max-w-[850px]">
+    <div class="w-full h-full">
 
         {{-- TABS NAVIGATION --}}
-        {{-- FIX: Used gap-8 for cleaner spacing instead of me-8 --}}
-        <div class="mb-8 border-b border-gray-200">
+        <div class="mb-8">
             <ul class="flex flex-wrap gap-10 -mb-px text-lg font-bold" id="settings-tab"
                 data-tabs-toggle="#settings-tab-content"
                 role="tablist">

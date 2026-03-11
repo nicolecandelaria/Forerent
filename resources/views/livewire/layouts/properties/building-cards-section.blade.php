@@ -23,10 +23,7 @@
             <div
                 wire:key="building-{{ $property->property_id }}"
                 wire:click="selectBuilding({{ $property->property_id }})"
-                class="cursor-pointer transition-transform hover:scale-105 rounded-lg
-                    {{ $selectedBuilding === $property->property_id
-                        ? 'border-2 border-blue-500 bg-blue-50'
-                        : 'border border-transparent' }}"
+                class="cursor-pointer rounded-lg"
             >
                 <livewire:layouts.properties.buildings
                     :property="$property"

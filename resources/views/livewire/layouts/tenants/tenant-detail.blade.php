@@ -5,7 +5,7 @@
     - `flex flex-col` creates the vertical layout.
     - `h-full` ensures it fills the parent container from tenant.blade.php.
 --}}
-<div class="bg-white rounded-3xl shadow-lg flex flex-col h-full overflow-hidden">
+<div class="bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
     @if($currentTenant)
         {{-- Wrapper for the "content" state --}}
         <div class="flex flex-col h-full">
