@@ -44,14 +44,23 @@
                         </x-ui.td>
 
                         <x-ui.td class="text-center" @click.stop>
-                            @if($payment->status !== 'Paid')
-                            <button
-                                wire:click="confirmPayment({{ $payment->billing_id }})"
-                                class="inline-flex items-center px-3 py-1 bg-[#070589] text-white rounded-md text-xs font-bold hover:bg-[#000060] transition-colors"
-                            >
-                                Mark As Paid
-                            </button>
-                        @endif
+                            <div class="inline-flex items-center gap-2">
+                                <button
+                                    wire:click.stop="viewReceipt({{ $payment->billing_id }})"
+                                    class="inline-flex items-center px-3 py-1 border border-[#0906ae] text-[#0906ae] rounded-md text-xs font-bold hover:bg-blue-50 transition-colors"
+                                >
+                                    View
+                                </button>
+
+                                @if($payment->status !== 'Paid')
+                                    <button
+                                        wire:click.stop="confirmPayment({{ $payment->billing_id }})"
+                                        class="inline-flex items-center px-3 py-1 bg-[#070589] text-white rounded-md text-xs font-bold hover:bg-[#000060] transition-colors"
+                                    >
+                                        Mark As Paid
+                                    </button>
+                                @endif
+                            </div>
                         </x-ui.td>
                     </x-ui.tr>
                 @empty

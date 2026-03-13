@@ -13,9 +13,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
             </button>
-            
+
             <h3 class="text-sm font-bold text-gray-900 text-center flex-1">{{ $currentMonth }}</h3>
-            
+
             <button
                 wire:click="nextMonth"
                 type="button"
@@ -78,20 +78,18 @@
             <h3 class="text-white text-lg font-semibold">{{ \Carbon\Carbon::parse($selectedDate)->format('F d, Y') }}</h3>
         </div>
         <div class="flex-1 flex flex-col">
-            @forelse($dailyAnnouncements as $dailyAnnouncement)
-            <div class="p-6 space-y-4 max-h-80 overflow-y-auto flex-1">
-                @foreach($dailyAnnouncements as $dailyAnnouncement)
-                <div class="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
-                    <h4 class="text-base font-bold text-gray-900 mb-1">{{ $dailyAnnouncement->headline }}</h4>
-                    <p class="text-sm text-gray-600">{{ $dailyAnnouncement->details }}</p>
-                </div>
-                @endforeach
+            <div class="p-6 space-y-4 h-80 overflow-y-scroll custom-scrollbar flex-1">
+                @forelse($dailyAnnouncements as $dailyAnnouncement)
+                    <div class="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                        <h4 class="text-base font-bold text-gray-900 mb-1">{{ $dailyAnnouncement->headline }}</h4>
+                        <p class="text-sm text-gray-600">{{ $dailyAnnouncement->details }}</p>
+                    </div>
+                @empty
+                    <div class="h-full flex items-center justify-center">
+                        <p class="text-gray-500 text-center">No Events for Today</p>
+                    </div>
+                @endforelse
             </div>
-            @empty
-            <div class="flex-1 flex items-center justify-center p-6">
-                <p class="text-gray-500 text-center">No Events for Today</p>
-            </div>
-            @endforelse
         </div>
     </div>
 </div>

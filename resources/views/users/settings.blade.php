@@ -11,12 +11,14 @@
         <div class="mb-8">
             <ul class="flex flex-wrap gap-10 -mb-px text-lg font-bold" id="settings-tab"
                 data-tabs-toggle="#settings-tab-content"
+                data-tabs-active-classes="text-[#0C0B50] border-b-4 border-[#0C0B50]"
+                data-tabs-inactive-classes="text-gray-400 border-b-4 border-transparent hover:text-gray-600 hover:border-gray-300"
                 role="tablist">
 
                 {{-- Tab 1: Personal Information --}}
                 <li role="presentation">
                     <button
-                        class="inline-block pb-2 text-gray-400 border-b-4 border-transparent hover:text-gray-600 hover:border-gray-300 transition-all"
+                        class="inline-block pb-2 transition-all"
                         id="personal-info-tab"
                         data-tabs-target="#personal-info"
                         type="button"
@@ -30,7 +32,7 @@
                 {{-- Tab 2: Security --}}
                 <li role="presentation">
                     <button
-                        class="inline-block pb-2 text-[#0C0B50] border-b-4 border-[#0C0B50]"
+                        class="inline-block pb-2 transition-all"
                         id="security-tab"
                         data-tabs-target="#security"
                         type="button"

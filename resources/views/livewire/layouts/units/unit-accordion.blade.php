@@ -12,7 +12,7 @@
         @endif
     </div>
 
-    <div class="flex-1 overflow-y-auto space-y-4">
+    <div class="flex-1 overflow-y-auto px-1 space-y-4">
         @forelse ($units as $unit)
             @php
                 $status = $this->calculateUnitStatus($unit);
@@ -21,8 +21,8 @@
             @endphp
 
             {{-- Use unique keys for every unit block --}}
-            <div wire:key="unit-wrapper-{{ $unit->unit_id }}"
-                 class="rounded-lg transition-all duration-200 {{ $isHovered ? 'ring-2 ring-blue-300' : '' }}">
+              <div wire:key="unit-wrapper-{{ $unit->unit_id }}"
+                  class="rounded-lg transition-all duration-200 {{ $isHovered ? 'ring-2 ring-inset ring-blue-300' : '' }}">
 
                 {{-- Collapsed State --}}
                 @if (!$isOpen)
