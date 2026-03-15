@@ -6,6 +6,7 @@ use App\Models\Announcement;
 use App\Models\Lease;
 use App\Models\Unit;
 use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
 
 class AnnouncementList extends Component
 {
@@ -20,18 +21,16 @@ class AnnouncementList extends Component
             $this->announcements = Announcement::where('author_id', auth()->id())
                 ->orderBy('created_at', 'desc')
                 ->get();
-        }
-        else if ($this->role == "manager") {
+        } else if ($this->role == "manager") {
             $propertyIds = Unit::where('manager_id', auth()->id())->get()
-            ->pluck('property_id')
-            ->unique();
+                ->pluck('property_id')
+                ->unique();
 
             $this->announcements = Announcement::where('author_id', auth()->id())
                 ->orWhereIn('property_id', $propertyIds)
                 ->orderBy('created_at', 'desc')
                 ->where('recipient_role', 'manager')->get();
-        }
-        else if ($this->role == "tenant") {
+        } else if ($this->role == "tenant") {
             $propertyIds = Lease::where('tenant_id', auth()->id())
                 ->join('beds', 'leases.bed_id', '=', 'beds.bed_id')
                 ->join('units', 'beds.unit_id', '=', 'units.unit_id')
@@ -43,6 +42,16 @@ class AnnouncementList extends Component
                 ->where('recipient_role', 'tenant')
                 ->orderBy('created_at', 'desc')
                 ->get();
+        }
+    }
+
+    public function deleteAnnouncement($announcementId)
+    {
+        $announcement = Announcement::find($announcementId);
+        if ($announcement) {
+            $announcement->delete();
+            // Refresh announcements
+            $this->mount();
         }
     }
 

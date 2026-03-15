@@ -3,6 +3,7 @@
 namespace App\Livewire\Layouts\Units;
 
 use Livewire\Component;
+use App\Livewire\Concerns\WithNotifications;
 use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Support\Facades\Http;
@@ -10,6 +11,8 @@ use Livewire\Attributes\On;
 
 class AddUnitModal extends Component
 {
+    use WithNotifications;
+
     public $isOpen = false;
     public $modalId;
     public $editingUnitId = null;
@@ -205,44 +208,56 @@ class AddUnitModal extends Component
     {
         $this->validate();
 
-        if (auth()->user()->role === 'manager' && !$this->editingUnitId) {
-            session()->flash('error', 'Managers are not authorized to create new units.');
-            return;
-        }
-
-        $checkedAmenities = array_keys(array_filter($this->model_amenities));
-
-        $data = [
-            'property_id' => $this->property_id,
-            'floor_number' => $this->floor_number,
-            'm/f' => $this->m_f,
-            'bed_type' => $this->bed_type,
-            'room_type' => $this->room_type,
-            'room_cap' => $this->room_cap,
-            'unit_cap' => $this->unit_cap,
-            'price' => $this->actual_price,
-            'amenities' => json_encode($checkedAmenities),
-        ];
-
-        if ($this->editingUnitId) {
-            $unit = Unit::find($this->editingUnitId);
-            if ($unit) {
-                $unit->update($data);
-                session()->flash('message', 'Unit updated successfully!');
+        try {
+            if (auth()->user()->role === 'manager' && !$this->editingUnitId) {
+                $this->notifyError(
+                    'Authorization Failed',
+                    'Managers are not authorized to create new units.'
+                );
+                return;
             }
-        } else {
-            try {
-                Unit::create(array_merge($data, [
+
+            $checkedAmenities = array_keys(array_filter($this->model_amenities));
+
+            $data = [
+                'property_id' => $this->property_id,
+                'floor_number' => $this->floor_number,
+                'm/f' => $this->m_f,
+                'bed_type' => $this->bed_type,
+                'room_type' => $this->room_type,
+                'room_cap' => $this->room_cap,
+                'unit_cap' => $this->unit_cap,
+                'price' => $this->actual_price,
+                'amenities' => json_encode($checkedAmenities),
+            ];
+
+            if ($this->editingUnitId) {
+                $unit = Unit::find($this->editingUnitId);
+                if ($unit) {
+                    $unit->update($data);
+                    $this->notifySuccess(
+                        'Unit #' . $unit->unit_id . ' Updated Successfully!',
+                        'Unit details have been updated.'
+                    );
+                }
+            } else {
+                $newUnit = Unit::create(array_merge($data, [
                     'unit_number' => $this->generateUniqueUnitNumber($this->property_id, $this->floor_number)
                 ]));
-                session()->flash('message', 'New unit created successfully!');
-            } catch (\Exception $e) {
-                session()->flash('error', 'Error creating unit: ' . $e->getMessage());
+                $this->notifySuccess(
+                    'Unit #' . $newUnit->unit_id . ' Created Successfully!',
+                    'New unit has been added to your property.'
+                );
             }
-        }
 
-        $this->close();
-        $this->dispatch('refresh-unit-list');
+            $this->close();
+            $this->dispatch('refresh-unit-list');
+        } catch (\Exception $e) {
+            $this->notifyError(
+                'Failed to Save Unit',
+                'An error occurred while saving the unit. Please try again.'
+            );
+        }
     }
 
     private function generateUniqueUnitNumber($propertyId, $floorNumber): string

@@ -1,15 +1,18 @@
 <div class="w-full bg-white rounded-2xl shadow-lg p-4 md:p-6 flex flex-col h-full">
     {{-- Header --}}
-    <div class="flex justify-between items-center mb-6 flex-shrink-0">
+    <div class="flex justify-between items-center mb-6 flex-shrink-0 gap-4">
         <h3 class="text-xl font-bold text-gray-900">Units</h3>
-        @if(auth()->user()->role === 'landlord')
-            <button
-                wire:click="$dispatch('open-add-unit-modal')"
-                class="py-2 px-4 text-sm font-medium text-white bg-[#2360E8] rounded-lg hover:bg-[#1d4eb8] transition-colors"
-            >
-                + Add Unit
-            </button>
-        @endif
+        <div class="flex items-center gap-3">
+            <x-ui.sort-dropdown model="sortBy" current="{{ $sortBy }}" />
+            @if(auth()->user()->role === 'landlord')
+                <button
+                    wire:click="$dispatch('open-add-unit-modal')"
+                    class="py-2 px-4 text-sm font-medium text-white bg-[#2360E8] rounded-lg hover:bg-[#1d4eb8] transition-colors"
+                >
+                    + Add Unit
+                </button>
+            @endif
+        </div>
     </div>
 
     <div class="flex-1 overflow-y-auto px-1 space-y-4">

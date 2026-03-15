@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Livewire\Layouts\Properties;
+
+use App\Livewire\Concerns\WithNotifications;
 use App\Models\Property;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -8,11 +10,16 @@ use Livewire\Attributes\Validate;
 
 class AddPropertyModal extends Component
 {
+    use WithNotifications;
+
     /** Modal visibility */
     public $isOpen = false;
 
     /** Unique modal instance */
     public $modalId;
+
+    /** Editing state */
+    public $editingPropertyId = null;
 
     /** Form fields */
     #[Validate('required|string|max:255')]
@@ -34,6 +41,7 @@ class AddPropertyModal extends Component
     {
         return [
             "openAddPropertyModal_{$this->modalId}" => 'open',
+            'editProperty' => 'loadPropertyForEditing',
         ];
     }
 
@@ -41,7 +49,22 @@ class AddPropertyModal extends Component
     public function open(): void
     {
         $this->resetForm();
+        $this->editingPropertyId = null;
         $this->isOpen = true;
+    }
+
+    public function loadPropertyForEditing($propertyId): void
+    {
+        $this->resetForm();
+        $property = Property::find($propertyId);
+
+        if ($property) {
+            $this->editingPropertyId = $property->property_id;
+            $this->buildingName = $property->building_name;
+            $this->address = $property->address;
+            $this->description = $property->prop_description;
+            $this->isOpen = true;
+        }
     }
 
     public function close(): void
@@ -57,21 +80,51 @@ class AddPropertyModal extends Component
         // Validate current step
         $this->validate();
 
-        // Save property and proceed to next step (units/beds creation)
-        $property = Property::create([
-            'owner_id' => Auth::id(),
-            'building_name' => $this->buildingName,
-            'address' => $this->address,
-            'prop_description' => $this->description,
-        ]);
+        try {
+            if ($this->editingPropertyId) {
+                // Update existing property
+                $property = Property::find($this->editingPropertyId);
+                if ($property) {
+                    $property->update([
+                        'building_name' => $this->buildingName,
+                        'address' => $this->address,
+                        'prop_description' => $this->description,
+                    ]);
 
-        session()->flash('message', 'Property created successfully! Now you can add units.');
+                    // Show success toast
+                    $this->notifySuccess(
+                        'Property Updated Successfully!',
+                        $this->buildingName . ' has been updated.'
+                    );
+                }
+            } else {
+                // Create new property
+                $property = Property::create([
+                    'owner_id' => Auth::id(),
+                    'building_name' => $this->buildingName,
+                    'address' => $this->address,
+                    'prop_description' => $this->description,
+                ]);
 
-        $this->close();
+                // Show success toast
+                $this->notifySuccess(
+                    'Property Created Successfully!',
+                    'You can now add units to ' . $this->buildingName
+                );
 
-        // Notify other components about the new property
-        $this->emit('propertyCreated', $property->property_id);
-        $this->emit('refresh-property-list');
+                // Notify other components about the new property
+                $this->dispatch('propertyCreated', $property->property_id);
+            }
+
+            $this->dispatch('refresh-property-list');
+            $this->close();
+        } catch (\Exception $e) {
+            // Show error toast
+            $this->notifyError(
+                'Failed to Save Property',
+                'An error occurred while saving the property. Please try again.'
+            );
+        }
     }
 
 
@@ -81,7 +134,9 @@ class AddPropertyModal extends Component
             'buildingName',
             'address',
             'description',
+            'editingPropertyId',
         ]);
+        $this->resetValidation();
     }
 
 

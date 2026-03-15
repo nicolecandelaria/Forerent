@@ -1,13 +1,40 @@
 <div class="bg-white rounded-lg shadow-md p-6">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Revenue Forecast</h2>
-        
-        <div class="flex items-center">
-            <select wire:model.live="forecastYear" class="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+
+        <!-- Year Dropdown -->
+        <div x-data="{ open: false }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative">
+            <button
+                @click="open = !open"
+                type="button"
+                class="flex items-center justify-between gap-3 bg-[#2B66F5] hover:bg-blue-700 text-white rounded-full px-6 py-2.5 font-semibold text-sm shadow-md transition-all focus:ring-4 focus:ring-blue-300 outline-none"
+                aria-haspopup="true"
+                :aria-expanded="open"
+            >
+                <span>{{ $forecastYear }}</span>
+                <svg :class="{ 'rotate-180': open }" class="w-4 h-4 text-white transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            <!-- Year Dropdown Panel -->
+            <div
+                x-show="open"
+                x-transition.origin.top.right
+                style="display: none;"
+                class="absolute right-0 z-30 w-40 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
+            >
                 @foreach(range(now()->year, now()->year + 2) as $year)
-                    <option value="{{ $year }}">{{ $year }}</option>
+                    <button
+                        type="button"
+                        wire:click="$set('forecastYear', {{ $year }})"
+                        @click="open = false"
+                        class="w-full text-left px-4 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer text-sm transition-colors {{ $forecastYear == $year ? 'bg-[#2B66F5] text-white' : 'text-gray-600' }}"
+                    >
+                        {{ $year }}
+                    </button>
                 @endforeach
-            </select>
+            </div>
         </div>
     </div>
 
@@ -32,12 +59,12 @@
                 <p class="text-sm font-medium text-green-700 mb-2">Annual Forecast</p>
                 <p class="text-3xl font-bold text-green-600">₱{{ number_format($totalAnnualRevenue, 0) }}</p>
             </div>
-            
+
             <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-sm">
                 <p class="text-sm font-medium text-blue-700 mb-2">Remaining Revenue</p>
                 <p class="text-3xl font-bold text-blue-600">₱{{ number_format($totalRemainingRevenue, 0) }}</p>
             </div>
-            
+
             <div class="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-6 shadow-sm">
                 <p class="text-sm font-medium text-purple-700 mb-2">Monthly Average</p>
                 <p class="text-3xl font-bold text-purple-600">₱{{ number_format($averageMonthlyRevenue, 0) }}</p>
@@ -46,19 +73,56 @@
 
         <!-- Revenue Chart -->
         <div class="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-6">Monthly Revenue Forecast - {{ $forecastYear }}</h3>
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-800">Monthly Revenue Forecast - {{ $forecastYear }}</h3>
+
+                <!-- Download Dropdown -->
+                <div x-data="{ open: false }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative">
+                    <button
+                        @click="open = !open"
+                        type="button"
+                        class="flex items-center justify-between gap-3 bg-[#2B66F5] hover:bg-blue-700 text-white rounded-full px-6 py-2.5 font-semibold text-sm shadow-md transition-all focus:ring-4 focus:ring-blue-300 outline-none"
+                        aria-haspopup="true"
+                        :aria-expanded="open"
+                    >
+                        <span>Download</span>
+                        <svg :class="{ 'rotate-180': open }" class="w-4 h-4 text-white transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <!-- Download Panel -->
+                    <div
+                        x-show="open"
+                        x-transition.origin.top.right
+                        style="display: none;"
+                        class="absolute right-0 z-30 w-40 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
+                    >
+                        <button type="button" @click="downloadChart('svg'); open = false" class="w-full text-left px-4 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer text-sm text-gray-600 transition-colors">
+                            Download SVG
+                        </button>
+                        <button type="button" @click="downloadChart('png'); open = false" class="w-full text-left px-4 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer text-sm text-gray-600 transition-colors">
+                            Download PNG
+                        </button>
+                        <button type="button" @click="downloadCSV(); open = false" class="w-full text-left px-4 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer text-sm text-gray-600 transition-colors">
+                            Download CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div id="revenueChart" style="height: 400px;"></div>
         </div>
 
         <!-- Chart.js/ApexCharts Script -->
         <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <script>
             document.addEventListener('livewire:navigated', () => { renderRevenueChart(); });
             document.addEventListener('DOMContentLoaded', () => { renderRevenueChart(); });
 
             function renderRevenueChart() {
                 const monthlyForecasts = @json($monthlyForecasts);
-                
+
                 if (!monthlyForecasts || monthlyForecasts.length === 0) return;
 
                 const categories = monthlyForecasts.map(f => f.month_name);
@@ -78,7 +142,7 @@
                         type: 'bar',
                         height: 400,
                         toolbar: {
-                            show: true,
+                            show: false,
                             tools: {
                                 download: true,
                                 selection: true,
@@ -101,7 +165,7 @@
                     plotOptions: {
                         bar: {
                             horizontal: false,
-                            columnWidth: '55%',
+                            columnWidth: '70%',
                             borderRadius: 6,
                             dataLabels: {
                                 position: 'top'
@@ -149,7 +213,7 @@
                     fill: {
                         opacity: 0.9
                     },
-                    colors: ['#118DFF', '#06D6A0'],
+                    colors: ['#0C0B50', '#60a5fa'],
                     tooltip: {
                         y: {
                             formatter: function (val) {
@@ -192,8 +256,56 @@
                         ...options
                     }
                 );
-                
+
                 window.revenueChartInstance.render();
+            }
+
+            // Download Chart Function
+            function downloadChart(format) {
+                if (!window.revenueChartInstance) return;
+
+                if (format === 'svg') {
+                    // Download as SVG
+                    const svg = document.querySelector('#revenueChart svg');
+                    if (svg) {
+                        const svgData = new XMLSerializer().serializeToString(svg);
+                        const link = document.createElement('a');
+                        link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+                        link.download = `revenue-forecast-${@json($forecastYear)}.svg`;
+                        link.click();
+                    }
+                } else if (format === 'png') {
+                    // Download as PNG using html2canvas
+                    const element = document.getElementById('revenueChart');
+                    if (element) {
+                        html2canvas(element, {
+                            scale: 2,
+                            useCORS: true,
+                            logging: false
+                        }).then(canvas => {
+                            const link = document.createElement('a');
+                            link.href = canvas.toDataURL('image/png');
+                            link.download = `revenue-forecast-${@json($forecastYear)}.png`;
+                            link.click();
+                        });
+                    }
+                }
+            }
+
+            // CSV Download Function
+            function downloadCSV() {
+                const monthlyForecasts = @json($monthlyForecasts);
+                if (!monthlyForecasts || monthlyForecasts.length === 0) return;
+
+                let csv = 'Month,Actual Earnings,Forecasted Revenue\n';
+                monthlyForecasts.forEach(f => {
+                    csv += `"${f.month_name}",${f.actual_revenue || 0},${f.forecasted_revenue}\n`;
+                });
+
+                const link = document.createElement('a');
+                link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+                link.download = `revenue-forecast-${@json($forecastYear)}.csv`;
+                link.click();
             }
         </script>
     @else

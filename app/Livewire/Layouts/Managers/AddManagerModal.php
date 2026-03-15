@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Layouts\Managers;
 
+use App\Livewire\Concerns\WithNotifications;
 use App\Livewire\Forms\AddUserForm;
 use App\Models\Property;
 use App\Models\Unit;
@@ -16,7 +17,7 @@ use Livewire\Attributes\Validate;
 
 class AddManagerModal extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithNotifications;
 
     public $isOpen = false;
     public $modalId;
@@ -177,45 +178,83 @@ class AddManagerModal extends Component
     {
         $this->validate();
 
-        if ($this->isEditing) {
-            $manager = $this->userForm->update(User::find($this->managerId));
-        } else {
-            $manager = $this->userForm->store('manager');
-            Notification::send($manager, new NewAccount($manager->email, PasswordGenerator::generate(), $manager->role));
+        try {
+            if ($this->isEditing) {
+                $originalManager = User::find($this->managerId);
+                $originalFloor = Unit::where('manager_id', $this->managerId)->value('floor_number');
+                $manager = $this->userForm->update($originalManager);
+
+                // Track what changed
+                $changedFields = [];
+                if ($originalManager->first_name !== $manager->first_name) {
+                    $changedFields[] = 'first name';
+                }
+                if ($originalManager->last_name !== $manager->last_name) {
+                    $changedFields[] = 'last name';
+                }
+                if ($originalManager->contact !== $manager->contact) {
+                    $changedFields[] = 'phone number';
+                }
+                if ($originalManager->email !== $manager->email) {
+                    $changedFields[] = 'email';
+                }
+                if ($this->selectedFloor && $originalFloor != $this->selectedFloor) {
+                    $changedFields[] = 'floor assignment';
+                }
+                if ($this->profilePicture && !is_string($this->profilePicture)) {
+                    $changedFields[] = 'profile picture';
+                }
+
+                $changeMessage = !empty($changedFields)
+                    ? ucfirst(implode(', ', $changedFields)) . ' updated for ' . $manager->first_name . '.'
+                    : $manager->first_name . ' has been updated.';
+            } else {
+                $manager = $this->userForm->store('manager');
+                Notification::send($manager, new NewAccount($manager->email, PasswordGenerator::generate(), $manager->role));
+                $changeMessage = $manager->first_name . ' added successfully as a manager!';
+            }
+
+            if ($this->profilePicture && !is_string($this->profilePicture)) {
+                $path = $this->profilePicture->store('profile-photos', 'public');
+                $manager->update(['profile_img' => $path]);
+            }
+
+            // Flatten all selected unit IDs across every building+floor
+            $allSelectedUnitIds = array_map(
+                'intval',
+                array_merge(...array_values($this->allSelectedUnits) ?: [[]])
+            );
+
+            if (!empty($allSelectedUnitIds)) {
+                // Unassign this manager from any units NOT in the new selection
+                Unit::where('manager_id', $manager->user_id)
+                    ->whereNotIn('unit_id', $allSelectedUnitIds)
+                    ->update(['manager_id' => null]);
+
+                // Assign manager to all selected units
+                Unit::whereIn('unit_id', $allSelectedUnitIds)
+                    ->update(['manager_id' => $manager->user_id]);
+            } else {
+                // No units selected at all — clear all assignments
+                Unit::where('manager_id', $manager->user_id)
+                    ->update(['manager_id' => null]);
+            }
+
+            $this->notifySuccess(
+                $this->isEditing ? 'Manager Updated!' : 'Manager Added!',
+                $changeMessage
+            );
+
+            $this->close();
+            $this->dispatch('refresh-manager-list');
+            $this->dispatch('managerUpdated', managerId: $manager->user_id);
+            $this->dispatch('close-modal', 'save-manager-confirmation');
+        } catch (\Exception $e) {
+            $this->notifyError(
+                'Failed to Save Manager',
+                'An error occurred while saving the manager. Please try again.'
+            );
         }
-
-        if ($this->profilePicture && !is_string($this->profilePicture)) {
-            $path = $this->profilePicture->store('profile-photos', 'public');
-            $manager->update(['profile_img' => $path]);
-        }
-
-        // Flatten all selected unit IDs across every building+floor
-        $allSelectedUnitIds = array_map(
-            'intval',
-            array_merge(...array_values($this->allSelectedUnits) ?: [[]])
-        );
-
-        if (!empty($allSelectedUnitIds)) {
-            // Unassign this manager from any units NOT in the new selection
-            Unit::where('manager_id', $manager->user_id)
-                ->whereNotIn('unit_id', $allSelectedUnitIds)
-                ->update(['manager_id' => null]);
-
-            // Assign manager to all selected units
-            Unit::whereIn('unit_id', $allSelectedUnitIds)
-                ->update(['manager_id' => $manager->user_id]);
-        } else {
-            // No units selected at all — clear all assignments
-            Unit::where('manager_id', $manager->user_id)
-                ->update(['manager_id' => null]);
-        }
-
-        $this->close();
-        $this->dispatch('refresh-manager-list');
-        $this->dispatch('managerUpdated', managerId: $manager->user_id);
-        $this->dispatch('close-modal', 'save-manager-confirmation');
-
-        session()->flash('message', $this->isEditing ? 'Manager updated successfully.' : 'Manager added successfully.');
     }
 
     public function close(): void

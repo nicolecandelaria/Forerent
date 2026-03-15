@@ -43,7 +43,7 @@ class SideBar extends Component
                     'manager' => [
                         'label' => 'Managers',
                         'route' => 'landlord.manager',
-                        'icon'  => 'icons.property',
+                        'icon'  => 'icons.manager',
                     ],
                     'revenue' => [
                         'label' => 'Revenue',

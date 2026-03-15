@@ -5,9 +5,12 @@ namespace App\Livewire\Actions;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Livewire\Concerns\WithNotifications;
 
 class SettingsForm extends Component
 {
+    use WithNotifications;
+
     // Form properties
     public $firstName;
     public $lastName;
@@ -92,7 +95,7 @@ class SettingsForm extends Component
         // $this->showConfirmationModal = false;
 
         // Send a success message
-        session()->flash('success', 'Settings saved successfully.');
+        $this->notifySuccess('Settings Saved Successfully!', 'Your personal information has been updated.');
 
         // Optional: Dispatch browser event if you need JS to react after save
         // $this->dispatch('settings-saved');

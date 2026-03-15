@@ -8,10 +8,10 @@
                     <div class="flex items-start justify-between">
                         <div>
                             <h2 class="text-xl font-bold uppercase">
-                                ADD NEW PROPERTY
+                                {{ $editingPropertyId ? 'EDIT PROPERTY' : 'ADD NEW PROPERTY' }}
                             </h2>
                             <p class="mt-1 text-sm text-blue-100">
-                                Fill in the details to predict rental price
+                                {{ $editingPropertyId ? 'Update property details' : 'Fill in the details to predict rental price' }}
                             </p>
                         </div>
 

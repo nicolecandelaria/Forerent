@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Layouts\Tenants;
 
+use App\Livewire\Concerns\WithNotifications;
 use App\Notifications\NewAccount;
 use App\Services\PasswordGenerator;
 use Illuminate\Support\Facades\Notification;
@@ -21,7 +22,7 @@ use Illuminate\Support\Str;
 
 class AddTenantModal extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithNotifications;
 
     public $isOpen = false;
     public $modalId;
@@ -198,9 +199,14 @@ class AddTenantModal extends Component
             Bed::where('bed_id', $this->selectedBed)->update(['status' => 'occupied']);
         });
 
+        // Show success toast notification
+        $this->notifySuccess(
+            'Tenant Added Successfully!',
+            $this->firstName . ' ' . $this->lastName . ' has been added to ' . $this->selectedBed . '.'
+        );
+
         $this->isOpen = false;
         $this->dispatch('refresh-tenant-list');
-        session()->flash('success', 'Tenant added successfully!');
         $this->resetForm();
     }
     private function resetForm()

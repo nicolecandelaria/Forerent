@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Livewire\Layouts\Units;
+
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
@@ -16,6 +17,7 @@ class UnitAccordion extends Component
     public $selectedBuildingId = null;
     public $specifications = [];
     public $hoveredUnitId = null;
+    public $sortBy = 'newest';
 
     /**
      * Listen for building selection from property.blade.php
@@ -81,7 +83,7 @@ class UnitAccordion extends Component
      */
     public function loadSpecifications($unitId)
     {
-        $unit = Unit::with(['property', 'beds.leases' => function($query) {
+        $unit = Unit::with(['property', 'beds.leases' => function ($query) {
             $query->where('status', 'Active');
         }])->find($unitId);
 
@@ -97,7 +99,7 @@ class UnitAccordion extends Component
                 $occupiedCount++;
             }
         }
-        
+
         $totalCapacity = $unit->unit_cap;
 
         // Process amenities
@@ -156,7 +158,7 @@ class UnitAccordion extends Component
         $hasAnyActiveLease = false;
         $allBedsOccupied = true;
         $totalBeds = $unit->beds->count();
-        
+
         if ($totalBeds === 0) {
             return 'Vacant';
         }
@@ -214,11 +216,19 @@ class UnitAccordion extends Component
     public function render()
     {
         if ($this->selectedBuildingId) {
-            $units = Unit::where('property_id', $this->selectedBuildingId)
-                ->with(['property', 'beds.leases' => function($query) {
+            $query = Unit::where('property_id', $this->selectedBuildingId)
+                ->with(['property', 'beds.leases' => function ($query) {
                     $query->where('status', 'Active');
-                }])
-                ->paginate(4);
+                }]);
+
+            // Apply sort
+            if ($this->sortBy === 'oldest') {
+                $query->orderBy('created_at', 'asc');
+            } else {
+                $query->orderBy('created_at', 'desc');
+            }
+
+            $units = $query->paginate(4);
         } else {
             $units = new LengthAwarePaginator([], 0, 4, 1);
         }

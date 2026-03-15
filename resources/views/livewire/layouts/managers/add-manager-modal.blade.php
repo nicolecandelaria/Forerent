@@ -135,10 +135,13 @@
                                     <div class="relative">
                                         <input
                                             wire:model.defer="userForm.phoneNumber"
-                                            type="text"
+                                            type="tel"
                                             id="phone-{{ $modalId }}"
                                             class="block pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] pr-2.5 pl-16"
-                                            placeholder=" "
+                                            placeholder="9876543210"
+                                            maxlength="10"
+                                            inputmode="numeric"
+                                            pattern="[0-9]*"
                                         />
 
                                         <div class="absolute top-4 left-0 px-3 flex items-center space-x-2 pointer-events-none">
@@ -280,18 +283,19 @@
 
                         </div>
                     </div>
-
-                <div class="flex justify-end px-6 pb-6">
-                    <button
-    type="button"
-    wire:click="validateAndConfirm"
-    class="px-8 py-2.5 bg-[#070589] text-white text-sm font-semibold rounded-lg hover:bg-[#001445] focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-    wire:loading.attr="disabled"
->
-    <span wire:loading.remove wire:target="save">{{ $managerId ? 'Update Manager' : 'Save Manager' }}</span>
-    <span wire:loading wire:target="save">{{ $managerId ? 'Updating...' : 'Saving...' }}</span>
-</button>
                 </div>
+
+                {{-- Footer --}}
+                <div class="p-6 bg-white border-t border-gray-200 flex justify-end flex-shrink-0">
+                    <button
+                        type="button"
+                        wire:click="validateAndConfirm"
+                        class="px-8 py-2.5 bg-[#070589] text-white text-sm font-semibold rounded-lg hover:bg-[#001445] focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        wire:loading.attr="disabled"
+                    >
+                        <span wire:loading.remove wire:target="save">{{ $managerId ? 'Update Manager' : 'Save Manager' }}</span>
+                        <span wire:loading wire:target="save">{{ $managerId ? 'Updating...' : 'Saving...' }}</span>
+                    </button>
                 </div>
             </div>
         </div>
