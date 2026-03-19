@@ -1,9 +1,9 @@
-{{-- resources/views/livewire/layouts/tenant-navigation.blade.php --}}
-{{-- Using reusable list panel structure --}}
+{{-- resources/views/livewire/layouts/tenants/tenant-navigation.blade.php --}}
+{{-- Tenant List Panel - Sort controls are outside in parent view --}}
 
 <div class="w-full bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden p-2 h-full">
     {{-- Header Section with Title and Add Button --}}
-    <div class="p-4 pb-2 border-b border-gray-50 flex-shrink-0 flex items-center justify-between">
+    <div class="p-4 pb-3 border-b border-gray-50 flex-shrink-0 flex items-center justify-between">
         <h3 class="text-xl font-bold text-[#070642]">Tenants</h3>
         <button
             type="button"
@@ -22,46 +22,52 @@
         @forelse ($tenants as $tenant)
             @php
                 $isActive = ($tenant['id'] == $activeTenantId);
+
+                // Exact badge colors
+                $statusStyles = match($tenant['payment_status']) {
+                    'Paid'       => 'bg-green-100 text-green-700',
+                    'Pending'    => 'bg-yellow-100 text-yellow-800',
+                    'Overdue'    => 'bg-red-100 text-red-700',
+                    default      => 'bg-gray-100 text-gray-700'
+                };
             @endphp
 
             <button
                 type="button"
                 wire:click="selectTenant({{ $tenant['id'] }})"
-                class="cursor-pointer w-full text-left p-4 rounded-2xl transition-all duration-200 border-2
+                class="cursor-pointer w-full text-left p-5 rounded-2xl transition-all duration-200 border-2
                     {{ $isActive
                         ? 'border-[#0044F1] bg-[#1679FA] shadow-md'
                         : 'border-transparent bg-white ring-1 ring-gray-100 hover:border-[#93C5FD] hover:bg-[#EEF3FF] hover:shadow-sm' }}"
             >
-                <div class="flex justify-between items-start">
-                    <div class="flex-1 text-left">
-                        <h4 class="font-semibold text-base {{ $isActive ? 'text-white' : 'text-gray-900' }} mb-1">
-                            {{ $tenant['first_name'] }} {{ $tenant['last_name'] }}
-                        </h4>
-                        <p class="text-xs font-bold uppercase tracking-wide {{ $isActive ? 'text-blue-100' : 'text-[#070642]' }}">
-                            {{ $tenant['unit'] }} • {{ $tenant['bed_number'] }}
-                        </p>
-                    </div>
-
-                    {{-- Payment Status Badge --}}
-                    <div class="shrink-0 ml-2">
-                        @if($tenant['payment_status'] === 'Paid')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                </svg>
-                                Paid
-                            </span>
-                        @elseif($tenant['payment_status'] === 'Overdue')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
-                                Overdue
-                            </span>
-                        @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800">
-                                Pending
-                            </span>
-                        @endif
-                    </div>
+                {{-- Top Row: Tenant Name and Status Badge --}}
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-sm {{ $isActive ? 'text-white' : 'text-[#2B66F5]' }}">
+                        {{ $tenant['first_name'] }} {{ $tenant['last_name'] }}
+                    </h3>
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold {{ $statusStyles }}">
+                        {{ $tenant['payment_status'] }}
+                    </span>
                 </div>
+
+                {{-- Middle Row: Unit and Bed Info with Date --}}
+                <div class="flex justify-between items-center mt-3">
+                    <p class="text-xs font-bold uppercase tracking-wide {{ $isActive ? 'text-white' : 'text-[#070642]' }}">
+                        Unit {{ $tenant['unit'] }}
+                        <span class="font-normal mx-1 {{ $isActive ? 'text-blue-200' : 'text-gray-300' }}">|</span>
+                        Bed {{ $tenant['bed_number'] }}
+                    </p>
+                    @if($tenant['next_billing'])
+                        <p class="text-[10px] {{ $isActive ? 'text-blue-100' : 'text-gray-400' }}">
+                            {{ \Carbon\Carbon::parse($tenant['next_billing'])->format('M d, Y') }}
+                        </p>
+                    @else
+                        <p class="text-[10px] {{ $isActive ? 'text-blue-100' : 'text-gray-400' }}">
+                            No date
+                        </p>
+                    @endif
+                </div>
+
             </button>
         @empty
             <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
