@@ -8,7 +8,7 @@ use Livewire\Component;
 
 class BuildingCardsSection extends Component
 {
-    public array $properties = [];
+    public $properties = [];
     public $selectedBuilding = null;
 
     public $showAddButton = true;
@@ -32,7 +32,6 @@ class BuildingCardsSection extends Component
                 'property_id' => $p->property_id ?? $p['property_id'],
                 'building_name' => $p->building_name ?? $p['building_name'],
                 'address' => $p->address ?? $p['address'],
-                'image' => $p->image ?? $p['image'] ?? null,
             ])->toArray();
         } else {
             $this->properties = $this->loadPropertiesByRole();
@@ -60,7 +59,7 @@ class BuildingCardsSection extends Component
 
         // Only select columns needed for building cards — returned as plain arrays
         // to avoid Eloquent model serialization overhead on every Livewire request
-        $columns = ['property_id', 'building_name', 'address', 'image'];
+        $columns = ['property_id', 'building_name', 'address'];
 
         if ($user->role === 'landlord') {
             return Property::select($columns)->get()->toArray();

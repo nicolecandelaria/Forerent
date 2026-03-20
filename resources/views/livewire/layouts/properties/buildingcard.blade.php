@@ -7,7 +7,7 @@
     {{-- Image Container --}}
     <div class="relative h-48 overflow-hidden">
         <img
-            src="{{ $property->image ? asset('storage/' . $property->image) : asset('office-building.png') }}"
+            src="{{ ($property->image ?? null) ? asset('storage/' . $property->image) : asset('office-building.png') }}"
             alt="{{ $property->building_name }}"
             class="w-full h-full object-cover transition-transform hover:scale-110 duration-300">
 

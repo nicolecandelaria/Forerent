@@ -40,6 +40,7 @@
             canScrollLeft: false,
             canScrollRight: false,
             hovered: false,
+            selectedId: {{ $selectedBuilding ?? 'null' }},
             init() {
                 this.scrollContainer = this.$refs.scroller;
                 this.checkScroll();
@@ -116,8 +117,7 @@
         </div>
 
         {{-- Scrollable Container --}}
-        <div x-ref="scroller" class="building-scroll flex gap-4 overflow-x-auto py-2 px-1"
-             x-data="{ selectedId: {{ $selectedBuilding ?? 'null' }} }">
+        <div x-ref="scroller" class="building-scroll flex gap-4 overflow-x-auto py-2 px-1">
             @forelse ($properties as $property)
                 <div
                     wire:key="building-{{ $property['property_id'] }}"

@@ -111,11 +111,7 @@ class PaymentReceipts extends Component
 
         return view('livewire.layouts.financials.payment-receipts', [
             'payments' => $payments,
-<<<<<<< HEAD
             'counts' => $counts,
-=======
-            'counts'   => $counts,
->>>>>>> 3d27e2d
         ]);
     }
 }

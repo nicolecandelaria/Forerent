@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-[#F4F7FE] p-4 md:p-6 font-sans">
+<div class="min-h-screen font-sans">
     
     {{-- TITLE LABEL --}}
     <div class="mb-6">

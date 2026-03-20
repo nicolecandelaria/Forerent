@@ -31,8 +31,10 @@ class AddTenantModal extends Component
     // --- Mode: 'add' or 'transfer' ---
     public string $mode = 'add';
 
-    // Transfer-specific: holds the tenant being transferred
+    // Transfer/Edit-specific
     public ?int $transferFromTenantId = null;
+    public ?int $editTenantId         = null;
+    public ?int $editLeaseId          = null;
     public ?int $currentLeaseId       = null;
     public ?int $currentBedId         = null;
 
@@ -154,7 +156,7 @@ class AddTenantModal extends Component
         $this->firstName            = $tenant->first_name;
         $this->lastName             = $tenant->last_name;
         $this->gender               = $tenant->gender ?? '';
-        $this->phoneNumber          = $tenant->contact ?? '';
+        $this->phoneNumber          = preg_replace('/\D/', '', $tenant->contact ?? '');
         $this->email                = $tenant->email;
         $this->existingProfileImg   = $tenant->profile_img;
 
@@ -177,6 +179,76 @@ class AddTenantModal extends Component
             $this->currentEndDate   = $lease->end_date ? \Carbon\Carbon::parse($lease->end_date)->format('M d, Y') : '—';
             $this->currentRate      = $lease->contract_rate ? '₱ ' . number_format($lease->contract_rate, 0) : '—';
             $this->currentAutoRenew = $lease->auto_renew ?? false;
+        }
+
+        $this->loadBuildings();
+        $this->isOpen = true;
+    }
+
+    // --- Open in EDIT mode ---
+    #[On('open-edit-tenant-modal')]
+    public function openEdit(int $tenantId)
+    {
+        $this->resetForm();
+        $this->mode = 'edit';
+
+        $tenant = User::where('user_id', $tenantId)
+            ->where('role', 'tenant')
+            ->with([
+                'leases' => fn($q) => $q->where('status', 'Active')->latest()->limit(1)->with(['bed.unit.property']),
+            ])
+            ->first();
+
+        if (!$tenant) {
+            return;
+        }
+
+        $lease = $tenant->leases->first();
+        $bed   = $lease?->bed;
+        $unit  = $bed?->unit;
+
+        // Store IDs for update
+        $this->editTenantId = $tenant->user_id;
+        $this->editLeaseId  = $lease?->lease_id;
+
+        // Pre-fill personal info
+        $this->firstName        = $tenant->first_name;
+        $this->lastName         = $tenant->last_name;
+        $this->gender           = $tenant->gender ?? '';
+        $this->phoneNumber      = preg_replace('/\D/', '', $tenant->contact ?? '');
+        $this->email            = $tenant->email;
+        $this->existingProfileImg = $tenant->profile_img;
+
+        // Pre-fill rent details
+        if ($unit) {
+            $this->selectedBuilding = $unit->property_id;
+            $this->units = Unit::where('property_id', $unit->property_id)
+                ->where('manager_id', Auth::id())
+                ->get(['unit_id', 'unit_number']);
+
+            $this->selectedUnit = $unit->unit_id;
+            $this->dormType     = $unit->occupants ?? '';
+
+            $this->beds = Bed::where('unit_id', $unit->unit_id)
+                ->where(function ($q) use ($bed) {
+                    $q->where('status', 'Vacant')
+                      ->orWhere('bed_id', $bed?->bed_id);
+                })
+                ->get(['bed_id', 'bed_number']);
+
+            $this->selectedBed = $bed?->bed_id;
+        }
+
+        // Pre-fill lease details
+        if ($lease) {
+            $this->term            = $lease->term ?? '';
+            $this->startDate       = $lease->start_date?->format('Y-m-d') ?? '';
+            $this->shift           = $lease->shift ?? '';
+            $this->autoRenew       = $lease->auto_renew ?? false;
+            $this->moveInDate      = $lease->move_in?->format('Y-m-d') ?? '';
+            $this->monthlyRate     = $lease->contract_rate ?? '';
+            $this->securityDeposit = $lease->security_deposit ?? '';
+            $this->paymentStatus   = 'Paid';
         }
 
         $this->loadBuildings();
@@ -236,7 +308,11 @@ class AddTenantModal extends Component
     public function validateAndConfirm(): void
     {
         $this->validate($this->validationRules());
-        $confirmModal = $this->isTransfer() ? 'transfer-tenant-confirmation' : 'save-tenant-confirmation';
+        $confirmModal = match ($this->mode) {
+            'transfer' => 'transfer-tenant-confirmation',
+            'edit'     => 'edit-tenant-confirmation',
+            default    => 'save-tenant-confirmation',
+        };
         $this->dispatch('open-modal', $confirmModal);
     }
 
@@ -244,7 +320,11 @@ class AddTenantModal extends Component
     {
         $this->validate($this->validationRules());
 
-        $this->isTransfer() ? $this->saveTransfer() : $this->saveNewTenant();
+        match ($this->mode) {
+            'transfer' => $this->saveTransfer(),
+            'edit'     => $this->saveEditTenant(),
+            default    => $this->saveNewTenant(),
+        };
 
         $this->isOpen = false;
         $this->dispatch('refresh-tenant-list');
@@ -365,10 +445,72 @@ class AddTenantModal extends Component
         session()->flash('success', 'Tenant transferred successfully!');
     }
 
+    private function saveEditTenant(): void
+    {
+        DB::transaction(function () {
+            $tenant = User::find($this->editTenantId);
+            if (!$tenant) return;
+
+            // Update profile photo if a new one was uploaded
+            $photoPath = $this->profilePicture
+                ? $this->profilePicture->store('profile-photos', 'public')
+                : $tenant->profile_img;
+
+            // Update tenant personal info
+            $tenant->update([
+                'first_name'  => $this->firstName,
+                'last_name'   => $this->lastName,
+                'email'       => $this->email,
+                'contact'     => $this->phoneNumber,
+                'profile_img' => $photoPath,
+            ]);
+
+            // Update or create lease
+            $endDate = Carbon::parse($this->startDate)->addMonths((int) $this->term ?: 6);
+
+            if ($this->editLeaseId) {
+                $lease = Lease::find($this->editLeaseId);
+                if ($lease) {
+                    // If bed changed, vacate old bed and occupy new one
+                    if ($lease->bed_id != $this->selectedBed) {
+                        Bed::where('bed_id', $lease->bed_id)->update(['status' => 'Vacant']);
+                        Bed::where('bed_id', $this->selectedBed)->update(['status' => 'occupied']);
+                    }
+
+                    $lease->update([
+                        'bed_id'           => $this->selectedBed,
+                        'term'             => $this->term,
+                        'auto_renew'       => $this->autoRenew,
+                        'start_date'       => $this->startDate,
+                        'end_date'         => $endDate,
+                        'contract_rate'    => $this->monthlyRate,
+                        'advance_amount'   => $this->monthlyRate,
+                        'security_deposit' => $this->securityDeposit,
+                        'move_in'          => $this->moveInDate,
+                        'shift'            => $this->shift,
+                    ]);
+                }
+            }
+        });
+
+        // Reload the detail panel
+        $this->dispatch('tenantSelected', tenantId: $this->editTenantId);
+
+        $this->notifySuccess(
+            'Tenant Updated Successfully!',
+            $this->firstName . ' ' . $this->lastName . '\'s details have been updated.'
+        );
+    }
+
     // --- Helpers ---
     public function isTransfer(): bool
     {
         return $this->mode === 'transfer';
+    }
+
+    public function isEdit(): bool
+    {
+        return $this->mode === 'edit';
     }
 
     protected function validationRules(): array
@@ -387,13 +529,20 @@ class AddTenantModal extends Component
             'paymentStatus'    => 'required',
         ];
 
-        // Only validate personal info fields when adding a new tenant
+        // Validate personal info for add and edit modes (not transfer)
         if (!$this->isTransfer()) {
             $rules['firstName']   = 'required|min:2';
             $rules['lastName']    = 'required|min:2';
             $rules['gender']      = 'required';
-            $rules['phoneNumber'] = 'required|numeric|digits:10|unique:users,contact';
-            $rules['email']       = 'required|email|unique:users,email|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/';
+
+            if ($this->isEdit()) {
+                // Exclude current tenant from unique checks
+                $rules['phoneNumber'] = 'required|numeric|digits:10|unique:users,contact,' . $this->editTenantId . ',user_id';
+                $rules['email']       = 'required|email|unique:users,email,' . $this->editTenantId . ',user_id';
+            } else {
+                $rules['phoneNumber'] = 'required|numeric|digits:10|unique:users,contact';
+                $rules['email']       = 'required|email|unique:users,email|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/';
+            }
         }
 
         return $rules;
@@ -404,6 +553,8 @@ class AddTenantModal extends Component
         $this->reset([
             'mode',
             'transferFromTenantId',
+            'editTenantId',
+            'editLeaseId',
             'currentLeaseId',
             'currentBedId',
             'currentBuilding',
@@ -445,6 +596,7 @@ class AddTenantModal extends Component
     {
         return view('livewire.layouts.tenants.add-tenant-modal', [
             'isTransfer' => $this->mode === 'transfer',
+            'isEdit'     => $this->mode === 'edit',
         ]);
     }
 }

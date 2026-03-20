@@ -44,7 +44,7 @@
                         </x-ui.td>
 
                         <x-ui.td class="text-center" @click.stop>
-                            <div class="inline-flex items-center gap-2">
+                            <div class="inline-flex items-center gap-2 min-w-[180px] justify-start">
                                 <button
                                     wire:click.stop="viewReceipt({{ $payment->billing_id }})"
                                     class="inline-flex items-center px-3 py-1 border border-[#0906ae] text-[#0906ae] rounded-md text-xs font-bold hover:bg-blue-50 transition-colors"

@@ -90,6 +90,13 @@ class TenantDetail extends Component
         $this->currentTenant = null;
     }
 
+    public function editTenant(): void
+    {
+        if ($this->currentTenantId) {
+            $this->dispatch('open-edit-tenant-modal', tenantId: $this->currentTenantId);
+        }
+    }
+
     public function transferTenant(): void
     {
         if ($this->currentTenantId) {

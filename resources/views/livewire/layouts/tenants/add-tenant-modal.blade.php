@@ -8,15 +8,21 @@
                     <div class="flex items-start justify-between">
                         <div>
                             <h2 class="text-xl font-bold uppercase">
-                                {{ $isTransfer ? 'TRANSFER TENANT' : 'ADD NEW TENANT' }}
+                                @if($isTransfer) TRANSFER TENANT
+                                @elseif($isEdit) EDIT TENANT
+                                @else ADD NEW TENANT
+                                @endif
                             </h2>
                             <p class="mt-1 text-sm text-blue-100">
-                                {{ $isTransfer ? 'Move tenant from current assignment to a new bed or unit' : 'Fill in the details to add new tenant' }}
+                                @if($isTransfer) Move tenant from current assignment to a new bed or unit
+                                @elseif($isEdit) Update tenant details and lease information
+                                @else Fill in the details to add new tenant
+                                @endif
                             </p>
                         </div>
                         <button
                             type="button"
-                            x-on:click="$dispatch('open-modal', '{{ $isTransfer ? 'discard-transfer-confirmation' : 'discard-tenant-confirmation' }}')"
+                            x-on:click="$dispatch('open-modal', '{{ $isTransfer ? 'discard-transfer-confirmation' : ($isEdit ? 'discard-edit-confirmation' : 'discard-tenant-confirmation') }}')"
                             class="text-white hover:text-blue-200 transition-colors focus:outline-none"
                         >
                             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -306,6 +312,8 @@
                                             <label class="cursor-pointer group relative block w-24 h-24">
                                                 @if ($profilePicture)
                                                     <img src="{{ $profilePicture->temporaryUrl() }}" class="w-full h-full rounded-full object-cover border-4 border-[#001B5E]">
+                                                @elseif ($existingProfileImg)
+                                                    <img src="{{ asset('storage/' . $existingProfileImg) }}" class="w-full h-full rounded-full object-cover border-4 border-[#001B5E]">
                                                 @else
                                                     <div class="w-full h-full rounded-full bg-[#001B5E] flex items-center justify-center">
                                                         <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
@@ -503,7 +511,10 @@
                         wire:click="validateAndConfirm"
                         class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-3 px-10 rounded-xl text-sm transition-colors shadow-lg"
                     >
-                        {{ $isTransfer ? 'Transfer Tenant' : 'Save Tenant' }}
+                        @if($isTransfer) Transfer Tenant
+                        @elseif($isEdit) Update Tenant
+                        @else Save Tenant
+                        @endif
                     </button>
                 </div>
 
@@ -515,6 +526,8 @@
         <x-ui.modal-confirm name="transfer-tenant-confirmation" title="Transfer Tenant?" description="Are you sure you want to transfer this tenant? Their current lease will be closed and a new one will be created." confirmText="Yes, Transfer" cancelText="Cancel" confirmAction="save" />
         <x-ui.modal-cancel name="discard-tenant-confirmation" title="Discard Unsaved Changes?" description="Are you sure you want to close? All details will be lost." discardText="Discard" returnText="Keep Editing" discardAction="close" />
         <x-ui.modal-cancel name="discard-transfer-confirmation" title="Discard Transfer?" description="Are you sure you want to close? All changes will be lost." discardText="Discard" returnText="Keep Editing" discardAction="close" />
+        <x-ui.modal-confirm name="edit-tenant-confirmation" title="Update Tenant?" description="Are you sure you want to save the changes to this tenant's information?" confirmText="Yes, Update" cancelText="Cancel" confirmAction="save" />
+        <x-ui.modal-cancel name="discard-edit-confirmation" title="Discard Changes?" description="Are you sure you want to close? All unsaved changes will be lost." discardText="Discard" returnText="Keep Editing" discardAction="close" />
 
     @endif
 </div>
