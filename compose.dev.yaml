@@ -81,6 +81,7 @@ services:
       - .env
     volumes:
       - ./:/var/www
+      - workspace-node-modules:/var/www/node_modules
     networks:
       - laravel-development
 
@@ -125,3 +126,4 @@ networks:
 
 volumes:
   mysql-data-development:
+  workspace-node-modules:
