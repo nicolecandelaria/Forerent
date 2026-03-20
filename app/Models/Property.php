@@ -46,6 +46,16 @@ class Property extends Model
         )->distinct();
     }
 
+    public function documents()
+    {
+        return $this->hasMany(PropertyDocument::class, 'property_id', 'property_id');
+    }
+
+    public function photos()
+    {
+        return $this->documents()->where('category', 'property_photo');
+    }
+
     public function tenantsForManager($managerId)
     {
         return User::whereHas('leases.bed.unit', function ($query) use ($managerId) {

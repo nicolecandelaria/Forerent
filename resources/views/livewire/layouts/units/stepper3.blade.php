@@ -114,12 +114,27 @@
                     <label for="actual_price" class="block text-l font-medium text-white opacity-80 mb-2 md:text-right">Set Actual Price</label>
 
                     {{-- Glass container --}}
-                    <div id="actual-price" class="w-80 h-18 bg-white/20 backdrop-blur-md rounded-lg border border-white/20 flex items-center justify-center shadow-lg px-4 md:justify-end">
+                    <div id="actual-price" class="w-80 h-18 bg-white/20 backdrop-blur-md rounded-lg border border-white/20 flex items-center justify-center shadow-lg px-4 md:justify-end"
+                        x-data="{
+                            rawValue: '{{ $actual_price ? number_format((int)$actual_price, 0, '', '') : '' }}',
+                            get formatted() {
+                                return this.rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            },
+                            onInput(e) {
+                                let digits = e.target.value.replace(/[^0-9]/g, '');
+                                this.rawValue = digits;
+                                e.target.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                $wire.set('actual_price', parseInt(digits) || 0);
+                            }
+                        }"
+                    >
                         <div class="flex items-center w-full md:justify-end">
                             <span class="text-3xl font-medium text-white opacity-70 mr-2">₱</span>
-                            <input type="number" step="0.01" id="actual_price" wire:model.defer="actual_price"
-                                   class="w-full bg-transparent text-3xl font-bold text-white placeholder-white placeholder-opacity-80 border-0 focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:text-right"
-                                   placeholder="{{ number_format($predicted_price, 0, '.', ',') }}">
+                            <input type="text" inputmode="numeric" id="actual_price"
+                                   :value="formatted"
+                                   @input="onInput($event)"
+                                   class="w-full bg-transparent text-3xl font-bold text-white placeholder-white placeholder-opacity-80 border-0 focus:ring-0 p-0 text-right md:text-right"
+                                   placeholder="{{ number_format((int)$predicted_price, 0, '.', ',') }}">
                         </div>
                         @error('actual_price')
                             <span class="absolute left-0 -bottom-6 text-xs text-red-300 mt-1">{{ $message }}</span>
@@ -160,7 +175,7 @@
         {{-- Previous Button --}}
         <button
             wire:click="previousStep"
-            class="py-2.5 px-6 font-medium text-sm rounded-lg shadow-sm border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            class="py-2.5 px-6 font-medium text-sm rounded-lg shadow-md transition-colors duration-200 text-gray-700 bg-gray-200 hover:bg-gray-300"
         >
             Previous
         </button>

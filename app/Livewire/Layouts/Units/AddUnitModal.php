@@ -16,6 +16,7 @@ class AddUnitModal extends Component
     public $isOpen = false;
     public $modalId;
     public $editingUnitId = null;
+    public $editingUnitNumber = null;
 
     public $currentStep = 1;
     public $steps = [
@@ -49,7 +50,7 @@ class AddUnitModal extends Component
         'room_type' => 'required|in:Standard,Deluxe,Suite',
         'room_cap' => 'required|integer|min:1',
         'unit_cap' => 'required|integer|min:1',
-        'actual_price' => 'required|numeric|min:0|max:999999.99',
+        'actual_price' => 'required|numeric|min:0|max:999999',
     ];
 
     public function mount($modalId = null)
@@ -87,6 +88,7 @@ class AddUnitModal extends Component
 
         if ($unit) {
             $this->editingUnitId = $unit->unit_id;
+            $this->editingUnitNumber = $unit->unit_number;
             $this->property_id = $unit->property_id;
             $this->floor_number = $unit->floor_number;
             $this->m_f = $unit->{'m/f'} ?? $unit->gender ?? 'Co-ed';
@@ -227,7 +229,7 @@ class AddUnitModal extends Component
                 'room_type' => $this->room_type,
                 'room_cap' => $this->room_cap,
                 'unit_cap' => $this->unit_cap,
-                'price' => $this->actual_price,
+                'price' => (int) $this->actual_price,
                 'amenities' => json_encode($checkedAmenities),
             ];
 
@@ -283,7 +285,8 @@ class AddUnitModal extends Component
             'predicted_price',
             'actual_price',
             'is_predicting',
-            'editingUnitId'
+            'editingUnitId',
+            'editingUnitNumber'
         ]);
         $this->initializeAmenities();
         $this->m_f = 'Co-ed';

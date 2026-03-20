@@ -8,7 +8,7 @@
     <div class="flex items-start justify-between">
         <div>
             <h2 class="text-xl font-bold uppercase">
-                {{ $editingUnitId ? 'EDIT UNIT' : 'ADD NEW UNIT' }}
+                {{ $editingUnitId ? 'EDIT UNIT #' . $editingUnitId : 'ADD NEW UNIT' }}
             </h2>
             <p class="mt-1 text-sm text-blue-100">
                 {{ $editingUnitId ? 'Update unit details and specifications' : 'Fill in the details to predict rental price' }}

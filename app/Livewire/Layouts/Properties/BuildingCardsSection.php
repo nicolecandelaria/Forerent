@@ -50,15 +50,14 @@ class BuildingCardsSection extends Component
         }
 
         if ($user->role === 'manager') {
-            return Property::whereHas('units', function ($query) use ($user) {
-                $query->where('manager_id', $user->user_id); // 👈 not $user->id
-            })
-                ->with([
-                    'owner',
-                    'units' => function ($query) use ($user) {
-                        $query->where('manager_id', $user->user_id); // 👈 not $user->id
-                    }
-                ])
+            // Get owner IDs from properties where this manager has assigned units
+            $ownerIds = Property::whereHas('units', function ($query) use ($user) {
+                $query->where('manager_id', $user->user_id);
+            })->pluck('owner_id')->unique();
+
+            // Show ALL properties belonging to those owners
+            return Property::whereIn('owner_id', $ownerIds)
+                ->with(['owner', 'units'])
                 ->get();
         }
 

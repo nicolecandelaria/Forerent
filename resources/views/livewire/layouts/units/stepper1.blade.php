@@ -79,14 +79,7 @@
     </div>
 
     {{-- Navigation Buttons --}}
-    <div class="flex justify-between items-center mt-8">
-        <button
-            wire:click="previousStep"
-            disabled
-            class="py-2.5 px-6 font-medium text-sm rounded-lg shadow-md transition-colors duration-200 text-gray-500 bg-gray-200 cursor-not-allowed">
-            Previous
-        </button>
-
+    <div class="flex justify-end items-center mt-8">
         <button wire:click="nextStep"
             class="py-2.5 px-6 font-medium text-sm text-white bg-[#070642] rounded-lg hover:bg-[#22228e] transition-colors duration-200 shadow-md">
             Next
