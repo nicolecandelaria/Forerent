@@ -15,13 +15,13 @@ class DatabaseSeeder extends Seeder
     {
 
         $this->call([
-            TransactionSeeder::class,
             UserSeeder::class,
             PropertySeeder::class,
             UnitSeeder::class,
             LeaseSeeder::class,
             BillingSeeder::class,
             MaintenanceSeeder::class,
+            TransactionSeeder::class,
             AnnouncementSeeder::class,
         ]);
     }

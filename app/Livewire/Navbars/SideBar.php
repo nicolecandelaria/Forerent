@@ -49,16 +49,6 @@ class SideBar extends Component
                         'label' => 'Revenue',
                         'icon'  => 'icons.revenue',
                         'route' => 'landlord.revenue',
-                        'children' => [
-                            [
-                                'label' => 'Reports',
-                                'query' => ['view' => 'reports'],
-                            ],
-                            [
-                                'label' => 'Records',
-                                'query' => ['view' => 'records'],
-                            ],
-                        ],
                     ],
                     'messages' => [
                         'label' => 'Messages',

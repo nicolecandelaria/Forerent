@@ -6,62 +6,77 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Bed;
 use App\Models\Lease;
+use Carbon\Carbon;
 
 class LeaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Get all tenants
         $tenants = User::where('role', 'tenant')->get();
+        $maleTenants = $tenants->where('gender', 'Male')->values();
+        $femaleTenants = $tenants->where('gender', 'Female')->values();
 
-        // Get all vacant beds with their units loaded
         $availableBeds = Bed::where('status', 'Vacant')->with('unit')->get();
+        $managedBeds = $availableBeds->filter(fn($bed) => !is_null($bed->unit->manager_id))->values();
 
-        foreach ($tenants as $tenant) {
+        if ($managedBeds->isEmpty() || $tenants->isEmpty()) {
+            return;
+        }
 
-            // Stop if no beds left
-            if ($availableBeds->isEmpty()) {
-                break;
-            }
+        // Target occupancy: at least 60% of currently available managed beds.
+        $targetOccupiedCount = (int) ceil($managedBeds->count() * 0.60);
+        $bedsToOccupy = $managedBeds->shuffle()->take($targetOccupiedCount);
 
-            // Filter beds that are in units with a manager
-            $managedBeds = $availableBeds->filter(function ($bed) {
-                return !is_null($bed->unit->manager_id);
-            });
+        $tenantCycle = 0;
 
-            // Filter beds that match tenant gender based on unit occupants
-            $matchingBeds = $managedBeds->filter(function ($bed) use ($tenant) {
-                $occupantsType = $bed->unit->occupants; // Male, Female, Co-ed
-                return $occupantsType === 'Co-ed' || $occupantsType === $tenant->gender;
-            });
-
-            // If no matching bed, skip tenant
-            if ($matchingBeds->isEmpty()) {
+        foreach ($bedsToOccupy as $bed) {
+            $tenant = $this->pickTenantForBed($bed->unit->occupants, $tenants, $maleTenants, $femaleTenants, $tenantCycle);
+            if (!$tenant) {
                 continue;
             }
 
-            // Pick a random matching bed
-            $bed = $matchingBeds->random();
+            $unitPrice = (float) $bed->unit->price;
+            $term = fake()->numberBetween(9, 18);
+            $startDate = Carbon::now()->subMonths(fake()->numberBetween(1, 8))->startOfMonth();
+            $endDate = $startDate->copy()->addMonths($term);
 
-            // Get the unit price
-            $unitPrice = $bed->unit->price;
-
-            // Create the lease
             Lease::factory()->create([
                 'tenant_id'        => $tenant->user_id,
                 'bed_id'           => $bed->bed_id,
+                'status'           => 'Active',
+                'term'             => $term,
+                'start_date'       => $startDate->toDateString(),
+                'end_date'         => $endDate->toDateString(),
+                'move_in'          => $startDate->toDateString(),
                 'contract_rate'    => $unitPrice,
+                // Keep advance/deposit tied to full lease amount.
                 'advance_amount'   => $unitPrice,
                 'security_deposit' => $unitPrice,
             ]);
 
-            // Mark bed as occupied
             $bed->update(['status' => 'Occupied']);
-
-            // Remove the bed from available list
-            $availableBeds = $availableBeds->reject(
-                fn($b) => $b->bed_id === $bed->bed_id
-            );
         }
+    }
+
+    private function pickTenantForBed(string $occupantsType, $allTenants, $maleTenants, $femaleTenants, int &$tenantCycle)
+    {
+        $pool = match ($occupantsType) {
+            'Male' => $maleTenants,
+            'Female' => $femaleTenants,
+            default => $allTenants,
+        };
+
+        if ($pool->isEmpty()) {
+            $pool = $allTenants;
+        }
+
+        if ($pool->isEmpty()) {
+            return null;
+        }
+
+        $tenant = $pool[$tenantCycle % $pool->count()];
+        $tenantCycle++;
+
+        return $tenant;
     }
 }

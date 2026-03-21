@@ -32,26 +32,22 @@
                         <span class="text-sm font-medium text-gray-900">{{ $floor_number }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-sm text-gray-500">Room Type</span>
-                        <span class="text-sm font-medium text-gray-900">{{ $room_type }}</span>
+                        <span class="text-sm text-gray-500">Living Area</span>
+                        <span class="text-sm font-medium text-gray-900">{{ $living_area }} sqft</span>
                     </div>
                 </div>
                 <div class="space-y-4">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Occupant Type</span>
+                        <span class="text-sm font-medium text-gray-900">{{ $occupants }}</span>
+                    </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-500">Bed Type</span>
                         <span class="text-sm font-medium text-gray-900">{{ $bed_type }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-sm text-gray-500">Dorm Type</span>
-                        <span class="text-sm font-medium text-gray-900">{{ $m_f }}</span>
-                    </div>
-                    <div class="flex justify-between">
                         <span class="text-sm text-gray-500">Room Capacity</span>
                         <span class="text-sm font-medium text-gray-900">{{ $room_cap }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-sm text-gray-500">Unit Capacity</span>
-                        <span class="text-sm font-medium text-gray-900">{{ $unit_cap }}</span>
                     </div>
                 </div>
             </div>
@@ -135,16 +131,12 @@
             <hr class="border-white border-opacity-20 my-6">
 
             {{-- Bottom Section: Metrics --}}
-            <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="grid grid-cols-2 gap-4 text-center">
                 <div>
                     <span class="block text-3xl font-bold">
                         {{ count(array_filter($model_amenities)) }}
                     </span>
                     <span class="text-sm opacity-80">Amenities</span>
-                </div>
-                <div>
-                    <span class="block text-3xl font-bold">{{ $unit_cap }}</span>
-                    <span class="text-sm opacity-80">Unit Capacity</span>
                 </div>
                 <div>
                     <span class="block text-3xl font-bold">{{ $room_cap }}</span>

@@ -105,26 +105,24 @@
                             <div class="mb-6">
                                 <div class="bg-[#263093] text-white text-xs font-medium p-3 grid grid-cols-7 gap-2 rounded-t-lg">
                                     <span>Room Capacity</span>
-                                    <span>Unit Capacity</span>
-                                    <span>Room Type</span>
+                                    <span>Furnishing</span>
+                                    <span>Living Area</span>
+                                    <span>Occupants</span>
                                     <span>Bed Type</span>
                                     <span>Utility Subsidy</span>
-                                    <span>Occupied Unit</span>
-                                    <span>Base Rate</span>
+                                    <span>Occupied / Rate</span>
                                 </div>
                                 <div class="bg-gray-50 text-gray-800 text-sm p-3 grid grid-cols-7 gap-2 border border-t-0 border-gray-200 rounded-b-lg">
                                     <span>{{ $specifications['room_capacity'] ?? 'N/A' }}</span>
-                                    <span>{{ $specifications['unit_capacity'] ?? 'N/A' }}</span>
-                                    <span>{{ $specifications['room_type'] ?? 'N/A' }}</span>
+                                    <span>{{ $specifications['furnishing'] ?? 'N/A' }}</span>
+                                    <span>{{ $specifications['living_area'] ?? 'N/A' }}</span>
+                                    <span>{{ $specifications['occupants'] ?? 'N/A' }}</span>
                                     <span>{{ $specifications['bed_type'] ?? 'N/A' }}</span>
                                     <span>{{ $specifications['utility_subsidy'] ?? 'N/A' }}</span>
                                     <div>
                                         <span class="font-medium">{{ $specifications['occupied_unit'] ?? 'N/A' }}</span>
-                                        @if(!empty($specifications['occupied_unit_sub']))
-                                            <span class="block text-xs text-gray-500">{{ $specifications['occupied_unit_sub'] }}</span>
-                                        @endif
+                                        <span class="block text-xs font-bold">{{ $specifications['base_rate'] ?? 'N/A' }}</span>
                                     </div>
-                                    <span class="font-bold text-base">{{ $specifications['base_rate'] ?? 'N/A' }}</span>
                                 </div>
                             </div>
 

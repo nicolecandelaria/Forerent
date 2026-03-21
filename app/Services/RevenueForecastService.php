@@ -79,10 +79,11 @@ class RevenueForecastService
             'amount',
             'reference_number'
         ])
+            ->where('transaction_type', 'CREDIT')
             ->orderBy('transaction_date')
             ->get();
 
-        Log::info("Exporting {$transactions->count()} transactions for forecasting");
+        Log::info("Exporting {$transactions->count()} inflow transactions for forecasting");
 
         $output = fopen('php://temp', 'r+');
 

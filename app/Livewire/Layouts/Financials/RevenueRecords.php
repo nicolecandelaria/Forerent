@@ -17,14 +17,37 @@ class RevenueRecords extends Component
     public $activeTab = 'payment';
     public $selectedMonth = null;
     public $selectedBuilding = null;
+    public $search = '';
 
     // Reset pagination when filters change
-    public function updatedSelectedMonth() { $this->resetPage(); }
-    public function updatedSelectedBuilding() { $this->resetPage(); }
-    public function updatedActiveTab() { $this->resetPage(); }
+    public function updatedSelectedMonth()
+    {
+        $this->resetPage('paymentPage');
+        $this->resetPage('maintenancePage');
+    }
+
+    public function updatedSelectedBuilding()
+    {
+        $this->resetPage('paymentPage');
+        $this->resetPage('maintenancePage');
+    }
+
+    public function updatedSearch()
+    {
+        $this->resetPage('paymentPage');
+        $this->resetPage('maintenancePage');
+    }
+
+    public function updatedActiveTab()
+    {
+        $this->resetPage('paymentPage');
+        $this->resetPage('maintenancePage');
+    }
 
     public function render()
     {
+        $search = trim((string) $this->search);
+
         $monthOptions = [
             'january' => 'January', 'february' => 'February', 'march' => 'March',
             'april' => 'April', 'may' => 'May', 'june' => 'June',
@@ -44,13 +67,28 @@ class RevenueRecords extends Component
 
 
         $paymentHistory = Transaction::query()
+            ->leftJoin('billings', 'transactions.billing_id', '=', 'billings.billing_id')
+            ->leftJoin('leases', 'billings.lease_id', '=', 'leases.lease_id')
+            ->leftJoin('beds', 'leases.bed_id', '=', 'beds.bed_id')
+            ->leftJoin('units', 'beds.unit_id', '=', 'units.unit_id')
+            ->leftJoin('properties', 'units.property_id', '=', 'properties.property_id')
+            ->select('transactions.*', 'properties.building_name as property_name')
             ->when($this->selectedMonth, function ($query) {
                 // Convert "january" to 1
                 $monthNumber = Carbon::parse($this->selectedMonth)->month;
-                $query->whereMonth('transaction_date', $monthNumber);
+                $query->whereMonth('transactions.transaction_date', $monthNumber);
             })
-            ->orderBy('transaction_date', 'desc')
-            ->paginate(10);
+            ->when($this->selectedBuilding, function ($query) {
+                $query->where('properties.building_name', $this->selectedBuilding);
+            })
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where('transactions.name', 'like', "%{$search}%")
+                        ->orWhere('transactions.reference_number', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('transactions.transaction_date', 'desc')
+            ->paginate(10, ['*'], 'paymentPage');
 
         $maintenanceHistory = MaintenanceLog::query()
             ->join('maintenance_requests', 'maintenance_logs.request_id', '=', 'maintenance_requests.request_id')
@@ -73,8 +111,14 @@ class RevenueRecords extends Component
             ->when($this->selectedBuilding, function ($query) {
                 $query->where('properties.building_name', $this->selectedBuilding);
             })
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->whereRaw("CONCAT(users.first_name, ' ', users.last_name) like ?", ["%{$search}%"])
+                        ->orWhere('maintenance_requests.problem', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('maintenance_logs.completion_date', 'desc')
-            ->paginate(10);
+            ->paginate(10, ['*'], 'maintenancePage');
 
         return view('livewire.layouts.financials.revenue-records', [
             'paymentHistory' => $paymentHistory,

@@ -24,11 +24,11 @@ class AddUnitModal extends Component
     public $properties = [];
     public $property_id;
     public $floor_number;
-    public $m_f = 'Co-ed';
+    public $occupants = 'Co-ed';
+    public $living_area;
+    public $furnishing = 'Semi-furnished';
     public $bed_type;
-    public $room_type;
     public $room_cap;
-    public $unit_cap;
 
     public $model_amenities = [];
     public $amenity_labels = [];
@@ -41,11 +41,10 @@ class AddUnitModal extends Component
     protected $rules = [
         'property_id' => 'required|integer|exists:properties,property_id',
         'floor_number' => 'required|integer|min:0',
-        'm_f' => 'required|in:Male,Female,Co-ed',
-        'bed_type' => 'required|in:Single,Bunk,Twin',
-        'room_type' => 'required|in:Standard,Deluxe,Suite',
+        'occupants' => 'required|in:Male,Female,Co-ed',
+        'living_area' => 'required|numeric|min:1',
+        'bed_type' => 'required|in:Single,Bunk',
         'room_cap' => 'required|integer|min:1',
-        'unit_cap' => 'required|integer|min:1',
         'actual_price' => 'required|numeric|min:0|max:999999.99',
     ];
 
@@ -86,10 +85,10 @@ class AddUnitModal extends Component
             $this->editingUnitId = $unit->unit_id;
             $this->property_id = $unit->property_id;
             $this->floor_number = $unit->floor_number;
-            $this->m_f = $unit->{'m/f'} ?? $unit->gender ?? 'Co-ed';
-            $this->room_type = $unit->room_type;
+            $this->occupants = $unit->occupants ?? 'Co-ed';
+            $this->living_area = $unit->living_area;
+            $this->furnishing = $unit->furnishing ?? 'Semi-furnished';
             $this->bed_type = $unit->bed_type;
-            $this->unit_cap = $unit->unit_cap;
             $this->room_cap = $unit->room_cap;
             $this->actual_price = $unit->price;
             $this->predicted_price = $unit->price;
@@ -117,7 +116,6 @@ class AddUnitModal extends Component
     private function initializeAmenities()
     {
         $amenity_keys = [
-            'Fully_furnished',
             'Free_Wifi',
             'Hot_Cold_Shower',
             'Electric_Fan',
@@ -133,8 +131,7 @@ class AddUnitModal extends Component
             'Induction_Cooker',
             'Washing_Machine',
             'Access_Pool',
-            'Access_Gym',
-            'Bunk_Bed_Mattress'
+            'Access_Gym'
         ];
 
         foreach ($amenity_keys as $key) {
@@ -149,8 +146,9 @@ class AddUnitModal extends Component
             $this->validate([
                 'property_id' => 'required',
                 'floor_number' => 'required|numeric',
-                'room_type' => 'required',
-                'unit_cap' => 'required|numeric',
+                'occupants' => 'required',
+                'living_area' => 'required|numeric',
+                'bed_type' => 'required',
                 'room_cap' => 'required|numeric',
             ]);
         }
@@ -171,16 +169,34 @@ class AddUnitModal extends Component
         }
     }
 
+    private function calculateFurnishing(): string
+    {
+        $selectedCount = count(array_filter($this->model_amenities));
+        $totalAmenities = count($this->model_amenities);
+        
+        if ($selectedCount === 0) {
+            return 'Bare';
+        } elseif ($selectedCount === $totalAmenities) {
+            return 'Fully Furnished';
+        } else {
+            return 'Semi-furnished';
+        }
+    }
+
     private function runPrediction()
     {
         $this->is_predicting = true;
+        
+        // Auto-calculate furnishing based on amenities
+        $this->furnishing = $this->calculateFurnishing();
+        
+        // Data for API - exclude occupants, furnishing is calculated from amenities
         $dataForModel = [
+            'Living Area (sqft)' => (float) $this->living_area,
             'Floor' => (int) $this->floor_number,
-            'M/F' => $this->m_f,
             'Bed type' => $this->bed_type,
-            'Room type' => $this->room_type,
             'Room capacity' => (int) $this->room_cap,
-            'Unit capacity' => (int) $this->unit_cap,
+            'Furnishing' => $this->furnishing,
         ];
         $dataForModel = array_merge($dataForModel, $this->model_amenities);
 
@@ -211,15 +227,18 @@ class AddUnitModal extends Component
         }
 
         $checkedAmenities = array_keys(array_filter($this->model_amenities));
+        
+        // Auto-calculate furnishing based on amenities count
+        $furnishingValue = $this->calculateFurnishing();
 
         $data = [
             'property_id' => $this->property_id,
             'floor_number' => $this->floor_number,
-            'm/f' => $this->m_f,
+            'occupants' => $this->occupants,
+            'living_area' => $this->living_area,
+            'furnishing' => $furnishingValue,
             'bed_type' => $this->bed_type,
-            'room_type' => $this->room_type,
             'room_cap' => $this->room_cap,
-            'unit_cap' => $this->unit_cap,
             'price' => $this->actual_price,
             'amenities' => json_encode($checkedAmenities),
         ];
@@ -260,18 +279,19 @@ class AddUnitModal extends Component
             'currentStep',
             'property_id',
             'floor_number',
-            'm_f',
+            'occupants',
+            'living_area',
+            'furnishing',
             'bed_type',
-            'room_type',
             'room_cap',
-            'unit_cap',
             'predicted_price',
             'actual_price',
             'is_predicting',
             'editingUnitId'
         ]);
         $this->initializeAmenities();
-        $this->m_f = 'Co-ed';
+        $this->occupants = 'Co-ed';
+        $this->furnishing = 'Semi-furnished';
     }
 
     public function render()

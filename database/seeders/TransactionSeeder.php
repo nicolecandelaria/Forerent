@@ -2,92 +2,129 @@
 
 namespace Database\Seeders;
 
+use App\Models\Lease;
+use App\Models\MaintenanceLog;
 use App\Models\Transaction;
 use Illuminate\Database\Seeder;
-use Carbon\Carbon;
 
 class TransactionSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $transactions = [];
+        $leases = Lease::query()->get();
+        $now = now();
 
-        // Generate data from 2021 to now
-        $startDate = Carbon::create(2021, 1, 1);
-        $endDate = Carbon::now();
+        // Seed initial move-in inflows tied to lease terms.
+        foreach ($leases as $lease) {
+            $moveInDate = optional($lease->move_in)->toDateString() ?? now()->toDateString();
 
-        $categories = ['Rent Payment', 'Deposit', 'Advance', 'Maintenance', 'Vendor Payment'];
-
-        $currentDate = $startDate->copy();
-        $transactionId = 1;
-
-        while ($currentDate <= $endDate) {
-            // INCREASED: Generate 150-300 transactions per month to test pagination
-            $transactionsPerMonth = rand(3, 6);
-
-            for ($i = 0; $i < $transactionsPerMonth; $i++) {
-                $category = $categories[array_rand($categories)];
-
-                // Set amount ranges based on category
-                switch ($category) {
-                    case 'Rent Payment':
-                        $amount = rand(500000, 1200000) / 100; // ₱5,000 - ₱12,000
-                        $type = 'Credit';
-                        break;
-                    case 'Deposit':
-                        $amount = rand(500000, 1000000) / 100; // ₱5,000 - ₱12,000
-                        $type = 'Credit';
-                        break;
-                    case 'Advance':
-                        $amount = rand(1000000, 2000000) / 100; // ₱10,000 - ₱20,000
-                        $type = 'Credit';
-                        break;
-                    case 'Maintenance':
-                        $amount = rand(60000, 1500000) / 100; // ₱600 - ₱8,000
-                        $type = 'Debit';
-                        break;
-                    case 'Vendor Payment':
-                        $amount = rand(30000, 1000000) / 100; // ₱300 - ₱10000
-                        $type = 'Debit';
-                        break;
-                }
-
-                $transactions[] = [
-                    'transaction_id' => $transactionId,
+            // One-month advance should remain based on full lease amount.
+            if ((float) $lease->advance_amount > 0) {
+                Transaction::create([
                     'billing_id' => null,
-                    'name' => "Transaction {$transactionId}",
-                    'reference_number' => $this->generateReferenceNumber($category, $currentDate, $transactionId),
-                    'transaction_type' => $type,
-                    'category' => $category,
-                    'transaction_date' => $currentDate->copy()->addDays(rand(0, 27))->format('Y-m-d'),
-                    'amount' => $amount,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-
-                $transactionId++;
+                    'name' => 'Advance Payment - Lease #' . $lease->lease_id,
+                    'reference_number' => sprintf('ADV-%d-%s', $lease->lease_id, now()->format('YmdHisu')),
+                    'transaction_type' => 'Credit',
+                    'category' => 'Advance',
+                    'transaction_date' => $moveInDate,
+                    'amount' => (float) $lease->advance_amount,
+                    'is_recurring' => false,
+                ]);
             }
 
-            $currentDate->addMonth();
+            if ((float) $lease->security_deposit > 0) {
+                Transaction::create([
+                    'billing_id' => null,
+                    'name' => 'Security Deposit - Lease #' . $lease->lease_id,
+                    'reference_number' => sprintf('DEP-%d-%s', $lease->lease_id, now()->format('YmdHisu')),
+                    'transaction_type' => 'Credit',
+                    'category' => 'Deposit',
+                    'transaction_date' => $moveInDate,
+                    'amount' => (float) $lease->security_deposit,
+                    'is_recurring' => false,
+                ]);
+            }
         }
 
-        // Insert in chunks to avoid memory issues
-        foreach (array_chunk($transactions, 1000) as $chunk) {
-            Transaction::insert($chunk);
+        // Ensure the current month also has non-rent revenue so the revenue chart
+        // reflects all credit categories in every seeded month context.
+        $hasCurrentMonthNonRentCredits = Transaction::query()
+            ->where('transaction_type', 'Credit')
+            ->whereIn('category', ['Advance', 'Deposit'])
+            ->whereYear('transaction_date', $now->year)
+            ->whereMonth('transaction_date', $now->month)
+            ->exists();
+
+        if (!$hasCurrentMonthNonRentCredits) {
+            $candidateLeases = $leases
+                ->filter(fn ($lease) => (float) $lease->advance_amount > 0 || (float) $lease->security_deposit > 0)
+                ->shuffle()
+                ->take(3);
+
+            foreach ($candidateLeases as $lease) {
+                $day = max(1, fake()->numberBetween(1, (int) $now->day));
+                $transactionDate = $now->copy()->startOfMonth()->day($day)->toDateString();
+
+                if ((float) $lease->advance_amount > 0) {
+                    Transaction::create([
+                        'billing_id' => null,
+                        'name' => 'Advance Payment - Lease #' . $lease->lease_id,
+                        'reference_number' => sprintf('ADV-CM-%d-%s', $lease->lease_id, now()->format('YmdHisu')),
+                        'transaction_type' => 'Credit',
+                        'category' => 'Advance',
+                        'transaction_date' => $transactionDate,
+                        'amount' => (float) $lease->advance_amount,
+                        'is_recurring' => false,
+                    ]);
+                }
+
+                if ((float) $lease->security_deposit > 0) {
+                    Transaction::create([
+                        'billing_id' => null,
+                        'name' => 'Security Deposit - Lease #' . $lease->lease_id,
+                        'reference_number' => sprintf('DEP-CM-%d-%s', $lease->lease_id, now()->format('YmdHisu')),
+                        'transaction_type' => 'Credit',
+                        'category' => 'Deposit',
+                        'transaction_date' => $transactionDate,
+                        'amount' => (float) $lease->security_deposit,
+                        'is_recurring' => false,
+                    ]);
+                }
+            }
         }
-    }
 
-    private function generateReferenceNumber($category, $date, $id)
-    {
-        $prefixes = [
-            'Rent Payment' => 'RENT',
-            'Deposit' => 'DEP',
-            'Advance' => 'ADV',
-            'Maintenance' => 'MNT',
-            'Vendor Payment' => 'VEND'
-        ];
+        // Seed expense-side cash outflows from completed maintenance logs.
+        $logs = MaintenanceLog::query()->get();
+        foreach ($logs as $log) {
+            $cost = (float) $log->cost;
+            if ($cost <= 0) {
+                continue;
+            }
 
-        $prefix = $prefixes[$category] ?? 'TXN';
-        return $prefix . $date->format('Ymd') . str_pad($id, 6, '0', STR_PAD_LEFT);
+            Transaction::create([
+                'billing_id' => null,
+                'name' => 'Maintenance Expense - Request #' . $log->request_id,
+                'reference_number' => sprintf('MNT-%d-%s', $log->log_id, now()->format('YmdHisu')),
+                'transaction_type' => 'Debit',
+                'category' => 'Maintenance',
+                'transaction_date' => optional($log->completion_date)->toDateString() ?? now()->toDateString(),
+                'amount' => $cost,
+                'is_recurring' => false,
+            ]);
+
+            // Optional vendor payout mirror to make outflow stream more realistic.
+            if (fake()->boolean(35)) {
+                Transaction::create([
+                    'billing_id' => null,
+                    'name' => 'Vendor Payment - Maintenance #' . $log->log_id,
+                    'reference_number' => sprintf('VEND-%d-%s', $log->log_id, now()->format('YmdHisu')),
+                    'transaction_type' => 'Debit',
+                    'category' => 'Vendor Payment',
+                    'transaction_date' => optional($log->completion_date)->toDateString() ?? now()->toDateString(),
+                    'amount' => round($cost * fake()->randomFloat(2, 0.40, 0.80), 2),
+                    'is_recurring' => false,
+                ]);
+            }
+        }
     }
 }

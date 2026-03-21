@@ -26,6 +26,50 @@ class Billing extends Model
         'amount' => 'decimal:2',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (Billing $billing) {
+            // Sync inflow ledger whenever a billing is newly paid or status changes to paid.
+            if ($billing->status === 'Paid' && ($billing->wasRecentlyCreated || $billing->wasChanged('status'))) {
+                $billing->ensureCreditTransaction();
+            }
+        });
+    }
+
+    public function ensureCreditTransaction(): void
+    {
+        // Avoid duplicate inflow records for the same billing.
+        $alreadyExists = $this->transactions()
+            ->where('transaction_type', 'Credit')
+            ->where('category', 'Rent Payment')
+            ->exists();
+
+        if ($alreadyExists) {
+            return;
+        }
+
+        $amount = (float) ($this->amount ?? 0);
+        if ($amount <= 0) {
+            $amount = (float) ($this->to_pay ?? 0);
+        }
+
+        if ($amount <= 0) {
+            return;
+        }
+
+        $transactionDate = optional($this->billing_date)->toDateString() ?? now()->toDateString();
+
+        $this->transactions()->create([
+            'name' => 'Billing Payment #' . $this->billing_id,
+            'reference_number' => sprintf('BILL-%d-%s', $this->billing_id, now()->format('YmdHis')),
+            'transaction_type' => 'Credit',
+            'category' => 'Rent Payment',
+            'transaction_date' => $transactionDate,
+            'amount' => $amount,
+            'is_recurring' => false,
+        ]);
+    }
+
     public function lease()
     {
         return $this->belongsTo(Lease::class, 'lease_id', 'lease_id');
