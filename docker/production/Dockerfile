@@ -4,6 +4,9 @@ WORKDIR /var/www
 COPY package*.json ./
 RUN npm ci
 COPY . .
+
+RUN echo "VITE_APP_NAME=Forerent" > .env
+
 RUN npm run build
 
 # Stage 2: Production image
