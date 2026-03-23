@@ -62,7 +62,7 @@ services:
       # This exposes your API on http://localhost:8001 for testing
       - "8001:8000"
     networks:
-      - laravel-development
+      - laravel-production
     restart: unless-stopped
 
   mysql:
