@@ -6,112 +6,110 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         {{-- Payment & Billing Card --}}
-        <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                        </svg>
+        <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-row">
+
+            {{-- Left accent strip --}}
+            <div class="w-1.5 flex-shrink-0
+                {{ $paymentStatus === 'Paid' ? 'bg-emerald-500' : '' }}
+                {{ $paymentStatus === 'Unpaid' ? 'bg-amber-400' : '' }}
+                {{ $paymentStatus === 'Overdue' ? 'bg-red-500' : '' }}
+                {{ $paymentStatus === 'No Billing' ? 'bg-blue-500' : '' }}"></div>
+
+            <div class="flex-1 min-w-0">
+                {{-- Header --}}
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900">Payment & Billing</h3>
                     </div>
-                    <h3 class="text-lg font-bold text-gray-900">Payment & Billing</h3>
+                    @if($paymentStatus !== 'No Billing')
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide
+                            {{ $paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700' : '' }}
+                            {{ $paymentStatus === 'Unpaid' ? 'bg-amber-50 text-amber-700' : '' }}
+                            {{ $paymentStatus === 'Overdue' ? 'bg-red-50 text-red-700' : '' }}">
+                            <span class="w-1.5 h-1.5 rounded-full mr-2
+                                {{ $paymentStatus === 'Paid' ? 'bg-emerald-500' : '' }}
+                                {{ $paymentStatus === 'Unpaid' ? 'bg-amber-500' : '' }}
+                                {{ $paymentStatus === 'Overdue' ? 'bg-red-500' : '' }}"></span>
+                            {{ $paymentStatus }}
+                        </span>
+                    @endif
                 </div>
-                @if($paymentStatus !== 'No Billing')
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide
-                        {{ $paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700' : '' }}
-                        {{ $paymentStatus === 'Unpaid' ? 'bg-amber-50 text-amber-700' : '' }}
-                        {{ $paymentStatus === 'Overdue' ? 'bg-red-50 text-red-700' : '' }}">
-                        <span class="w-1.5 h-1.5 rounded-full mr-2
-                            {{ $paymentStatus === 'Paid' ? 'bg-emerald-500' : '' }}
-                            {{ $paymentStatus === 'Unpaid' ? 'bg-amber-500' : '' }}
-                            {{ $paymentStatus === 'Overdue' ? 'bg-red-500' : '' }}"></span>
-                        {{ $paymentStatus }}
-                    </span>
-                @endif
-            </div>
 
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {{-- Amount Due --}}
-                    <div class="relative">
-                        <p class="text-sm font-medium text-gray-500 mb-1">Amount Due This Month</p>
-                        <p class="text-4xl font-extrabold text-gray-900">
-                            <span class="text-xl align-top text-gray-500">&#8369;</span>{{ number_format($amountDue, 2) }}
+                {{-- Amount + Status --}}
+                <div class="px-6 pt-6 pb-5">
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Amount Due This Month</p>
+                    <p class="text-5xl font-extrabold text-gray-900 tracking-tight">
+                        <span class="text-2xl font-bold text-gray-400 align-top mr-0.5">&#8369;</span>{{ number_format($amountDue, 2) }}
+                    </p>
+
+                    @if($dueDate)
+                        <div class="mt-4">
+                            @if($paymentStatus === 'Paid')
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                    Paid in full
+                                </span>
+                            @elseif($daysUntilDue > 0)
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold
+                                    {{ $daysUntilDue <= 3 ? 'bg-red-50 text-red-700' : ($daysUntilDue <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700') }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    {{ $daysUntilDue }} {{ $daysUntilDue === 1 ? 'day' : 'days' }} left
+                                </span>
+                            @elseif($daysUntilDue == 0)
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-sm font-semibold animate-pulse">
+                                    Due today!
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-100 text-red-800 text-sm font-bold">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                    {{ abs($daysUntilDue) }} {{ abs($daysUntilDue) === 1 ? 'day' : 'days' }} overdue
+                                </span>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Warning banner (only when overdue) --}}
+                @if($daysUntilDue < 0 && $paymentStatus !== 'Paid')
+                    <div class="mx-6 mb-5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3">
+                        <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <p class="text-sm text-red-700">
+                            Your payment is {{ abs($daysUntilDue) }} {{ abs($daysUntilDue) === 1 ? 'day' : 'days' }} overdue. Pay now to avoid additional late fees.
                         </p>
-                        @if($dueDate)
-                            <div class="mt-3 flex items-center gap-2">
-                                @if($paymentStatus === 'Paid')
-                                    <span class="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                                        Paid in full
-                                    </span>
-                                @elseif($daysUntilDue > 0)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-semibold
-                                        {{ $daysUntilDue <= 3 ? 'bg-red-50 text-red-700' : ($daysUntilDue <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700') }}">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        {{ $daysUntilDue }} {{ $daysUntilDue === 1 ? 'day' : 'days' }} left
-                                    </span>
-                                @elseif($daysUntilDue == 0)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 text-red-700 text-sm font-semibold animate-pulse">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                        Due today!
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-100 text-red-800 text-sm font-bold">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                        {{ abs($daysUntilDue) }} {{ abs($daysUntilDue) === 1 ? 'day' : 'days' }} overdue
-                                    </span>
-                                @endif
-                            </div>
-                        @endif
+                    </div>
+                @endif
+
+                {{-- Bottom stats --}}
+                <div class="px-6 pb-5 pt-1 border-t border-gray-100 grid grid-cols-3 gap-5">
+                    {{-- Outstanding --}}
+                    <div class="pt-4">
+                        <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Outstanding</p>
+                        <p class="text-xl font-extrabold {{ $outstandingBalance > 0 ? 'text-orange-600' : 'text-gray-900' }}">
+                            &#8369;{{ number_format($outstandingBalance, 2) }}
+                        </p>
                     </div>
 
-                    {{-- Right column stats --}}
-                    <div class="space-y-4">
-                        {{-- Outstanding Balance --}}
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                                    <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500 font-medium">Outstanding Balance</p>
-                                    <p class="text-lg font-bold {{ $outstandingBalance > 0 ? 'text-orange-600' : 'text-gray-900' }}">
-                                        &#8369;{{ number_format($outstandingBalance, 2) }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                    {{-- Due Date --}}
+                    <div class="pt-4">
+                        <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Due Date</p>
+                        <p class="text-xl font-extrabold text-gray-900">
+                            {{ $dueDate ? \Carbon\Carbon::parse($dueDate)->format('M d, Y') : 'N/A' }}
+                        </p>
+                    </div>
 
-                        {{-- Next Payment Due --}}
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500 font-medium">Due Date</p>
-                                    <p class="text-sm font-bold text-gray-900">
-                                        {{ $dueDate ? \Carbon\Carbon::parse($dueDate)->format('M d, Y') : 'N/A' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Next Billing --}}
-                        @if($nextPaymentDate)
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500 font-medium">Next Billing Date</p>
-                                    <p class="text-sm font-bold text-gray-900">{{ \Carbon\Carbon::parse($nextPaymentDate)->format('M d, Y') }}</p>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
+                    {{-- Next Bill --}}
+                    <div class="pt-4">
+                        <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Next Bill</p>
+                        <p class="text-xl font-extrabold text-gray-900">
+                            {{ $nextPaymentDate ? \Carbon\Carbon::parse($nextPaymentDate)->format('M d, Y') : 'N/A' }}
+                        </p>
                     </div>
                 </div>
             </div>

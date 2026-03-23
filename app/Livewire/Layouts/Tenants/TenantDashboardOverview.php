@@ -22,6 +22,8 @@ class TenantDashboardOverview extends Component
     public $outstandingBalance = 0;
     public $nextPaymentDate = null;
     public $billingItems = [];
+    public $billingStartDate = null;
+    public $billingProgress = 0;
 
     // Utility Breakdown
     public $electricityShare = 0;
@@ -87,6 +89,7 @@ class TenantDashboardOverview extends Component
         if ($this->currentBilling) {
             $this->amountDue = $this->currentBilling->to_pay;
             $this->dueDate = $this->currentBilling->due_date;
+            $this->billingStartDate = $this->currentBilling->billing_date;
             $this->paymentStatus = $this->currentBilling->status;
             $this->billingItems = $this->currentBilling->items ?? collect();
 
@@ -95,6 +98,16 @@ class TenantDashboardOverview extends Component
                     Carbon::parse($this->dueDate)->startOfDay(),
                     false
                 );
+            }
+
+            // Calculate billing period progress for the timeline bar
+            if ($this->billingStartDate && $this->currentBilling->next_billing) {
+                $start = Carbon::parse($this->billingStartDate)->startOfDay();
+                $end = Carbon::parse($this->currentBilling->next_billing)->startOfDay();
+                $now = Carbon::now()->startOfDay();
+                $totalDays = $start->diffInDays($end);
+                $elapsed = $start->diffInDays($now);
+                $this->billingProgress = $totalDays > 0 ? min(round(($elapsed / $totalDays) * 100), 100) : 0;
             }
         }
 
