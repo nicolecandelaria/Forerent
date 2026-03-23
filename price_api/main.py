@@ -87,43 +87,38 @@ async def load_model():
 
 # Columns for price prediction
 ALL_COLUMNS = [
-    'Floor', 'M/F', 'Bed type', 'Room type', 'Room capacity', 'Unit capacity',
-    'Cluster',
-    'Fully_furnished', 'Free_Wifi', 'Hot_Cold_Shower', 'Electric_Fan',
-    'Water_Kettle', 'Closet_Cabinet', 'Housekeeping', 'Refrigerator',
-    'Microwave', 'Rice_Cooker', 'Dining_Table', 'Utility_Subsidy',
-    'AC_Unit', 'Induction_Cooker', 'Washing_Machine', 'Access_Pool',
-    'Access_Gym', 'Bunk_Bed_Mattress'
+    'Living Area (sqft)', 'Floor', 'Bed type', 'Room capacity', 'Furnishing',
+    'Free_Wifi', 'Hot_Cold_Shower', 'Electric_Fan', 'Water_Kettle', 
+    'Closet_Cabinet', 'Housekeeping', 'Refrigerator', 'Microwave', 
+    'Rice_Cooker', 'Dining_Table', 'Utility_Subsidy', 'AC_Unit', 
+    'Induction_Cooker', 'Washing_Machine', 'Access_Pool', 'Access_Gym'
 ]
 
 # --- 2. Define Input Data Models ---
 class UnitFeatures(BaseModel):
+    Living_Area: float = Field(alias='Living Area (sqft)')
     Floor: int
-    M_F: str = Field(alias='M/F')
     Bed_type: str = Field(alias='Bed type')
-    Room_type: str = Field(alias='Room type')
     Room_capacity: int = Field(alias='Room capacity')
-    Unit_capacity: int = Field(alias='Unit capacity')
+    Furnishing: str
     
-    # All 18 Amenities
-    Fully_furnished: bool
-    Free_Wifi: bool
-    Hot_Cold_Shower: bool
-    Electric_Fan: bool
-    Water_Kettle: bool
-    Closet_Cabinet: bool
-    Housekeeping: bool
-    Refrigerator: bool
-    Microwave: bool
-    Rice_Cooker: bool
-    Dining_Table: bool
-    Utility_Subsidy: bool
-    AC_Unit: bool
-    Induction_Cooker: bool
-    Washing_Machine: bool
-    Access_Pool: bool
-    Access_Gym: bool
-    Bunk_Bed_Mattress: bool
+    # All 16 Amenities
+    Free_Wifi: int
+    Hot_Cold_Shower: int
+    Electric_Fan: int
+    Water_Kettle: int
+    Closet_Cabinet: int
+    Housekeeping: int
+    Refrigerator: int
+    Microwave: int
+    Rice_Cooker: int
+    Dining_Table: int
+    Utility_Subsidy: int
+    AC_Unit: int
+    Induction_Cooker: int
+    Washing_Machine: int
+    Access_Pool: int
+    Access_Gym: int
 
 class ForecastRequest(BaseModel):
     csv_data: str
@@ -179,7 +174,7 @@ class MaintenanceForecastResponse(BaseModel):
 
 def preprocess_input_data(input_data: Dict[str, Any]) -> pd.DataFrame:
     """Preprocess input data to match model expectations"""
-    # Convert boolean to int for amenities
+    # Convert to integer for amenities that are already int
     processed_data = {}
     for key, value in input_data.items():
         if isinstance(value, bool):
@@ -192,11 +187,8 @@ def preprocess_input_data(input_data: Dict[str, Any]) -> pd.DataFrame:
     
     # Handle column name mappings
     column_mapping = {
-        'M_F': 'M/F',
+        'Living_Area': 'Living Area (sqft)',
         'Bed_type': 'Bed type', 
-        'Room_type': 'Room type',
-        'Room_capacity': 'Room capacity',
-        'Unit_capacity': 'Unit capacity'
     }
     input_df = input_df.rename(columns=column_mapping)
     
@@ -308,30 +300,27 @@ def model_info():
 def test_predict():
     """Test endpoint with sample data"""
     sample_data = {
-        "Floor": 2,
-        "M/F": "M", 
+        "Living Area (sqft)": 120.0,
+        "Floor": 3,
         "Bed type": "Single",
-        "Room type": "Standard",
         "Room capacity": 2,
-        "Unit capacity": 4,
-        "Fully_furnished": True,
-        "Free_Wifi": True,
-        "Hot_Cold_Shower": False,
-        "Electric_Fan": True,
-        "Water_Kettle": True,
-        "Closet_Cabinet": True,
-        "Housekeeping": False,
-        "Refrigerator": False,
-        "Microwave": False,
-        "Rice_Cooker": True,
-        "Dining_Table": False,
-        "Utility_Subsidy": False,
-        "AC_Unit": False,
-        "Induction_Cooker": False,
-        "Washing_Machine": False,
-        "Access_Pool": False,
-        "Access_Gym": False,
-        "Bunk_Bed_Mattress": True
+        "Furnishing": "Semi-furnished",
+        "Free_Wifi": 1,
+        "Hot_Cold_Shower": 1,
+        "Electric_Fan": 1,
+        "Water_Kettle": 1,
+        "Closet_Cabinet": 1,
+        "Housekeeping": 0,
+        "Refrigerator": 0,
+        "Microwave": 0,
+        "Rice_Cooker": 1,
+        "Dining_Table": 0,
+        "Utility_Subsidy": 0,
+        "AC_Unit": 0,
+        "Induction_Cooker": 0,
+        "Washing_Machine": 0,
+        "Access_Pool": 0,
+        "Access_Gym": 0,
     }
     
     try:
@@ -443,23 +432,33 @@ def load_and_preprocess_data(csv_data: str):
 
     logger.info(f"Using date column: {date_col}, amount column: {amount_col}")
 
-    # Group by month and calculate net revenue
+    # Group by month and calculate gross inflow revenue only
     df['year'] = df[date_col].dt.year
     df['month'] = df[date_col].dt.month
-    
-    # If we have transaction_type, calculate net amount (Credits - Debits)
+
+    # If transaction type is available, only include inflows for gross revenue forecasting.
     if 'transaction_type' in df.columns:
-        df['net_amount'] = df[amount_col] * df['transaction_type'].map({'Credit': 1, 'Debit': -1, 'credit': 1, 'debit': -1, 1: 1, -1: -1})
-        monthly_data = df.groupby(['year', 'month']).agg({
-            'net_amount': 'sum',
-            'transaction_id': 'count'
+        txn_type = df['transaction_type'].astype(str).str.strip().str.upper()
+        inflow_df = df[txn_type.isin(['CREDIT', 'INFLOW'])].copy()
+
+        if inflow_df.empty:
+            raise Exception("No inflow transactions found for revenue forecasting")
+
+        count_col = 'transaction_id' if 'transaction_id' in inflow_df.columns else inflow_df.columns[0]
+        monthly_data = inflow_df.groupby(['year', 'month']).agg({
+            amount_col: 'sum',
+            count_col: 'count'
         }).reset_index()
         monthly_data.columns = ['year', 'month', 'monthly_net_revenue', 'transaction_count']
     else:
-        # Assume all are positive revenues
-        monthly_data = df.groupby(['year', 'month']).agg({
+        # Fallback: keep only positive values as inflows when transaction type is unavailable.
+        inflow_df = df[df[amount_col] > 0].copy()
+        if inflow_df.empty:
+            raise Exception("No positive inflow values found for revenue forecasting")
+
+        monthly_data = inflow_df.groupby(['year', 'month']).agg({
             amount_col: 'sum',
-            df.columns[0]: 'count'  # Use first column for count
+            inflow_df.columns[0]: 'count'  # Use first column for count
         }).reset_index()
         monthly_data.columns = ['year', 'month', 'monthly_net_revenue', 'transaction_count']
 
@@ -520,9 +519,7 @@ def train_forecast_model(X, y, cluster_range=(2, 6)):
     unique, counts = np.unique(cluster_labels, return_counts=True)
     logger.info(f"Cluster distribution: {dict(zip(unique, counts))}")
 
-    # Train one regression model per cluster WITH REGULARIZATION
-    from sklearn.linear_model import Ridge
-    
+    # Train one linear regression model per cluster
     cluster_models = {}
     for cluster_id in range(best_n):
         cluster_indices = cluster_labels == cluster_id
@@ -530,9 +527,7 @@ def train_forecast_model(X, y, cluster_range=(2, 6)):
         y_cluster = y.iloc[cluster_indices]
 
         if len(X_cluster) >= 2:
-            # Use Ridge regression instead of simple LinearRegression
-            # This prevents overfitting
-            model = Ridge(alpha=1.0)
+            model = LinearRegression()
             model.fit(X_cluster, y_cluster)
             cluster_models[cluster_id] = model
             

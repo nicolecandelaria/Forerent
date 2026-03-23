@@ -149,4 +149,19 @@ class BillingSeeder extends Seeder
             }
         }
     }
+
+    private function resolveStatus(Carbon $billingDate): string
+    {
+        $now = Carbon::now();
+
+        if ($billingDate->lt($now->copy()->subMonths(2)->startOfMonth())) {
+            return fake()->randomElement(['Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Overdue']);
+        }
+
+        if ($billingDate->lt($now->startOfMonth())) {
+            return fake()->randomElement(['Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Paid', 'Overdue', 'Unpaid']);
+        }
+
+        return fake()->randomElement(['Paid', 'Paid', 'Unpaid', 'Overdue']);
+    }
 }

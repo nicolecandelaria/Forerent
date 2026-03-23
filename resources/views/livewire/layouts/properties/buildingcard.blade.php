@@ -1,4 +1,3 @@
-
 <div x-data="{ hovered: false }"
      @mouseenter="hovered = true"
      @mouseleave="hovered = false"

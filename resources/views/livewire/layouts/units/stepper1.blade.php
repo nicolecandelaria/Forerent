@@ -27,27 +27,33 @@
             @error('floor_number') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
         </div>
 
-        {{-- Dorm Type (M/F) --}}
+        {{-- Occupants Type (M/F) --}}
         <div class="relative">
-            <select id="m_f" wire:model.defer="m_f" class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer">
+            <select id="occupants" wire:model.defer="occupants" class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer">
                 <option value="Co-ed">Co-ed</option>
                 <option value="Male">All Male</option>
                 <option value="Female">All Female</option>
             </select>
-            <label for="m_f" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 ...">Dorm Type (M/F)</label>
-            @error('m_f') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+            <label for="occupants" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0030C5] ...">Occupant Type</label>
+            @error('occupants') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
         </div>
 
-        {{-- Room Type (Must match your ENUM) --}}
+        {{-- Living Area --}}
         <div class="relative">
-            <select id="room_type" wire:model.defer="room_type" class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer">
-                <option value="" selected>Select room type...</option>
-                <option value="Standard">Standard</option>
-                <option value="Deluxe">Deluxe</option>
-                <option value="Suite">Suite</option>
+            <input type="number" id="living_area" wire:model.defer="living_area" min="1" step="0.1" class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer" placeholder=" " />
+            <label for="living_area" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0030C5] ...">Living Area (sqft)</label>
+            @error('living_area') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+        </div>
+
+        {{-- Furnishing (Auto-calculated) --}}
+        <div class="relative">
+            <select id="furnishing" wire:model="furnishing" disabled class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-500 bg-gray-100 rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 cursor-not-allowed peer">
+                <option value="Bare">Bare</option>
+                <option value="Semi-furnished">Semi-furnished</option>
+                <option value="Fully Furnished">Fully Furnished</option>
             </select>
-            <label for="room_type" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 ...">Room Type</label>
-            @error('room_type') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+            <label for="furnishing" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 ...">Furnishing (Auto-calculated)</label>
+            @error('furnishing') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
         </div>
 
         {{-- Bed Type (Must match your ENUM) --}}
@@ -56,23 +62,15 @@
                 <option value="" selected>Select bed type...</option>
                 <option value="Single">Single</option>
                 <option value="Bunk">Bunk</option>
-                <option value="Twin">Twin</option>
             </select>
-            <label for="bed_type" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 ...">Bed Type</label>
+            <label for="bed_type" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0030C5] ...">Bed Type</label>
             @error('bed_type') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
-        </div>
-
-        {{-- Unit Capacity (unit_cap) --}}
-        <div class="relative">
-            <input type="number" id="unit_cap" wire:model.defer="unit_cap" min="1" class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer" placeholder=" " />
-            <label for="unit_cap" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 ...">Total Unit Capacity</label>
-            @error('unit_cap') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
         </div>
 
         {{-- Room Capacity (room_cap) --}}
         <div class="relative">
             <input type="number" id="room_cap" wire:model.defer="room_cap" min="1" class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer" placeholder=" " />
-            <label for="room_cap" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 ...">Room Capacity</label>
+            <label for="room_cap" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0030C5] ...">Room Capacity</label>
             @error('room_cap') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
         </div>
 

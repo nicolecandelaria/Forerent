@@ -9,6 +9,7 @@ use Livewire\Attributes\On;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\Unit;
 use App\Models\Bed;
+use App\Models\Property;
 
 class UnitAccordion extends Component
 {
@@ -25,8 +26,14 @@ class UnitAccordion extends Component
      * Listen for building selection from property.blade.php
      */
     #[On('buildingSelected')]
-    public function loadUnitsForBuilding($buildingId)
+    #[On('property-selected')]
+    public function loadUnitsForBuilding($buildingId = null, $id = null)
     {
+        $buildingId = $buildingId ?? $id;
+        if (!$buildingId) {
+            return;
+        }
+
         $this->selectedBuildingId = $buildingId;
 
         // Single query: get building name using pluck (no model hydration)
@@ -109,12 +116,12 @@ class UnitAccordion extends Component
         // Build specifications
         $this->specifications = [
             'room_capacity' => $unit->room_cap ?? 'N/A',
-            'unit_capacity' => $unit->unit_cap ?? 'N/A',
-            'room_type' => $unit->room_type ?? 'N/A',
             'bed_type' => $unit->bed_type ?? 'N/A',
+            'furnishing' => $unit->furnishing ?? 'N/A',
+            'living_area' => ($unit->living_area ? $unit->living_area . ' sqft' : 'N/A'),
+            'occupants' => $unit->occupants ?? 'N/A',
             'utility_subsidy' => $utilitySubsidy,
             'occupied_unit' => "$occupiedCount of $totalCapacity",
-            'occupied_unit_sub' => $unit->occupants ?? 'N/A',
             'base_rate' => '₱ ' . number_format($unit->price, 0, '.', ','),
             'amenities' => $displayAmenities
         ];

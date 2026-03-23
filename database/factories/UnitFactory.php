@@ -14,12 +14,11 @@ class UnitFactory extends Factory
 
     public function definition(): array
     {
-        $bedType = $this->faker->randomElement(['Single', 'Twin', 'Bunk']);
+        $bedType = $this->faker->randomElement(['Single', 'Bunk']);
 
-        // Determine number of beds based on bed_type
-        $bedCount = match ($bedType) {
+        // Determine room capacity based on bed_type
+        $roomCap = match ($bedType) {
             'Single' => 1,
-            'Twin'   => 2,
             'Bunk'   => 4,
             default  => 1,
         };
@@ -30,10 +29,10 @@ class UnitFactory extends Factory
             'floor_number'  => 1,
             'unit_number'   => '0000', // will be overridden by seeder if needed
             'occupants'     => $this->faker->randomElement(['Male', 'Female', 'Co-ed']),
+            'living_area'   => $this->faker->randomFloat(1, 80, 200),
+            'furnishing'    => $this->faker->randomElement(['Bare', 'Semi-furnished', 'Fully Furnished']),
             'bed_type'      => $bedType,
-            'room_type'     => $this->faker->randomElement(['Standard', 'Deluxe', 'Suite']),
-            'room_cap'      => $bedCount, // same as number of beds per unit
-            'unit_cap'      => $bedCount, // total beds in the unit same as bed type
+            'room_cap'      => $roomCap,
             'price'         => $this->faker->randomFloat(2, 3000, 15000),
             'amenities'     => null,
             'created_at'    => now(),
@@ -48,7 +47,6 @@ class UnitFactory extends Factory
             // Determine number of beds based on bed_type
             $bedCount = match ($unit->bed_type) {
                 'Single' => 1,
-                'Twin'   => 2,
                 'Bunk'   => 4,
                 default  => 1,
             };

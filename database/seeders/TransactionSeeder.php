@@ -9,7 +9,7 @@ use Carbon\Carbon;
 
 class TransactionSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $transactions = [];
         $transactionId = Transaction::max('transaction_id') + 1;
@@ -122,6 +122,6 @@ class TransactionSeeder extends Seeder
         ];
 
         $prefix = $prefixes[$category] ?? 'TXN';
-        return $prefix . $date->format('Ymd') . str_pad($id, 6, '0', STR_PAD_LEFT);
+        return $prefix . '-' . strtoupper($date->format('M')) . $date->format('Y') . '-' . str_pad($id, 4, '0', STR_PAD_LEFT);
     }
 }

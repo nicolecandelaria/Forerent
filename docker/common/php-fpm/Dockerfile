@@ -68,6 +68,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+RUN docker-php-ext-install pdo pdo_pgsql pdo_mysql
+
 # Download and install php-fpm health check script
 RUN curl -o /usr/local/bin/php-fpm-healthcheck \
     https://raw.githubusercontent.com/renatomefi/php-fpm-healthcheck/master/php-fpm-healthcheck \

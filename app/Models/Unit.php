@@ -18,10 +18,10 @@ class Unit extends Model
         'floor_number',
         'unit_number',
         'occupants',
+        'living_area',
+        'furnishing',
         'bed_type',
-        'room_type',
         'room_cap',
-        'unit_cap',
         'price',
         'amenities'
     ];

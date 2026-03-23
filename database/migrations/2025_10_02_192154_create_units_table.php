@@ -22,10 +22,10 @@ return new class extends Migration
             $table->integer('floor_number');
             $table->string('unit_number');
             $table->enum('occupants', ['Male', 'Female', 'Co-ed'])->default('Co-ed');
-            $table->enum('bed_type', ['Single', 'Bunk', 'Twin']);
-            $table->enum('room_type', ['Standard', 'Deluxe', 'Suite']);
+            $table->double('living_area')->nullable();
+            $table->enum('furnishing', ['Bare', 'Semi-furnished', 'Fully Furnished'])->nullable();
+            $table->enum('bed_type', ['Single', 'Bunk'])->nullable();
             $table->integer('room_cap');
-            $table->integer('unit_cap');
             $table->decimal('price', 8, 2);
             $table->string('amenities')->nullable();
             $table->timestamps();

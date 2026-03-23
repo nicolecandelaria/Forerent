@@ -15,7 +15,7 @@
                     </span>
                 @else
                     {{-- Enabled State: Blue bg, White arrow --}}
-                    <button wire:click="previousPage" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-md bg-[#0631AA] text-white hover:bg-blue-800 transition-colors">
+                    <button wire:click="previousPage('{{ $paginator->getPageName() }}')" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-md bg-[#0631AA] text-white hover:bg-blue-800 transition-colors">
                         <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 1 1 5l4 4"/>
                         </svg>
@@ -35,7 +35,7 @@
                                     {{ $page }}
                                 </span>
                             @else
-                                <button wire:click="gotoPage({{ $page }})" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-md bg-[#0631AA] text-white hover:bg-blue-800 transition-colors text-xs sm:text-sm">
+                                <button wire:click="gotoPage({{ $page }}, '{{ $paginator->getPageName() }}')" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-md bg-[#0631AA] text-white hover:bg-blue-800 transition-colors text-xs sm:text-sm">
                                     {{ $page }}
                                 </button>
                             @endif
@@ -46,7 +46,7 @@
                 {{-- NEXT PAGE LINK (>) --}}
                 @if ($paginator->hasMorePages())
                     {{-- Enabled State: Blue bg, White arrow --}}
-                    <button wire:click="nextPage" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-md bg-[#0631AA] text-white hover:bg-blue-800 transition-colors">
+                    <button wire:click="nextPage('{{ $paginator->getPageName() }}')" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-md bg-[#0631AA] text-white hover:bg-blue-800 transition-colors">
                         <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                         </svg>

@@ -3,14 +3,25 @@
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold text-gray-900">{{ $title }}</h3>
 
-        @if($showAddButton)
-            <button
-                type="button"
-                onclick="Livewire.dispatch('{{ $addButtonEvent }}')"
-                class="py-2 px-4 text-sm font-medium text-white bg-[#2360E8] rounded-lg hover:bg-[#1d4eb8] transition-colors">
-                + Add Property
-            </button>
-        @endif
+        <div class="flex items-center gap-2">
+            @if($showAddButton)
+                <button
+                    type="button"
+                    onclick="Livewire.dispatch('{{ $addButtonEvent }}')"
+                    class="py-2 px-4 text-sm font-medium text-white bg-[#2360E8] rounded-lg hover:bg-[#1d4eb8] transition-colors">
+                    + Add Property
+                </button>
+            @endif
+
+            @if($showAddUnitButton)
+                <button
+                    type="button"
+                    onclick="Livewire.dispatch('{{ $addUnitButtonEvent }}')"
+                    class="py-2 px-4 text-sm font-medium text-white bg-[#2360E8] rounded-lg hover:bg-[#1d4eb8] transition-colors">
+                    + Add Unit
+                </button>
+            @endif
+        </div>
     </div>
 
     {{-- Horizontal Scroll Cards --}}

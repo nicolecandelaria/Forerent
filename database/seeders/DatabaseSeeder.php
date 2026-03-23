@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             UtilityBillSeeder::class,
             TransactionSeeder::class,
             MaintenanceSeeder::class,
+            TransactionSeeder::class,
             AnnouncementSeeder::class,
         ]);
     }

@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-[#F4F7FE] p-4 md:p-6 font-sans">
+<div class="bg-[#F4F7FE] p-4 md:p-6 font-sans rounded-xl">
 
     {{-- 1. THE LAYOUT SHELL --}}
     <x-ui.card-with-tabs
@@ -11,6 +11,17 @@
 
         {{-- 2. THE FILTERS --}}
         <x-slot:filters>
+
+            <div class="w-full sm:w-72">
+                <label for="records-search" class="sr-only">Search records</label>
+                <input
+                    id="records-search"
+                    type="text"
+                    wire:model.live.debounce.300ms="search"
+                    placeholder="Search by name or reference number"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
+                />
+            </div>
 
             {{-- Month Filter --}}
             <x-dropdown label="{{ $monthOptions[$selectedMonth] ?? 'Month' }}">

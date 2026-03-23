@@ -19,8 +19,10 @@
                 <livewire:layouts.properties.building-cards-section
                     :properties="$properties ?? []"
                     :show-add-button="true"
+                    :show-add-unit-button="true"
                     title="Buildings"
                     add-button-event="openAddPropertyModal_property-dashboard"
+                    add-unit-button-event="open-add-unit-modal"
                 />
             </div>
 
@@ -31,7 +33,7 @@
 
             {{-- Units Section --}}
             <div class="mt-6">
-                <livewire:layouts.units.unit-accordion />
+                <livewire:layouts.units.unit-accordion :show-add-button="false" />
             </div>
         </div>
 

@@ -21,9 +21,6 @@ class RevenueContainer extends Component
 
     public function render()
     {
-        // Explicitly pass the currentView variable to the view array
-        return view('livewire.layouts.financials.revenue-container', [
-            'currentView' => $this->currentView
-        ]);
+        return view('livewire.layouts.financials.revenue-container');
     }
 }

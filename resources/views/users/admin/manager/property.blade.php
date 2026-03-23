@@ -6,11 +6,14 @@
 @section('content')
     @include('livewire.layouts.dashboard.admingreeting')
 
-    {{-- Buildings Section --}}
-    <livewire:layouts.properties.building-cards-section
-        :show-add-button="auth()->user()->role === 'landlord'"
-        title="Buildings"
-    />
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div class="lg:col-span-1">
+            <livewire:layouts.properties.building-cards-section
+                :show-add-button="auth()->user()->role === 'landlord'"
+                :stacked="true"
+                title="Buildings"
+            />
+        </div>
 
     {{-- Property Details Section --}}
     <div class="mt-6">
