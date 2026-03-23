@@ -12,7 +12,6 @@ use App\Models\Message;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
-use PhpParser\Node\Stmt\If_;
 
 class MessageSystem extends Component
 {
@@ -80,13 +79,11 @@ class MessageSystem extends Component
                     ->orWhere('last_name', 'like', "%{$this->search}%");
             });
 
-        If($myRole === 'manager' && $this->activeTab === 'tenant') {
-            $usersQuery->whereHas('leases.bed.unit', function ($q)  use ($myId) {
+        if ($myRole === 'manager' && $this->activeTab === 'tenant') {
+            $usersQuery->whereHas('leases.bed.unit', function ($q) use ($myId) {
                 $q->where('manager_id', $myId);
             });
-        }
-
-        Else If($myRole === 'tenant' && $this->activeTab === 'manager') {
+        } elseif ($myRole === 'tenant' && $this->activeTab === 'manager') {
             $usersQuery->whereHas('managedUnits.beds.leases', function ($q) use ($myId) {
                 $q->where('tenant_id', $myId);
             });
@@ -146,20 +143,22 @@ class MessageSystem extends Component
 
         // Handle file attachment
         if ($this->attachment) {
-            $this->validate(['attachment' => 'file|max:10240']);
+            $this->validate([
+                'attachment' => 'file|max:20480',
+            ]);
 
             $path = $this->attachment->store('messages', 'public');
             $mimeType = $this->attachment->getMimeType();
             $isImage = str_starts_with($mimeType, 'image/');
 
             $msg = Message::create([
-                'sender_id'  => $myId,
+                'sender_id'   => $myId,
                 'receiver_id' => $this->selectedUserId,
-                'message'    => $this->attachment->getClientOriginalName(),
-                'type'       => 'file',
-                'file_path'  => $path,
-                'file_type'  => $isImage ? 'image' : 'document',
-                'is_read'    => false,
+                'message'     => $this->attachment->getClientOriginalName(),
+                'type'        => 'file',
+                'file_path'   => $path,
+                'file_type'   => $isImage ? 'image' : 'document',
+                'is_read'     => false,
             ]);
 
             broadcast(new MessageSent($msg))->toOthers();
@@ -170,13 +169,15 @@ class MessageSystem extends Component
 
         // Handle text message
         if (trim($this->messageInput) !== '') {
-            Message::create([
-                'sender_id'  => $myId,
+            $msg = Message::create([
+                'sender_id'   => $myId,
                 'receiver_id' => $this->selectedUserId,
-                'message'    => trim($this->messageInput),
-                'type'       => 'text',
-                'is_read'    => false,
+                'message'     => trim($this->messageInput),
+                'type'        => 'text',
+                'is_read'     => false,
             ]);
+
+            broadcast(new MessageSent($msg))->toOthers(); // was missing in original
 
             $this->messageInput = '';
             $sent = true;
