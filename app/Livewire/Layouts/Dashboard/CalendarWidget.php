@@ -161,8 +161,6 @@ class CalendarWidget extends Component
                 ->unique()
                 ->toArray();
         }
-
-        logger('Announcement Dates for current month:', $this->announcementDates);
     }
 
     public function render()
