@@ -3,16 +3,21 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use Faker\Generator;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
+    protected Generator $faker;
+
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
 
         $this->call([
             UserSeeder::class,

@@ -2,14 +2,19 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\User;
+use Faker\Generator;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    protected Generator $faker;
+
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
         User::factory()->create([
             'first_name' => 'Tricia',
             'last_name' => 'Tenant',

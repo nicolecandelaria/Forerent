@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use Faker\Generator;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
@@ -10,8 +11,10 @@ class UserFactory extends Factory
 {
     public function definition(): array
     {
-        $firstName = $this->faker->firstName();
-        $lastName  = $this->faker->lastName();
+        $faker = $this->faker ?? app(Generator::class);
+
+        $firstName = $faker->firstName();
+        $lastName  = $faker->lastName();
 
         $email = strtolower($firstName . '.' . $lastName) . '@example.com';
 
@@ -21,9 +24,9 @@ class UserFactory extends Factory
 
             'email' => $email,
 
-            'role' => $this->faker->randomElement(['tenant', 'manager', 'landlord']),
+            'role' => $faker->randomElement(['tenant', 'manager', 'landlord']),
 
-            'contact' => $this->faker->phoneNumber(),
+            'contact' => $faker->phoneNumber(),
 
             'profile_img' => 'https://i.pravatar.cc/150?u=' . $email,
 

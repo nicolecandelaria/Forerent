@@ -4,12 +4,17 @@ namespace Database\Seeders;
 
 use App\Models\Announcement;
 use App\Models\User;
+use Faker\Generator;
 use Illuminate\Database\Seeder;
 
 class AnnouncementSeeder extends Seeder
 {
+    protected Generator $faker;
+
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
         // Landlords (keep as is)
         $landlords = User::where('role', 'landlord')->get();
         foreach ($landlords as $landlord) {

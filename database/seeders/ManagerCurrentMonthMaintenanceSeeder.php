@@ -2,19 +2,24 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\MaintenanceRequest;
 use App\Models\MaintenanceLog;
 use App\Models\Lease;
 use Carbon\Carbon;
+use Faker\Generator;
+use Illuminate\Database\Seeder;
 
 class ManagerCurrentMonthMaintenanceSeeder extends Seeder
 {
+    protected Generator $faker;
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 

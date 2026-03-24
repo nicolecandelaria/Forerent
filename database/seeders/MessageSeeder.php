@@ -2,14 +2,19 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Message;
+use Faker\Generator;
+use Illuminate\Database\Seeder;
 
 class MessageSeeder extends Seeder
 {
+    protected Generator $faker;
+
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
         // 1. Find "You" (The currently logged-in Landlord)
         $me = User::where('role', 'landlord')->first();
 

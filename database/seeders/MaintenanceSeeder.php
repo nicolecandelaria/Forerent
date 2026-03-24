@@ -3,14 +3,19 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
+use Faker\Generator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class MaintenanceSeeder extends Seeder
 {
+    protected Generator $faker;
+
     public function run()
     {
+        $this->faker = app(Generator::class);
+
         $maintenanceCategories = [
             'Plumbing',
             'Electrical',

@@ -4,13 +4,18 @@ namespace Database\Seeders;
 
 use App\Models\Billing;
 use App\Models\Transaction;
-use Illuminate\Database\Seeder;
 use Carbon\Carbon;
+use Faker\Generator;
+use Illuminate\Database\Seeder;
 
 class TransactionSeeder extends Seeder
 {
+    protected Generator $faker;
+
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
         $transactions = [];
         $transactionId = Transaction::max('transaction_id') + 1;
 

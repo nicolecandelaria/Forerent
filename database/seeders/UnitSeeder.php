@@ -2,15 +2,20 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
+use Faker\Generator;
+use Illuminate\Database\Seeder;
 
 class UnitSeeder extends Seeder
 {
+    protected Generator $faker;
+
     public function run(): void
     {
+        $this->faker = app(Generator::class);
+
         $properties = Property::all();
         $managers = User::where('role', 'manager')->pluck('user_id')->toArray();
 
