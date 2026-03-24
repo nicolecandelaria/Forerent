@@ -99,7 +99,7 @@ class CalendarWidget extends Component
                 ->whereDate('notification_date', $this->selectedDate)
                 ->orderBy('notification_date', 'desc')
                 ->orderBy('created_at', 'desc')
-                ->distinct('announcement_id')
+                ->distinct()
                 ->get();
         }
         else if ($this->role == "tenant") {
@@ -161,8 +161,6 @@ class CalendarWidget extends Component
                 ->unique()
                 ->toArray();
         }
-
-        logger('Announcement Dates for current month:', $this->announcementDates);
     }
 
     public function render()
