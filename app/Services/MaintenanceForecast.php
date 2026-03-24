@@ -21,6 +21,10 @@ class MaintenanceForecast
     public function generateForecast($year, $maintenanceData)
     {
         try {
+
+            Http::timeout(60)->get("{$this->apiBaseUrl}/");
+
+            
             $csvData = $this->convertToCsv($maintenanceData);
 
             Log::info("Sending maintenance forecast request for year: {$year}");

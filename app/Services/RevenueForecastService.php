@@ -25,6 +25,8 @@ class RevenueForecastService
         Log::info("Starting revenue forecast generation for year: {$year}");
 
         try {
+
+            Http::timeout(60)->get("{$this->fastApiUrl}/");
             // Export transaction data to CSV string
             $csvData = $this->exportTransactionDataAsCsv();
 
