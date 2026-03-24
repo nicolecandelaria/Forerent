@@ -10,15 +10,28 @@ use Livewire\Component;
 class PropertyDetails extends Component
 {
     public $propertyId = null;
+
     public $activePhotoIndex = 0;
 
     // Store as plain arrays/scalars — no Eloquent model hydration issues
     public $buildingName = '';
+
     public $address = '';
+
     public $description = '';
+
     public $unitCount = 0;
+
     public $photos = [];
+
     public $documents = [];
+
+    public function mount($buildingId = null)
+    {
+        if ($buildingId) {
+            $this->loadPropertyData($buildingId);
+        }
+    }
 
     #[On('buildingSelected')]
     public function onBuildingSelected($buildingId)
@@ -40,8 +53,9 @@ class PropertyDetails extends Component
             ->with('documents')
             ->find($id);
 
-        if (!$property) {
+        if (! $property) {
             $this->reset(['buildingName', 'address', 'description', 'unitCount', 'photos', 'documents']);
+
             return;
         }
 
@@ -53,9 +67,9 @@ class PropertyDetails extends Component
         // Filter the already-loaded documents collection in memory (no extra queries)
         $this->photos = $property->documents
             ->where('category', 'property_photo')
-            ->map(fn($doc) => [
+            ->map(fn ($doc) => [
                 'id' => $doc->id,
-                'url' => asset('storage/' . $doc->file_path),
+                'url' => asset('storage/'.$doc->file_path),
                 'name' => $doc->original_name,
             ])
             ->values()
@@ -63,9 +77,9 @@ class PropertyDetails extends Component
 
         $this->documents = $property->documents
             ->where('category', '!=', 'property_photo')
-            ->map(fn($doc) => [
+            ->map(fn ($doc) => [
                 'id' => $doc->id,
-                'url' => asset('storage/' . $doc->file_path),
+                'url' => asset('storage/'.$doc->file_path),
                 'name' => $doc->original_name,
                 'category' => $doc->category,
                 'visibility' => $doc->visibility,
