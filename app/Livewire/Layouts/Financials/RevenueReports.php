@@ -2,14 +2,15 @@
 
 namespace App\Livewire\Layouts\Financials;
 
-use Livewire\Component;
-use App\Models\Transaction;
 use App\Models\MaintenanceLog;
+use App\Models\Transaction;
 use Carbon\Carbon;
+use Livewire\Component;
 
 class RevenueReports extends Component
 {
     public $maintenanceBreakdownScope = 'month'; // month | year
+
     private array $maintenanceCategories = ['Plumbing', 'Electrical', 'Structural', 'Appliance', 'Pest Control'];
 
     public function mount()
@@ -33,19 +34,15 @@ class RevenueReports extends Component
         $income = array_fill(0, 12, 0);
         $expenses = array_fill(0, 12, 0);
 
-        // Revenue/inflow source: credit transactions.
-        $monthlyIncome = Transaction::where('transaction_type', 'Credit')
-            ->whereYear('transaction_date', $year)
-            ->selectRaw('EXTRACT(MONTH FROM transaction_date)::int as month, SUM(amount) as total')
-            ->groupBy('month')
-            ->get();
+        // Call the protected scope from the Model instead of raw SQL
+        $monthlyIncome = Transaction::monthlyRevenueSummary($year)->get();
 
         foreach ($monthlyIncome as $row) {
             $income[(int) $row->month - 1] = (float) $row->total;
         }
 
         $monthlyExpenses = MaintenanceLog::whereYear('completion_date', $year)
-            ->selectRaw('EXTRACT(MONTH FROM completion_date)::int as month, SUM(cost) as total')
+            ->selectRaw('CAST(EXTRACT(MONTH FROM completion_date) AS UNSIGNED) as month, SUM(cost) as total')
             ->groupBy('month')
             ->get();
 

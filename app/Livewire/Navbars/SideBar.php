@@ -4,12 +4,19 @@ namespace App\Livewire\Navbars;
 
 use App\Enums\Role;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class SideBar extends Component
 {
     public $navigations = [];
     public $sidebarOpen = true;
+
+    #[On('profile-updated')]
+    public function refreshSidebar()
+    {
+        // Re-render to pick up updated profile image
+    }
 
     public function mount()
     {

@@ -115,128 +115,10 @@
             </div>
         </div>
 
-        {{-- Billing Breakdown Card --}}
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-900">Billing Breakdown</h3>
-                        @if($currentBilling)
-                            <p class="text-xs text-gray-500">{{ \Carbon\Carbon::parse($currentBilling->billing_date)->format('F Y') }}</p>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-6">
-                @if($billingItems && count($billingItems) > 0)
-                    <div class="space-y-3">
-                        @foreach($billingItems as $item)
-                            <div class="flex items-center justify-between py-2 {{ !$loop->last ? 'border-b border-gray-50' : '' }}">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full
-                                        {{ $item->charge_category === 'recurring' ? 'bg-blue-400' : '' }}
-                                        {{ $item->charge_category === 'conditional' ? 'bg-amber-400' : '' }}
-                                        {{ $item->charge_category === 'move_in' ? 'bg-emerald-400' : '' }}
-                                        {{ $item->charge_category === 'move_out' ? 'bg-red-400' : '' }}
-                                    "></span>
-                                    <span class="text-sm text-gray-700">{{ $item->description }}</span>
-                                </div>
-                                <span class="text-sm font-semibold {{ $item->charge_category === 'conditional' ? 'text-red-600' : 'text-gray-900' }}">
-                                    &#8369;{{ number_format($item->amount, 2) }}
-                                </span>
-                            </div>
-                        @endforeach
-
-                        @if($currentBilling && $currentBilling->previous_balance > 0)
-                            <div class="flex items-center justify-between py-2 border-t border-gray-100">
-                                <span class="text-sm text-gray-500 italic">Previous Balance</span>
-                                <span class="text-sm font-semibold text-orange-600">&#8369;{{ number_format($currentBilling->previous_balance, 2) }}</span>
-                            </div>
-                        @endif
-                    </div>
-
-                    <div class="mt-4 pt-4 border-t-2 border-gray-900 flex items-center justify-between">
-                        <span class="text-base font-bold text-gray-900">Total Amount Due</span>
-                        <span class="text-xl font-extrabold text-blue-700">&#8369;{{ number_format($amountDue, 2) }}</span>
-                    </div>
-                @else
-                    <div class="text-center py-8">
-                        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        </div>
-                        <p class="text-sm text-gray-500">No billing items yet</p>
-                    </div>
-                @endif
-            </div>
-        </div>
     </div>
 
     {{-- ═══════════════════════════════════════════════════════════ --}}
-    {{-- ROW 2: UTILITY BREAKDOWN                                  --}}
-    {{-- ═══════════════════════════════════════════════════════════ --}}
-    <div class="grid grid-cols-1 gap-6">
-
-        {{-- Utility Split Card --}}
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-gray-900">Utility Split</h3>
-                </div>
-                @if($tenantCount > 0)
-                    <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">{{ $tenantCount }} TENANTS</span>
-                @endif
-            </div>
-
-            <div class="p-6 space-y-4">
-                {{-- Electricity --}}
-                <div class="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        <span class="text-xs font-bold text-amber-700 uppercase tracking-wide">Electricity (Meralco)</span>
-                    </div>
-                    <p class="text-2xl font-extrabold text-gray-900">&#8369;{{ number_format($electricityShare, 2) }}</p>
-                    @if($electricityTotal > 0)
-                        <p class="text-xs text-gray-500 mt-1">
-                            Total: &#8369;{{ number_format($electricityTotal, 2) }} &divide; {{ $tenantCount }}
-                        </p>
-                    @endif
-                </div>
-
-                {{-- Water --}}
-                <div class="p-4 rounded-xl bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3c-4 6-7 8.5-7 12a7 7 0 1014 0c0-3.5-3-6-7-12z"/></svg>
-                        <span class="text-xs font-bold text-sky-700 uppercase tracking-wide">Water</span>
-                    </div>
-                    <p class="text-2xl font-extrabold text-gray-900">&#8369;{{ number_format($waterShare, 2) }}</p>
-                    @if($waterTotal > 0)
-                        <p class="text-xs text-gray-500 mt-1">
-                            Total: &#8369;{{ number_format($waterTotal, 2) }} &divide; {{ $tenantCount }}
-                        </p>
-                    @endif
-                </div>
-
-                @if($billingPeriod)
-                    <p class="text-xs text-center text-gray-400 pt-1">Billing Period: {{ $billingPeriod }}</p>
-                @endif
-            </div>
-        </div>
-
-    </div>
-
-    {{-- ═══════════════════════════════════════════════════════════ --}}
-    {{-- ROW 3: SECURITY DEPOSIT  +  LEASE & CONTRACT              --}}
+    {{-- ROW 2: SECURITY DEPOSIT  +  LEASE & CONTRACT              --}}
     {{-- ═══════════════════════════════════════════════════════════ --}}
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
@@ -409,6 +291,400 @@
             @endif
         </div>
     </div>
+
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- UNIFIED CONTRACT & ITEMS CARD (Tabbed: Move-In / Move-Out) --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    @if($lease)
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" x-data="{ activeTab: 'movein' }" wire:ignore.self>
+
+        {{-- Tab Header --}}
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">Inspection & Contract</h3>
+            </div>
+
+            {{-- Tab Pills --}}
+            <div class="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1">
+                <button @click="activeTab = 'movein'"
+                        :class="activeTab === 'movein' ? 'bg-[#070589] text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                        class="px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200">
+                    Move-In
+                </button>
+                <button @click="{{ $moveOutDate ? "activeTab = 'moveout'" : '' }}"
+                        :class="activeTab === 'moveout' ? 'bg-[#070589] text-white shadow-sm' : '{{ $moveOutDate ? 'text-gray-600 hover:text-gray-900' : 'text-gray-300 cursor-not-allowed' }}'"
+                        class="px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200"
+                        {{ !$moveOutDate ? 'disabled' : '' }}>
+                    Move-Out
+                    @if(!$moveOutDate)
+                        <span class="ml-1 text-[9px] opacity-60">(N/A)</span>
+                    @endif
+                </button>
+            </div>
+
+            {{-- Dynamic Status Badge --}}
+            <div>
+                <template x-if="activeTab === 'movein'">
+                    <span>
+                        @if($contractAgreed)
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-wide">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>Signed
+                            </span>
+                        @elseif($ownerSignature && !$tenantSignature)
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold uppercase tracking-wide animate-pulse">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2"></span>Action Needed
+                            </span>
+                        @else
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wide">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>Pending
+                            </span>
+                        @endif
+                    </span>
+                </template>
+                @if($moveOutDate)
+                <template x-if="activeTab === 'moveout'">
+                    <span>
+                        @if($moveOutContractAgreed)
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-wide">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>Signed
+                            </span>
+                        @elseif(count($moveOutChecklist) > 0)
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-wide">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>Inspected
+                            </span>
+                        @else
+                            <span class="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wide">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>Pending
+                            </span>
+                        @endif
+                    </span>
+                </template>
+                @endif
+            </div>
+        </div>
+
+        {{-- ══════ MOVE-IN TAB PANEL ══════ --}}
+        <div x-show="activeTab === 'movein'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <div class="grid grid-cols-1 lg:grid-cols-2">
+
+                {{-- Left: Contract Info --}}
+                <div class="p-6 lg:border-r border-gray-100">
+                    <h4 class="text-xs font-bold text-[#070589] uppercase tracking-wide mb-4">Contract & Signature</h4>
+
+                    {{-- Contract Summary --}}
+                    <div class="bg-gray-50 rounded-xl p-4 mb-5 space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Property</span>
+                            <span class="font-semibold text-gray-800">{{ $contractData['property'] ?? '—' }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Unit / Bed</span>
+                            <span class="font-semibold text-gray-800">{{ $contractData['unit'] ?? '—' }} / {{ $contractData['bed'] ?? '—' }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Lease Period</span>
+                            <span class="font-semibold text-gray-800">{{ $contractData['start_date'] ?? '—' }} — {{ $contractData['end_date'] ?? '—' }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Monthly Rate</span>
+                            <span class="font-bold text-gray-900">&#8369;{{ number_format($contractData['monthly_rate'] ?? 0, 2) }}</span>
+                        </div>
+                    </div>
+
+                    {{-- Signature Status --}}
+                    <div class="space-y-3 mb-5">
+                        <div class="flex items-center justify-between p-3 rounded-xl border {{ $ownerSignature ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200 bg-gray-50/50' }}">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg {{ $ownerSignature ? 'bg-emerald-100' : 'bg-gray-200' }} flex items-center justify-center">
+                                    @if($ownerSignature)
+                                        <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    @else
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    @endif
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold {{ $ownerSignature ? 'text-emerald-700' : 'text-gray-600' }}">Lessor / Manager</p>
+                                    <p class="text-[10px] {{ $ownerSignature ? 'text-emerald-600' : 'text-gray-400' }}">{{ $ownerSignature ? 'Signed: ' . $ownerSignedAt : 'Awaiting signature' }}</p>
+                                </div>
+                            </div>
+                            @if($ownerSignature)<img src="{{ asset('storage/' . $ownerSignature) }}" class="h-8 object-contain" alt="Signature">@endif
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 rounded-xl border {{ $tenantSignature ? 'border-emerald-200 bg-emerald-50/50' : 'border-blue-200 bg-blue-50/30' }}">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg {{ $tenantSignature ? 'bg-emerald-100' : 'bg-blue-100' }} flex items-center justify-center">
+                                    @if($tenantSignature)
+                                        <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    @else
+                                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                    @endif
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold {{ $tenantSignature ? 'text-emerald-700' : 'text-blue-700' }}">Your Signature</p>
+                                    <p class="text-[10px] {{ $tenantSignature ? 'text-emerald-600' : 'text-blue-500' }}">{{ $tenantSignature ? 'Signed: ' . $tenantSignedAt : 'Your signature is required' }}</p>
+                                </div>
+                            </div>
+                            @if($tenantSignature)<img src="{{ asset('storage/' . $tenantSignature) }}" class="h-8 object-contain" alt="Signature">@endif
+                        </div>
+                    </div>
+
+                    <button wire:click="toggleContract" class="w-full py-3 px-4 bg-[#070589] hover:bg-[#000060] text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                        {{ !$tenantSignature && $ownerSignature ? 'Read & Sign Contract' : 'View Contract' }}
+                    </button>
+
+                    @if($contractAgreed)
+                        <div class="text-center py-2 px-4 bg-emerald-50 rounded-xl border border-emerald-200 mt-3">
+                            <p class="text-sm font-bold text-emerald-700">Contract Fully Signed</p>
+                            <p class="text-[10px] text-emerald-600 mt-0.5">Both parties have signed electronically per RA 8792.</p>
+                        </div>
+                    @elseif(!$tenantSignature && !$ownerSignature)
+                        <div class="text-center py-2 px-4 bg-gray-50 rounded-xl mt-3">
+                            <p class="text-xs text-gray-500">Waiting for the lessor/manager to sign first.</p>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Right: Items Received --}}
+                <div class="p-6">
+                    <x-inspection.items-confirmation-card
+                        title="Items Received"
+                        subtitle="Confirm the items you received at move-in"
+                        :items="$itemsReceived"
+                        :allConfirmed="$itemsConfirmedByTenant"
+                        accentColor="indigo"
+                        wireConfirmMethod="confirmItemReceived"
+                        wireConfirmAllMethod="confirmAllItems"
+                        emptyTitle="No inspection data yet"
+                        emptyMessage="Items will appear here after the manager records the move-in inspection."
+                        :embedded="true"
+                    />
+                </div>
+            </div>
+        </div>
+
+        {{-- ══════ MOVE-OUT TAB PANEL ══════ --}}
+        @if($moveOutDate)
+        <div x-show="activeTab === 'moveout'" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <div class="grid grid-cols-1 lg:grid-cols-2">
+
+                {{-- Left: Move-Out Contract Info --}}
+                <div class="p-6 lg:border-r border-gray-100">
+                    <h4 class="text-xs font-bold text-[#070589] uppercase tracking-wide mb-4">Clearance & Settlement</h4>
+
+                    <div class="bg-gray-50 rounded-xl p-4 mb-5 space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Move-Out Date</span>
+                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($moveOutDate)->format('M d, Y') }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Security Deposit</span>
+                            <span class="font-bold text-gray-900">&#8369;{{ number_format($securityDeposit, 2) }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Inspection Status</span>
+                            <span class="font-semibold {{ count($moveOutChecklist) > 0 ? 'text-emerald-700' : 'text-amber-700' }}">
+                                {{ count($moveOutChecklist) > 0 ? 'Completed' : 'Awaiting inspection' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Move-Out Signature Status --}}
+                    <div class="space-y-3 mb-5">
+                        <div class="flex items-center justify-between p-3 rounded-xl border {{ $moveOutOwnerSignature ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200 bg-gray-50/50' }}">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg {{ $moveOutOwnerSignature ? 'bg-emerald-100' : 'bg-gray-200' }} flex items-center justify-center">
+                                    @if($moveOutOwnerSignature)
+                                        <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    @else
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    @endif
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold {{ $moveOutOwnerSignature ? 'text-emerald-700' : 'text-gray-600' }}">Lessor / Manager</p>
+                                    <p class="text-[10px] {{ $moveOutOwnerSignature ? 'text-emerald-600' : 'text-gray-400' }}">{{ $moveOutOwnerSignature ? 'Signed: ' . $moveOutOwnerSignedAt : 'Awaiting signature' }}</p>
+                                </div>
+                            </div>
+                            @if($moveOutOwnerSignature)<img src="{{ asset('storage/' . $moveOutOwnerSignature) }}" class="h-8 object-contain" alt="Signature">@endif
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 rounded-xl border {{ $moveOutTenantSignature ? 'border-emerald-200 bg-emerald-50/50' : 'border-blue-200 bg-blue-50/30' }}">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg {{ $moveOutTenantSignature ? 'bg-emerald-100' : 'bg-blue-100' }} flex items-center justify-center">
+                                    @if($moveOutTenantSignature)
+                                        <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    @else
+                                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                    @endif
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold {{ $moveOutTenantSignature ? 'text-emerald-700' : 'text-blue-700' }}">Your Signature</p>
+                                    <p class="text-[10px] {{ $moveOutTenantSignature ? 'text-emerald-600' : 'text-blue-500' }}">{{ $moveOutTenantSignature ? 'Signed: ' . $moveOutTenantSignedAt : 'Your signature is required' }}</p>
+                                </div>
+                            </div>
+                            @if($moveOutTenantSignature)<img src="{{ asset('storage/' . $moveOutTenantSignature) }}" class="h-8 object-contain" alt="Signature">@endif
+                        </div>
+                    </div>
+
+                    <button wire:click="toggleMoveOutContract" class="w-full py-3 px-4 bg-[#070589] hover:bg-[#000060] text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                        View Move-Out Contract
+                    </button>
+
+                    @if($moveOutContractAgreed)
+                        <div class="text-center py-2 px-4 bg-emerald-50 rounded-xl border border-emerald-200 mt-3">
+                            <p class="text-sm font-bold text-emerald-700">Move-Out Contract Fully Signed</p>
+                            <p class="text-[10px] text-emerald-600 mt-0.5">Both parties have signed electronically per RA 8792.</p>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Right: Items Returned --}}
+                <div class="p-6">
+                    <x-inspection.items-confirmation-card
+                        title="Items Returned"
+                        subtitle="Confirm the items you've returned at move-out"
+                        :items="$itemsReturned"
+                        :allConfirmed="$itemsReturnedConfirmedByTenant"
+                        accentColor="orange"
+                        wireConfirmMethod="confirmItemReturned"
+                        wireConfirmAllMethod="confirmAllReturned"
+                        emptyTitle="No move-out inspection data yet"
+                        emptyMessage="Items will appear here after the manager records the move-out inspection."
+                        :embedded="true"
+                    />
+                </div>
+            </div>
+        </div>
+        @endif
+
+    </div>
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- MOVE-OUT CONTRACT VIEWER MODAL                              --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    @if($showMoveOutContract && $lease)
+        @php
+            $t = $tenantContractData;
+            $deposit = $t['move_in_details']['security_deposit'];
+        @endphp
+        <x-inspection.contract-viewer-modal
+            :show="true"
+            title="Move-Out Clearance & Deposit Settlement"
+            wireCloseMethod="toggleMoveOutContract"
+            contractId="move-out-contract-tenant"
+        >
+            @include('partials.move-out-contract-body', [
+                't' => $t,
+                'deposit' => $deposit,
+                'moveOutChecklist' => $moveOutChecklist,
+                'itemsReturned' => $itemsReturned,
+                'inspectionChecklist' => $moveOutInspectionChecklist,
+                'moveOutTenantSignature' => $moveOutTenantSignature,
+                'moveOutOwnerSignature' => $moveOutOwnerSignature,
+                'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
+                'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
+                'moveOutContractAgreed' => $moveOutContractAgreed,
+                'signatureMode' => 'tenant',
+            ])
+
+            <x-slot:footer>
+                @if(!$moveOutTenantSignature && $moveOutOwnerSignature)
+                    <button wire:click="openMoveOutSignatureModal" class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                        Sign Move-Out Contract
+                    </button>
+                @endif
+                <button wire:click="toggleMoveOutContract" class="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl">Close</button>
+            </x-slot:footer>
+        </x-inspection.contract-viewer-modal>
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- FULL CONTRACT VIEWER MODAL                                  --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    @if($showContract && $lease)
+        @php
+            $t = $tenantContractData;
+            $rate = $t['move_in_details']['monthly_rate'];
+            $deposit = $t['move_in_details']['security_deposit'];
+            $premium = $t['move_in_details']['short_term_premium'] ?? 0;
+            $dueDay = $t['move_in_details']['monthly_due_date'];
+            $dueSfx = match((int) $dueDay) { 1 => 'st', 2 => 'nd', 3 => 'rd', default => 'th' };
+            $totalMoveIn = $rate + $deposit;
+        @endphp
+        <x-inspection.contract-viewer-modal
+            :show="true"
+            title="Move-In Contract"
+            wireCloseMethod="toggleContract"
+            contractId="move-in-contract-tenant"
+        >
+            @include('partials.move-in-contract-body', [
+                't' => $t,
+                'rate' => $rate,
+                'deposit' => $deposit,
+                'premium' => $premium,
+                'dueDay' => $dueDay,
+                'dueSfx' => $dueSfx,
+                'totalMoveIn' => $totalMoveIn,
+                'inspectionChecklist' => $itemsReceived ? [] : [],
+                'itemsReceived' => $itemsReceived,
+                'tenantSignature' => $tenantSignature,
+                'ownerSignature' => $ownerSignature,
+                'tenantSignedAt' => $tenantSignedAt,
+                'ownerSignedAt' => $ownerSignedAt,
+                'contractAgreed' => $contractAgreed,
+                'signatureMode' => 'tenant',
+            ])
+
+            <x-slot:footer>
+                @if(!$tenantSignature && $ownerSignature)
+                    <button wire:click="openSignatureModal" class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                        Read & Sign Contract
+                    </button>
+                @endif
+                <button wire:click="toggleContract" class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 px-6 rounded-xl text-sm">Close</button>
+            </x-slot:footer>
+        </x-inspection.contract-viewer-modal>
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- TENANT E-SIGNATURE MODAL                                   --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    <x-inspection.signature-pad-modal
+        :show="$showSignatureModal"
+        title="Sign Your Contract"
+        subtitle="Draw your signature below using your mouse or finger"
+        signerName=""
+        signerRole="Lessee / Tenant"
+        legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms. This e-signature is legally binding under RA 8792."
+        wireCloseMethod="closeSignatureModal"
+        wireSaveMethod="saveTenantSignature"
+        canvasRef="sigCanvasMoveIn"
+    />
+
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- MOVE-OUT E-SIGNATURE PAD MODAL (Tenant side)               --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    <x-inspection.signature-pad-modal
+        :show="$showMoveOutSignatureModal"
+        title="Sign Move-Out Contract"
+        subtitle="Draw your signature below using your mouse or finger"
+        signerName=""
+        signerRole="Lessee / Tenant"
+        legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-Out Clearance &amp; Deposit Settlement Agreement. This e-signature is legally binding under RA 8792."
+        wireCloseMethod="closeMoveOutSignatureModal"
+        wireSaveMethod="saveMoveOutTenantSignature"
+        canvasRef="sigCanvasMoveOut"
+    />
 
     {{-- ═══════════════════════════════════════════════════════════ --}}
     {{-- ROW 4: MOVE-IN/MOVE-OUT  +  MAINTENANCE REQUESTS          --}}

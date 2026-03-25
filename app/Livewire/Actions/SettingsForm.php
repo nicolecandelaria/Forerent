@@ -3,13 +3,16 @@
 namespace App\Livewire\Actions;
 
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Livewire\Attributes\Validate;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Livewire\Concerns\WithNotifications;
 
 class SettingsForm extends Component
 {
-    use WithNotifications;
+    use WithNotifications, WithFileUploads;
 
     // Form properties
     public $firstName;
@@ -17,12 +20,19 @@ class SettingsForm extends Component
     public $phoneNumber;
     public $email;
 
-    // Modal control property (optional, Flowbite JS might handle it)
-    // public $showConfirmationModal = false;
+    // Image upload properties
+    #[Validate('nullable|image|max:10240')]
+    public $profilePicture;
+
+    #[Validate('nullable|image|max:10240')]
+    public $governmentIdImage;
+
+    // Existing image paths from DB
+    public $existingProfileImg;
+    public $existingGovernmentIdImage;
 
     public function mount()
     {
-        // 1. Call the new method to load initial data
         $this->loadUserData();
     }
 
@@ -39,6 +49,20 @@ class SettingsForm extends Component
         $this->phoneNumber = $user->contact;
         $this->firstName = $user->first_name;
         $this->lastName = $user->last_name;
+        $this->existingProfileImg = $user->profile_img;
+        $this->existingGovernmentIdImage = $user->government_id_image;
+    }
+
+    public function removeProfilePicture()
+    {
+        $this->profilePicture = null;
+        $this->existingProfileImg = null;
+    }
+
+    public function removeGovernmentIdImage()
+    {
+        $this->governmentIdImage = null;
+        $this->existingGovernmentIdImage = null;
     }
 
     /**
@@ -50,9 +74,6 @@ class SettingsForm extends Component
      */
     public function confirmSave()
     {
-        // Optional: Run validation here before modal shows?
-        // If validation passes, Flowbite JS will show the modal.
-        // If it fails, Livewire updates the view with errors, modal won't show.
         $this->validate([
             'firstName' => 'nullable|string|max:255',
             'lastName' => 'nullable|string|max:255',
@@ -60,10 +81,8 @@ class SettingsForm extends Component
             'email' => 'required|email|max:255|unique:users,email,' . Auth::id() . ',user_id',
         ]);
 
-        // If validation passes, Flowbite's data-modal-toggle will show the modal.
-        // We don't strictly need PHP to control the modal visibility here,
-        // unless you want more complex logic.
-        // $this->showConfirmationModal = true;
+        // Validation passed — open the Flowbite confirmation modal via JS
+        $this->dispatch('open-save-confirm-modal');
     }
 
 
@@ -72,33 +91,58 @@ class SettingsForm extends Component
      */
     public function save()
     {
-        /** @var \App\Models\User $user */ // <-- ADD THIS LINE
+        /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Re-run validation just in case (optional but safe)
-        $validatedData = $this->validate([
+        $this->validate([
             'firstName' => 'nullable|string|max:255',
             'lastName' => 'nullable|string|max:255',
             'phoneNumber' => 'nullable|digits:10',
             'email' => 'required|email|max:255|unique:users,email,' . $user->user_id . ',user_id',
+            'profilePicture' => 'nullable|image|max:10240',
+            'governmentIdImage' => 'nullable|image|max:10240',
         ]);
 
-        // Update the user
-        $user->update([
+        $updateData = [
             'first_name' => $this->firstName,
             'last_name' => $this->lastName,
             'email' => $this->email,
             'contact' => $this->phoneNumber,
-        ]);
+        ];
 
-        // Close the modal (optional, Flowbite JS does this via data-modal-hide)
-        // $this->showConfirmationModal = false;
+        // Handle profile picture upload
+        if ($this->profilePicture) {
+            if ($user->profile_img) {
+                Storage::disk('public')->delete($user->profile_img);
+            }
+            $updateData['profile_img'] = $this->profilePicture->store('profile-photos', 'public');
+        } elseif ($this->existingProfileImg === null && $user->profile_img) {
+            Storage::disk('public')->delete($user->profile_img);
+            $updateData['profile_img'] = null;
+        }
 
-        // Send a success message
+        // Handle government ID image upload
+        if ($this->governmentIdImage) {
+            if ($user->government_id_image) {
+                Storage::disk('public')->delete($user->government_id_image);
+            }
+            $updateData['government_id_image'] = $this->governmentIdImage->store('government-ids', 'public');
+        } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
+            Storage::disk('public')->delete($user->government_id_image);
+            $updateData['government_id_image'] = null;
+        }
+
+        $user->update($updateData);
+
+        // Reset file inputs and reload from DB
+        $this->profilePicture = null;
+        $this->governmentIdImage = null;
+        $this->existingProfileImg = $user->profile_img;
+        $this->existingGovernmentIdImage = $user->government_id_image;
+
+        $this->dispatch('profile-updated');
+
         $this->notifySuccess('Settings Saved Successfully!', 'Your personal information has been updated.');
-
-        // Optional: Dispatch browser event if you need JS to react after save
-        // $this->dispatch('settings-saved');
     }
 
     /**
