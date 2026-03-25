@@ -8,6 +8,7 @@
     'wireConfirmAllMethod' => 'confirmAllItems',
     'emptyTitle' => 'No data yet',
     'emptyMessage' => 'Items will appear here after the manager records the inspection.',
+    'embedded' => false,
 ])
 
 @php
@@ -18,8 +19,8 @@
     $colors = $colorMap[$accentColor] ?? $colorMap['indigo'];
 @endphp
 
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+@if(!$embedded)<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">@endif
+    <div class="{{ $embedded ? 'pb-4' : 'px-6 py-5 border-b border-gray-100' }} flex items-center justify-between">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl {{ $colors['bg'] }} flex items-center justify-center">
                 <svg class="w-5 h-5 {{ $colors['text'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -43,7 +44,7 @@
         @endif
     </div>
 
-    <div class="p-6">
+    <div class="{{ $embedded ? '' : 'p-6' }}">
         @if(count($items) > 0)
             <div class="space-y-2 mb-4">
                 @foreach($items as $index => $item)
@@ -95,4 +96,4 @@
             </div>
         @endif
     </div>
-</div>
+@if(!$embedded)</div>@endif
