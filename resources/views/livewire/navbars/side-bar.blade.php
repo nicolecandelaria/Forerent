@@ -223,10 +223,16 @@ class="fixed inset-0 bg-gradient-to-br from-gray-900/50 via-gray-900/20 to-gray-
                    class="group flex items-center p-3 rounded-lg text-[#6B7280] hover:bg-[#DFE8FC] hover:text-[#070642] transition-all duration-200 hover:shadow-sm active:scale-[0.98]"
                    :class="!sidebarExpanded && 'justify-center'"
                    :title="!sidebarExpanded ? '{{ auth()->user()->first_name ?? 'Account' }}' : ''">
-                    <div class="flex-shrink-0 w-9 h-9 bg-white border-2 border-blue-600 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-110">
-                        <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
+                    <div class="flex-shrink-0 w-9 h-9 rounded-full transition-transform duration-200 group-hover:scale-110 overflow-hidden border-2 border-blue-600">
+                        @if(auth()->user()->profile_img)
+                            <img src="{{ asset('storage/' . auth()->user()->profile_img) }}" class="w-full h-full object-cover" alt="Profile">
+                        @else
+                            <div class="w-full h-full bg-white flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                </svg>
+                            </div>
+                        @endif
                     </div>
                     <div x-show="sidebarExpanded"
                          x-transition:enter="transition ease-out duration-200"

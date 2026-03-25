@@ -12,6 +12,7 @@ import 'flowbite';
 import './landing-animations';
 
 
+
 // Initialize Flowbite dropdowns
 document.addEventListener('DOMContentLoaded', function() {
     const dropdownToggles = document.querySelectorAll('[data-collapse-toggle]');

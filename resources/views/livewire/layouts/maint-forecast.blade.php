@@ -51,31 +51,6 @@
             </div>
         </div>
 
-        <!-- Monthly Forecast Table -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Monthly Forecast Details</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50">
-                        <tr class="border-b">
-                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Month</th>
-                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Forecasted Cost</th>
-                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Est. Jobs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach(($forecast['monthly_forecasts'] ?? []) as $monthly)
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="px-4 py-3 font-medium text-gray-900">{{ $monthly['month_name'] ?? '' }}</td>
-                            <td class="px-4 py-3 text-gray-700">₱{{ number_format($monthly['forecasted_cost'] ?? 0, 2) }}</td>
-                            <td class="px-4 py-3 text-gray-700">{{ (int) round($monthly['maintenance_count_estimate'] ?? 0) }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
         <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
         <script>
             document.addEventListener('livewire:navigated', () => { renderMaintenanceChart(); });

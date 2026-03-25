@@ -56,7 +56,7 @@
                     {{-- Avatar + Badge --}}
                     <div class="relative flex-shrink-0">
                         <img
-                            src="{{ $chat->profile_img ?? 'https://ui-avatars.com/api/?name=' . urlencode($chat->first_name . '+' . $chat->last_name) . '&background=C8D9FD&color=0C0B50' }}"
+                            src="{{ $chat->profile_img ? asset('storage/' . $chat->profile_img) : 'https://ui-avatars.com/api/?name=' . urlencode($chat->first_name . '+' . $chat->last_name) . '&background=C8D9FD&color=0C0B50' }}"
                             class="w-11 h-11 rounded-full object-cover border-2
                                 {{ $selectedUserId === $chat->user_id ? 'border-blue-300' : 'border-slate-100' }}"
                         >
@@ -107,7 +107,7 @@
             >
                 <div class="relative">
                     <img
-                        src="{{ $activeChatUser->profile_img ?? 'https://ui-avatars.com/api/?name=' . urlencode($activeChatUser->first_name . '+' . $activeChatUser->last_name) . '&background=C8D9FD&color=0C0B50' }}"
+                        src="{{ $activeChatUser->profile_img ? asset('storage/' . $activeChatUser->profile_img) : 'https://ui-avatars.com/api/?name=' . urlencode($activeChatUser->first_name . '+' . $activeChatUser->last_name) . '&background=C8D9FD&color=0C0B50' }}"
                         class="w-9 h-9 rounded-full object-cover border border-blue-100"
                     >
                     <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-white"></div>
@@ -154,7 +154,7 @@
                             {{-- Their Avatar --}}
                             @if(!$isMe)
                                 <img
-                                    src="{{ $activeChatUser->profile_img ?? 'https://ui-avatars.com/api/?name=' . urlencode($activeChatUser->first_name) . '&background=C8D9FD&color=0C0B50' }}"
+                                    src="{{ $activeChatUser->profile_img ? asset('storage/' . $activeChatUser->profile_img) : 'https://ui-avatars.com/api/?name=' . urlencode($activeChatUser->first_name) . '&background=C8D9FD&color=0C0B50' }}"
                                     class="w-7 h-7 rounded-full mr-2 self-end mb-4 flex-shrink-0"
                                 >
                             @endif
@@ -206,7 +206,7 @@
                             @if($isMe)
                                 @php $me = auth()->user(); @endphp
                                 <img
-                                    src="{{ $me->profile_img ?? 'https://ui-avatars.com/api/?name=' . urlencode($me->first_name) . '&background=0C0B50&color=fff' }}"
+                                    src="{{ $me->profile_img ? asset('storage/' . $me->profile_img) : 'https://ui-avatars.com/api/?name=' . urlencode($me->first_name) . '&background=0C0B50&color=fff' }}"
                                     class="w-7 h-7 rounded-full ml-2 self-end mb-4 flex-shrink-0"
                                 >
                             @endif
@@ -228,93 +228,193 @@
             {{-- Input Area --}}
             <div class="p-4 bg-white border-t border-slate-100">
 
-                {{-- Attachment Preview --}}
-                @if($attachment)
-                    <div class="flex items-center gap-2 mb-3 px-1">
-                        <div class="relative flex items-center gap-3 bg-[#EEF3FF] rounded-xl p-2 pr-4 border border-blue-100">
-                            @if(Str::startsWith($attachment->getMimeType(), 'image/'))
-                                <img src="{{ $attachment->temporaryUrl() }}" class="w-10 h-10 object-cover rounded-lg border border-blue-200">
-                            @else
-                                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-[#3B5BDB] border border-blue-100">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                    </svg>
-                                </div>
-                            @endif
-                            <div class="flex flex-col">
-                                <span class="text-xs font-bold text-[#0C0B50] truncate max-w-[160px]">{{ $attachment->getClientOriginalName() }}</span>
-                                <span class="text-[10px] text-slate-400">Ready to send</span>
-                            </div>
-                            <button
-                                type="button"
-                                wire:click="$set('attachment', null)"
-                                class="absolute -top-2 -right-2 bg-white text-slate-400 hover:text-red-500 rounded-full p-0.5 shadow border border-slate-200 transition-colors"
-                            >
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                @endif
-
-                {{-- Message Input --}}
+                {{-- ================================================= --}}
+                {{-- MESSAGE INPUT with upload state management         --}}
+                {{-- uploading: true while $wire.upload() is in flight  --}}
+                {{-- uploadError: set if the server rejects the file    --}}
+                {{-- progress: 0-100 from Livewire upload progress evt  --}}
+                {{-- ================================================= --}}
                 <div
                     x-data="{
                         message: '',
+                        uploading: false,
+                        progress: 0,
+                        uploadError: '',
                         resize() {
                             this.$refs.msgarea.style.height = 'auto';
                             this.$refs.msgarea.style.height = Math.min(this.$refs.msgarea.scrollHeight, 160) + 'px';
                         },
                         send() {
-                            if (this.message.trim() === '') return;
+                            if (this.uploading) return;
+                            if (this.message.trim() === '' && !$wire.attachment) return;
                             $wire.set('messageInput', this.message);
                             $wire.sendMessage();
                             this.message = '';
                             this.$nextTick(() => {
                                 this.$refs.msgarea.style.height = 'auto';
                             });
+                        },
+                        handleFileChange(event) {
+                            const file = event.target.files[0];
+                            if (!file) return;
+
+                            this.uploadError = '';
+                            this.uploading = true;
+                            this.progress = 0;
+
+                            $wire.upload(
+                                'attachment',
+                                file,
+                                () => {
+                                    // Success — Livewire re-renders and shows the preview
+                                    this.uploading = false;
+                                    this.progress = 0;
+                                },
+                                () => {
+                                    // Error — likely 422 validation rejection
+                                    this.uploading = false;
+                                    this.progress = 0;
+                                    this.uploadError = 'File rejected. Max 10MB. Images and documents only.';
+                                },
+                                (progressEvent) => {
+                                    this.progress = progressEvent.detail.progress;
+                                }
+                            );
+
+                            event.target.value = '';
                         }
                     }"
-                    class="flex items-end bg-[#F4F6FB] border border-slate-200 rounded-2xl px-2 py-2 focus-within:ring-2 focus-within:ring-blue-200 focus-within:border-blue-300 transition-all"
+                    class="flex flex-col bg-[#F4F6FB] border border-slate-200 rounded-2xl px-2 py-2 focus-within:ring-2 focus-within:ring-blue-200 focus-within:border-blue-300 transition-all"
                 >
-                    <textarea
-                        x-ref="msgarea"
-                        x-model="message"
-                        placeholder="Type a message here..."
-                        rows="1"
-                        @input="resize()"
-                        wire:focus="markAsRead"
-                        @keydown.enter.prevent="if (!$event.shiftKey) { send(); } else { message += '\n'; $nextTick(() => resize()); }"
-                        class="flex-1 border-none focus:ring-0 text-sm px-3 placeholder-slate-400 text-slate-700 bg-transparent resize-none leading-relaxed py-1"
-                        style="min-height: 36px; max-height: 160px; overflow-y: auto;"
-                    ></textarea>
 
-                    <div class="flex items-center gap-1 flex-shrink-0">
-                        {{-- Hidden File Input --}}
-                        <input type="file" id="file-upload" class="hidden" wire:model="attachment">
-
-                        {{-- Attachment Button --}}
-                        <button
-                            type="button"
-                            onclick="document.getElementById('file-upload').click()"
-                            class="p-2 text-slate-400 hover:text-[#3B5BDB] transition-colors rounded-full hover:bg-blue-50"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    {{-- Upload Error Banner --}}
+                    <div
+                        x-show="uploadError !== ''"
+                        x-transition
+                        class="flex items-center gap-2 text-[11px] text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 mb-2"
+                    >
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span x-text="uploadError"></span>
+                        <button type="button" @click="uploadError = ''" class="ml-auto text-red-400 hover:text-red-600">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
+                    </div>
 
-                        {{-- Send Button --}}
-                        <button
-                            type="button"
-                            @click="send()"
-                            class="p-2 bg-[#0C0B50] text-white rounded-xl hover:bg-[#1a1880] active:scale-95 transition-all shadow-sm"
-                        >
-                            <svg class="w-4 h-4 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                            </svg>
-                        </button>
+                    {{-- Attachment Preview (rendered by Livewire after upload completes) --}}
+                    @if($attachment)
+                        <div class="flex items-center gap-2 mb-2 px-1">
+                            <div class="relative flex items-center gap-3 bg-[#EEF3FF] rounded-xl p-2 pr-4 border border-blue-100 w-full">
+                                @if(Str::startsWith($attachment->getMimeType(), 'image/'))
+                                    <img src="{{ $attachment->temporaryUrl() }}" class="w-10 h-10 object-cover rounded-lg border border-blue-200 flex-shrink-0">
+                                @else
+                                    <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-[#3B5BDB] border border-blue-100 flex-shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                        </svg>
+                                    </div>
+                                @endif
+                                <div class="flex flex-col min-w-0 flex-1">
+                                    <span class="text-xs font-bold text-[#0C0B50] truncate">{{ $attachment->getClientOriginalName() }}</span>
+                                    <span class="text-[10px] text-slate-400">Ready to send</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    wire:click="$set('attachment', null)"
+                                    class="absolute -top-2 -right-2 bg-white text-slate-400 hover:text-red-500 rounded-full p-0.5 shadow border border-slate-200 transition-colors"
+                                >
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Upload Progress Bar (shown while uploading) --}}
+                    <div x-show="uploading" x-transition class="px-1 mb-2">
+                        <div class="flex items-center gap-3 bg-[#EEF3FF] rounded-xl p-2 pr-4 border border-blue-100">
+                            {{-- Animated file icon --}}
+                            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-[#3B5BDB] border border-blue-100 flex-shrink-0">
+                                <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[11px] font-semibold text-[#0C0B50]">Uploading...</span>
+                                    <span class="text-[10px] text-[#3B5BDB] font-bold" x-text="progress + '%'"></span>
+                                </div>
+                                {{-- Progress track --}}
+                                <div class="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                        class="bg-[#3B5BDB] h-1.5 rounded-full transition-all duration-200"
+                                        :style="'width: ' + progress + '%'"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Text Input Row --}}
+                    <div class="flex items-end">
+                        <textarea
+                            x-ref="msgarea"
+                            x-model="message"
+                            placeholder="Type a message here..."
+                            rows="1"
+                            @input="resize()"
+                            wire:focus="markAsRead"
+                            @keydown.enter.prevent="if (!$event.shiftKey) { send(); } else { message += '\n'; $nextTick(() => resize()); }"
+                            :disabled="uploading"
+                            class="flex-1 border-none focus:ring-0 text-sm px-3 placeholder-slate-400 text-slate-700 bg-transparent resize-none leading-relaxed py-1 disabled:opacity-50"
+                            style="min-height: 36px; max-height: 160px; overflow-y: auto;"
+                        ></textarea>
+
+                        <div class="flex items-center gap-1 flex-shrink-0">
+
+                            {{-- Hidden File Input --}}
+                            <input
+                                type="file"
+                                x-ref="fileInput"
+                                class="hidden"
+                                x-on:change="handleFileChange($event)"
+                            >
+
+                            {{-- Attachment Button — shows spinner while uploading --}}
+                            <button
+                                type="button"
+                                x-on:click="if (!uploading) $refs.fileInput.click()"
+                                :class="uploading ? 'opacity-50 cursor-not-allowed' : 'hover:text-[#3B5BDB] hover:bg-blue-50'"
+                                class="p-2 text-slate-400 transition-colors rounded-full"
+                            >
+                                {{-- Paperclip icon (default) --}}
+                                <svg x-show="!uploading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                </svg>
+                                {{-- Spinner (while uploading) --}}
+                                <svg x-show="uploading" class="w-5 h-5 animate-spin text-[#3B5BDB]" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                                </svg>
+                            </button>
+
+                            {{-- Send Button — disabled while uploading --}}
+                            <button
+                                type="button"
+                                @click="send()"
+                                :disabled="uploading"
+                                :class="uploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#1a1880] active:scale-95'"
+                                class="p-2 bg-[#0C0B50] text-white rounded-xl transition-all shadow-sm"
+                            >
+                                <svg class="w-4 h-4 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -355,7 +455,7 @@
                 <div class="relative mb-3">
                     <div class="p-1 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100">
                         <img
-                            src="{{ $activeChatUser->profile_img ?? 'https://ui-avatars.com/api/?name=' . urlencode($activeChatUser->first_name . '+' . $activeChatUser->last_name) . '&background=C8D9FD&color=0C0B50&size=128' }}"
+                            src="{{ $activeChatUser->profile_img ? asset('storage/' . $activeChatUser->profile_img) : 'https://ui-avatars.com/api/?name=' . urlencode($activeChatUser->first_name . '+' . $activeChatUser->last_name) . '&background=C8D9FD&color=0C0B50&size=128' }}"
                             class="w-20 h-20 rounded-full object-cover"
                         >
                     </div>
