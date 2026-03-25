@@ -14,7 +14,8 @@
       "Read(//e/reigne/Citispace-Forerent/$USERPROFILE/.config/**)",
       "Read(//e/reigne/Citispace-Forerent/$APPDATA/**)",
       "Read(//c/ProgramData/**)",
-      "Bash(ls database/migrations/*transactions*)"
+      "Bash(ls database/migrations/*transactions*)",
+      "Bash(find /e/reigne/Citispace-Forerent/database/migrations -type f -name *.php)"
     ]
   }
 }

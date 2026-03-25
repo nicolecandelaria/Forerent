@@ -6,9 +6,11 @@ use App\Models\Billing;
 use App\Models\BillingItem;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\MoveInInspection;
 use App\Models\UtilityBill;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 
 class TenantDashboardOverview extends Component
@@ -59,6 +61,21 @@ class TenantDashboardOverview extends Component
     public $ongoingMaintenanceCount = 0;
     public $recentRequests = [];
 
+    // Contract & E-Signature
+    public $showSignatureModal = false;
+    public $tenantSignature = null;
+    public $tenantSignedAt = null;
+    public $ownerSignature = null;
+    public $ownerSignedAt = null;
+    public $contractAgreed = false;
+    public $signedContractPath = null;
+    public $showContract = false;
+    public $contractData = [];
+
+    // Items received confirmation
+    public $itemsReceived = [];
+    public $itemsConfirmedByTenant = false;
+
     public function mount()
     {
         $user = Auth::user();
@@ -75,6 +92,8 @@ class TenantDashboardOverview extends Component
             $this->loadLeaseData();
             $this->loadMoveData();
             $this->loadMaintenanceData();
+            $this->loadContractData();
+            $this->loadItemsReceived();
         }
     }
 
@@ -219,6 +238,132 @@ class TenantDashboardOverview extends Component
             ->orderBy('created_at', 'desc')
             ->take(3)
             ->get();
+    }
+
+    protected function loadContractData()
+    {
+        $this->tenantSignature = $this->lease->tenant_signature;
+        $this->tenantSignedAt = $this->lease->tenant_signed_at?->format('M d, Y h:i A');
+        $this->ownerSignature = $this->lease->owner_signature;
+        $this->ownerSignedAt = $this->lease->owner_signed_at?->format('M d, Y h:i A');
+        $this->contractAgreed = (bool) $this->lease->contract_agreed;
+        $this->signedContractPath = $this->lease->signed_contract_path;
+
+        // Build contract display data
+        $bed = $this->lease->bed;
+        $unit = $bed?->unit;
+        $property = $unit?->property;
+        $owner = $property?->owner;
+
+        $this->contractData = [
+            'lessor' => $owner ? ($owner->first_name . ' ' . $owner->last_name) : '—',
+            'company' => $owner?->company_school ?? '—',
+            'property' => $property?->building_name ?? '—',
+            'unit' => $unit?->unit_number ?? '—',
+            'bed' => $bed?->bed_number ?? '—',
+            'start_date' => $this->lease->start_date?->format('M d, Y'),
+            'end_date' => $this->lease->end_date?->format('M d, Y'),
+            'monthly_rate' => $this->lease->contract_rate,
+            'security_deposit' => $this->lease->security_deposit,
+            'term' => $this->lease->term,
+        ];
+    }
+
+    protected function loadItemsReceived()
+    {
+        $inspections = MoveInInspection::where('lease_id', $this->lease->lease_id)
+            ->where('type', 'item_received')
+            ->get();
+
+        $this->itemsReceived = $inspections->map(fn($i) => [
+            'item_name' => $i->item_name,
+            'quantity' => $i->quantity,
+            'condition' => $i->remarks,
+            'tenant_confirmed' => (bool) $i->tenant_confirmed,
+        ])->toArray();
+
+        // Check if all items are confirmed by tenant
+        $this->itemsConfirmedByTenant = count($this->itemsReceived) > 0
+            && collect($this->itemsReceived)->every(fn($item) => $item['tenant_confirmed']);
+    }
+
+    public function openSignatureModal(): void
+    {
+        $this->showSignatureModal = true;
+    }
+
+    public function closeSignatureModal(): void
+    {
+        $this->showSignatureModal = false;
+    }
+
+    public function toggleContract(): void
+    {
+        $this->showContract = !$this->showContract;
+    }
+
+    public function saveTenantSignature(string $signatureData): void
+    {
+        if (!$this->lease) return;
+
+        $imageData = preg_replace('/^data:image\/\w+;base64,/', '', $signatureData);
+        $imageData = base64_decode($imageData);
+
+        $filename = "signatures/{$this->lease->lease_id}_tenant_" . time() . '.png';
+        Storage::disk('public')->put($filename, $imageData);
+
+        // Delete old signature file if exists
+        if ($this->lease->tenant_signature) {
+            Storage::disk('public')->delete($this->lease->tenant_signature);
+        }
+
+        $this->lease->update([
+            'tenant_signature' => $filename,
+            'tenant_signed_at' => now(),
+            'tenant_signed_ip' => request()->ip(),
+        ]);
+
+        $this->lease->refresh();
+        $this->tenantSignature = $filename;
+        $this->tenantSignedAt = now()->format('M d, Y h:i A');
+
+        // Check if both signed
+        if ($this->lease->tenant_signature && $this->lease->owner_signature) {
+            $this->lease->update(['contract_agreed' => true]);
+            $this->contractAgreed = true;
+        }
+
+        $this->closeSignatureModal();
+        $this->dispatch('signature-saved');
+    }
+
+    public function confirmItemReceived(int $index): void
+    {
+        if (!isset($this->itemsReceived[$index])) return;
+
+        $this->itemsReceived[$index]['tenant_confirmed'] = true;
+
+        // Update in database
+        MoveInInspection::where('lease_id', $this->lease->lease_id)
+            ->where('type', 'item_received')
+            ->where('item_name', $this->itemsReceived[$index]['item_name'])
+            ->update(['tenant_confirmed' => true]);
+
+        // Check if all confirmed
+        $this->itemsConfirmedByTenant = collect($this->itemsReceived)
+            ->every(fn($item) => $item['tenant_confirmed']);
+    }
+
+    public function confirmAllItems(): void
+    {
+        MoveInInspection::where('lease_id', $this->lease->lease_id)
+            ->where('type', 'item_received')
+            ->update(['tenant_confirmed' => true]);
+
+        foreach ($this->itemsReceived as &$item) {
+            $item['tenant_confirmed'] = true;
+        }
+        $this->itemsConfirmedByTenant = true;
     }
 
     public function render()

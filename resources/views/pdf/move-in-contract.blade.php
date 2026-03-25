@@ -44,29 +44,41 @@
             letter-spacing: 0.3px;
         }
 
-        /* ── Document header ── */
-        .doc-header {
-            text-align: center;
-            margin-bottom: 14px;
+        /* ── Document header (banner style) ── */
+        .doc-header-banner {
+            background: #1a2744;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            margin-bottom: 4px;
+            border-bottom: 3px solid #2360E8;
         }
-        .doc-header .republic {
-            font-size: 9pt;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: #333;
-        }
-        .doc-header .doc-title-main {
-            font-size: 17pt;
+        .doc-header-banner .banner-left .doc-title-main {
+            font-size: 15pt;
             font-weight: bold;
             letter-spacing: 2px;
             text-transform: uppercase;
-            color: #070589;
-            margin: 4px 0 2px;
+            color: #fff;
+            margin: 0;
         }
-        .doc-header .doc-subtitle {
-            font-size: 9.5pt;
-            color: #444;
-            font-style: italic;
+        .doc-header-banner .banner-left .republic {
+            font-size: 8.5pt;
+            letter-spacing: 0.5px;
+            color: #ccc;
+            margin-top: 2px;
+        }
+        .doc-header-banner .banner-right {
+            font-size: 11pt;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+        .doc-header {
+            text-align: center;
+            margin-bottom: 14px;
         }
         .doc-header .page-label {
             font-size: 8.5pt;
@@ -126,7 +138,11 @@
             font-size: 9.5pt;
         }
         .field-row.two-col {
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 6px 20px;
+        }
+        .field-row.two-col > .field-row {
+            min-width: 200px;
         }
         .field-label {
             white-space: nowrap;
@@ -374,20 +390,15 @@
 {{-- ═══════════════════════════════════════ PAGE 1 ═══════════════════════════════════════ --}}
 <div class="page">
 
-    {{-- Header --}}
-    <div class="doc-header">
-        <div class="republic">Republic of the Philippines</div>
-        <div class="doc-title-main">Dormitory Rental Agreement</div>
-        <div class="doc-subtitle">Move-In Contract</div>
-        <div class="page-label">Page 1</div>
+    {{-- Header banner --}}
+    <div class="doc-header-banner">
+        <div class="banner-left">
+            <div class="doc-title-main">Dormitory Rental Agreement</div>
+            <div class="republic">Republic of the Philippines</div>
+        </div>
+        <div class="banner-right">Move-In Contract</div>
     </div>
-    <hr class="divider">
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
-
-    <div class="doc-header" style="margin-top:10px;">
-        <div style="font-size:13pt; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#070589;">Move-In Contract</div>
-        <div style="font-size:9pt; color:#444; font-style:italic;">Dormitory Bedspace / Room Lease Agreement</div>
-    </div>
 
     <p class="intro">
         This Move-In Contract ("Agreement") is entered into by and between the <strong>LESSOR</strong> (the dormitory owner or authorized operator) and the <strong>LESSEE</strong> (the tenant), under the terms and conditions set forth below, in compliance with <em>Republic Act No. 9653 (Rent Control Act of 2009)</em> and other applicable laws of the Republic of the Philippines.
@@ -513,13 +524,13 @@
 {{-- ═══════════════════════════════════════ PAGE 2 ═══════════════════════════════════════ --}}
 <div class="page">
 
-    <div class="doc-header">
-        <div class="republic">Republic of the Philippines</div>
-        <div class="doc-title-main">Dormitory Rental Agreement</div>
-        <div class="doc-subtitle">Move-In Contract</div>
-        <div class="page-label">Page 2</div>
+    <div class="doc-header-banner">
+        <div class="banner-left">
+            <div class="doc-title-main">Dormitory Rental Agreement</div>
+            <div class="republic">Republic of the Philippines | Move-In Contract</div>
+        </div>
+        <div class="banner-right">Page 2</div>
     </div>
-    <hr class="divider">
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
     <div class="field-row two-col" style="margin-top:10px;">
@@ -673,13 +684,13 @@
 {{-- ═══════════════════════════════════════ PAGE 3 ═══════════════════════════════════════ --}}
 <div class="page">
 
-    <div class="doc-header">
-        <div class="republic">Republic of the Philippines</div>
-        <div class="doc-title-main">Dormitory Rental Agreement</div>
-        <div class="doc-subtitle">Move-In Contract</div>
-        <div class="page-label">Page 3</div>
+    <div class="doc-header-banner">
+        <div class="banner-left">
+            <div class="doc-title-main">Dormitory Rental Agreement</div>
+            <div class="republic">Republic of the Philippines | Move-In Contract</div>
+        </div>
+        <div class="banner-right">Page 3</div>
     </div>
-    <hr class="divider">
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
     <p style="font-size:9pt; margin: 10px 0 5px; color:#222;">The following items are <strong>NOT included</strong> and will be billed separately:</p>
@@ -796,13 +807,13 @@
 {{-- ═══════════════════════════════════════ PAGE 4 ═══════════════════════════════════════ --}}
 <div class="page">
 
-    <div class="doc-header">
-        <div class="republic">Republic of the Philippines</div>
-        <div class="doc-title-main">Dormitory Rental Agreement</div>
-        <div class="doc-subtitle">Move-In Contract</div>
-        <div class="page-label">Page 4</div>
+    <div class="doc-header-banner">
+        <div class="banner-left">
+            <div class="doc-title-main">Dormitory Rental Agreement</div>
+            <div class="republic">Republic of the Philippines | Move-In Contract</div>
+        </div>
+        <div class="banner-right">Page 4</div>
     </div>
-    <hr class="divider">
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
     {{-- SECTION 9 --}}
@@ -857,27 +868,54 @@
     </p>
 
     <div class="signature-section">
+        @if(!empty($tenantSignatureBase64) && !empty($ownerSignatureBase64))
+            {{-- E-Signature verification banner --}}
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:8px 12px; margin-bottom:14px; text-align:center;">
+                <span style="font-size:8pt; color:#166534; font-weight:bold;">ELECTRONICALLY SIGNED — RA 8792 COMPLIANT</span>
+            </div>
+        @endif
+
         <div class="sig-grid">
             <div class="sig-block">
-                <div class="sig-line"></div>
+                @if(!empty($tenantSignatureBase64))
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
+                        <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
+                    </div>
+                @else
+                    <div class="sig-line"></div>
+                @endif
                 <div class="sig-label">
                     <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
                     Tenant's Signature Over Printed Name
                 </div>
                 <div class="sig-date-row">
                     <span>Date:</span>
-                    <div class="sig-date-line"></div>
+                    @if(!empty($tenantSignedAt))
+                        <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
+                    @else
+                        <div class="sig-date-line"></div>
+                    @endif
                 </div>
             </div>
             <div class="sig-block">
-                <div class="sig-line"></div>
+                @if(!empty($ownerSignatureBase64))
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
+                        <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Lessor Signature">
+                    </div>
+                @else
+                    <div class="sig-line"></div>
+                @endif
                 <div class="sig-label">
                     <strong>{{ $lessor['representative'] ?? '' }}</strong><br>
                     Lessor / Authorized Representative<br>Signature Over Printed Name
                 </div>
                 <div class="sig-date-row">
                     <span>Date:</span>
-                    <div class="sig-date-line"></div>
+                    @if(!empty($ownerSignedAt))
+                        <span style="font-size:8.5pt; margin-left:4px;">{{ $ownerSignedAt }}</span>
+                    @else
+                        <div class="sig-date-line"></div>
+                    @endif
                 </div>
             </div>
         </div>

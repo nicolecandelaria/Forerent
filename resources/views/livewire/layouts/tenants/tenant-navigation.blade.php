@@ -61,12 +61,22 @@
                         $isActive = ($tenant['id'] == $activeTenantId);
 
                         $statusStyles = match($tenant['payment_status']) {
-                            'Paid'        => 'bg-green-100 text-green-700',
-                            'Pending'     => 'bg-yellow-100 text-yellow-800',
-                            'Overdue'     => 'bg-red-100 text-red-700',
-                            'Transferred' => 'bg-blue-100 text-blue-700',
-                            'Moved Out'   => 'bg-gray-200 text-gray-600',
-                            default       => 'bg-gray-100 text-gray-700'
+                            'Paid'        => 'text-emerald-700 bg-emerald-50 border-emerald-200',
+                            'Unpaid'      => 'text-amber-700 bg-amber-50 border-amber-200',
+                            'Pending'     => 'text-amber-700 bg-amber-50 border-amber-200',
+                            'Overdue'     => 'text-red-700 bg-red-50 border-red-200',
+                            'Transferred' => 'text-blue-700 bg-blue-50 border-blue-200',
+                            'Moved Out'   => 'text-gray-600 bg-gray-50 border-gray-200',
+                            default       => 'text-gray-600 bg-gray-50 border-gray-200'
+                        };
+                        $dotStyles = match($tenant['payment_status']) {
+                            'Paid'        => 'bg-emerald-500',
+                            'Unpaid'      => 'bg-amber-500',
+                            'Pending'     => 'bg-amber-500',
+                            'Overdue'     => 'bg-red-500',
+                            'Transferred' => 'bg-blue-500',
+                            'Moved Out'   => 'bg-gray-400',
+                            default       => 'bg-gray-400'
                         };
                     @endphp
 
@@ -83,7 +93,8 @@
                             <h3 class="font-bold text-sm {{ $isActive ? 'text-white' : 'text-[#2B66F5]' }}">
                                 {{ $tenant['first_name'] }} {{ $tenant['last_name'] }}
                             </h3>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold {{ $statusStyles }}">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $statusStyles }}">
+                                <span class="w-1.5 h-1.5 rounded-full {{ $dotStyles }}"></span>
                                 {{ $tenant['payment_status'] }}
                             </span>
                         </div>

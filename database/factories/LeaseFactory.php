@@ -20,12 +20,14 @@ class LeaseFactory extends Factory
         // Compute end date
         $endDate = (clone $startDate)->modify("+{$term} months");
 
+        $isShortTerm = $term < 6;
+
         return [
             // These will be set in LeaseSeeder
             'tenant_id'        => null,
             'bed_id'           => null,
 
-            'status'           => 'Active', // always active
+            'status'           => 'Active',
             'term'             => $term,
             'shift'            => $this->faker->randomElement(['Night', 'Morning']),
             'auto_renew'       => $this->faker->boolean(),
@@ -37,6 +39,12 @@ class LeaseFactory extends Factory
             'contract_rate'    => $this->faker->randomFloat(2, 3000, 15000),
             'advance_amount'   => $this->faker->randomFloat(2, 500, 2000),
             'security_deposit' => $this->faker->randomFloat(2, 500, 5000),
+
+            'monthly_due_date'      => $this->faker->randomElement([1, 5, 15]),
+            'late_payment_penalty'  => $this->faker->randomElement([50, 100, 150, 200]),
+            'short_term_premium'    => $isShortTerm ? 500.00 : 0.00,
+            'reservation_fee_paid'  => $this->faker->randomElement([0, 500, 1000, 1500]),
+            'early_termination_fee' => $this->faker->randomElement([1000, 2000, 3000, 5000]),
 
             'created_at'       => now(),
             'updated_at'       => now(),

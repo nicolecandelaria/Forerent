@@ -15,9 +15,13 @@ class UserFactory extends Factory
 
         $email = strtolower($firstName . '.' . $lastName) . '@example.com';
 
+        $gender = fake()->randomElement(['Male', 'Female']);
+        $idTypes = ['Passport', "Driver's License", 'UMID', 'National ID', 'Postal ID'];
+
         return [
             'first_name' => $firstName,
             'last_name'  => $lastName,
+            'gender'     => $gender,
 
             'email' => $email,
 
@@ -28,6 +32,15 @@ class UserFactory extends Factory
             'profile_img' => 'https://i.pravatar.cc/150?u=' . $email,
 
             'password' => Hash::make('password'),
+
+            'permanent_address'              => fake()->address(),
+            'government_id_type'             => fake()->randomElement($idTypes),
+            'government_id_number'           => strtoupper(Str::random(3)) . '-' . fake()->numerify('########'),
+            'company_school'                 => fake()->company(),
+            'position_course'                => fake()->jobTitle(),
+            'emergency_contact_name'         => fake()->name(),
+            'emergency_contact_relationship' => fake()->randomElement(['Parent', 'Sibling', 'Spouse', 'Friend', 'Guardian']),
+            'emergency_contact_number'       => fake()->phoneNumber(),
 
             'email_verified_at' => now(),
             'phone_verified_at' => null,
