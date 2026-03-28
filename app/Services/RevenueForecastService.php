@@ -3,19 +3,22 @@
 namespace App\Services;
 
 use App\Models\Transaction;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Client\Response;
 use Carbon\Carbon;
-use Throwable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class RevenueForecastService
 {
     private $fastApiUrl;
+
     private int $timeoutSeconds;
+
     private int $retryAttempts;
+
     private int $retryBaseDelayMs;
 
     public function __construct()
@@ -28,7 +31,7 @@ class RevenueForecastService
 
     public function generateMonthlyForecast($year = null)
     {
-        if (!$year) {
+        if (! $year) {
             $year = Carbon::now()->year;
         }
 
@@ -40,42 +43,44 @@ class RevenueForecastService
             // Export transaction data to CSV string
             $csvData = $this->exportTransactionDataAsCsv();
 
-            Log::info("Transaction data exported, CSV length: " . strlen($csvData));
+            Log::info('Transaction data exported, CSV length: '.strlen($csvData));
 
             // Call FastAPI endpoint
             /** @var Response $response */
             $response = $this->postWithRetry('/api/forecast/revenue', [
-                    'csv_data' => $csvData,
-                    'year' => $year
-                ]);
+                'csv_data' => $csvData,
+                'year' => $year,
+            ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 $fallbackReason = $this->formatApiError($response->status(), $response->body());
                 Log::error('FastAPI forecast request failed', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return $this->buildFallbackForecast((int) $year, $fallbackReason);
             }
 
             $forecastData = $response->json();
 
-            if (!isset($forecastData['success']) || !$forecastData['success']) {
+            if (! isset($forecastData['success']) || ! $forecastData['success']) {
                 $error = $forecastData['detail'] ?? $forecastData['error'] ?? 'Forecast failed';
+
                 return $this->buildFallbackForecast((int) $year, (string) $error);
             }
 
-            Log::info("Forecast generated successfully", [
+            Log::info('Forecast generated successfully', [
                 'forecast_year' => $forecastData['forecast_year'],
                 'total_annual' => $forecastData['total_annual_revenue'],
-                'data_points' => $forecastData['data_points_used'] ?? 0
+                'data_points' => $forecastData['data_points_used'] ?? 0,
             ]);
 
             return $forecastData;
         } catch (\Exception $e) {
             Log::error('Revenue forecast generation failed', [
                 'error' => $e->getMessage(),
-                'year' => $year
+                'year' => $year,
             ]);
 
             $fallbackReason = $e->getMessage() ?: $fallbackReason;
@@ -86,7 +91,7 @@ class RevenueForecastService
 
     private function postWithRetry(string $endpoint, array $payload): Response
     {
-        $url = rtrim($this->fastApiUrl, '/') . '/' . ltrim($endpoint, '/');
+        $url = rtrim($this->fastApiUrl, '/').'/'.ltrim($endpoint, '/');
         $lastException = null;
 
         for ($attempt = 1; $attempt <= $this->retryAttempts; $attempt++) {
@@ -100,7 +105,7 @@ class RevenueForecastService
                     return $response;
                 }
 
-                if (!$this->shouldRetryStatus($response->status()) || $attempt === $this->retryAttempts) {
+                if (! $this->shouldRetryStatus($response->status()) || $attempt === $this->retryAttempts) {
                     return $response;
                 }
 
@@ -108,7 +113,7 @@ class RevenueForecastService
             } catch (Throwable $exception) {
                 $lastException = $exception;
 
-                if (!$this->shouldRetryException($exception) || $attempt === $this->retryAttempts) {
+                if (! $this->shouldRetryException($exception) || $attempt === $this->retryAttempts) {
                     throw $exception;
                 }
 
@@ -203,7 +208,7 @@ class RevenueForecastService
         $rows = Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
             ->where('category', 'Rent Payment')
             ->whereYear('transaction_date', $year)
-            ->selectRaw('EXTRACT(MONTH FROM transaction_date)::int as month, SUM(amount) as total')
+            ->selectRaw('MONTH(transaction_date) as month, SUM(amount) as total')
             ->groupBy('month')
             ->get();
 
@@ -219,7 +224,7 @@ class RevenueForecastService
     {
         $rows = Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
             ->where('category', 'Rent Payment')
-            ->selectRaw('EXTRACT(YEAR FROM transaction_date)::int as year, EXTRACT(MONTH FROM transaction_date)::int as month, SUM(amount) as total')
+            ->selectRaw('YEAR(transaction_date) as year, MONTH(transaction_date) as month, SUM(amount) as total')
             ->groupBy('year', 'month')
             ->orderBy('year')
             ->orderBy('month')
@@ -228,7 +233,7 @@ class RevenueForecastService
         $buckets = [];
         foreach ($rows as $row) {
             $month = (int) $row->month;
-            if (!isset($buckets[$month])) {
+            if (! isset($buckets[$month])) {
                 $buckets[$month] = [];
             }
 
@@ -252,7 +257,7 @@ class RevenueForecastService
             'category',
             'transaction_date',
             'amount',
-            'reference_number'
+            'reference_number',
         ])
             ->whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
             ->where('category', 'Rent Payment')
@@ -270,7 +275,7 @@ class RevenueForecastService
             'category',
             'transaction_date',
             'amount',
-            'reference_number'
+            'reference_number',
         ]);
 
         // Write data
@@ -281,7 +286,7 @@ class RevenueForecastService
                 $transaction->category,
                 $transaction->transaction_date->format('Y-m-d'),
                 $transaction->amount,
-                $transaction->reference_number
+                $transaction->reference_number,
             ]);
         }
 

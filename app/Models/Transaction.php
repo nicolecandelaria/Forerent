@@ -87,7 +87,7 @@ class Transaction extends Model
     {
         return $query->where('transaction_type', 'Credit')
             ->whereYear('transaction_date', $year)
-            ->selectRaw('CAST(EXTRACT(MONTH FROM transaction_date) AS UNSIGNED) as month, SUM(amount) as total')
+            ->selectRaw('MONTH(transaction_date) as month, SUM(amount) as total')
             ->groupBy('month');
     }
 }

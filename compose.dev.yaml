@@ -44,7 +44,7 @@ services:
       - laravel-development
     depends_on:
       mysql:
-        condition: service_healthy # Wait for mysql to be healthy
+        condition: service_started 
 
   # 💡 ADD THIS NEW SERVICE 💡
   price_api:
@@ -94,8 +94,6 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
       - MYSQL_DATABASE=${DB_DATABASE:-db}
-      - MYSQL_USER=${DB_USERNAME:-user}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-pass}
     volumes:
       - mysql-data-development:/var/lib/mysql
     networks:

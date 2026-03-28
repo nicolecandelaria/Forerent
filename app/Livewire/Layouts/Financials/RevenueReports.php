@@ -42,7 +42,7 @@ class RevenueReports extends Component
         }
 
         $monthlyExpenses = MaintenanceLog::whereYear('completion_date', $year)
-            ->selectRaw('CAST(EXTRACT(MONTH FROM completion_date) AS UNSIGNED) as month, SUM(cost) as total')
+            ->selectRaw('MONTH(completion_date) as month, SUM(cost) as total')
             ->groupBy('month')
             ->get();
 
