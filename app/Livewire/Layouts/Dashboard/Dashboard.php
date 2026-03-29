@@ -2,42 +2,65 @@
 
 namespace App\Livewire\Layouts\Dashboard;
 
-use Livewire\Component;
-use Livewire\Attributes\Layout;
-use Carbon\Carbon;
-use App\Models\Transaction;
 use App\Models\Billing;
 use App\Models\MaintenanceLog;
+use App\Models\Transaction;
 use App\Models\Unit;
+use Carbon\Carbon;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
 
 class Dashboard extends Component
 {
     public $selectedDate;
+
     public $currentMonth;
+
     public $totalRentCollected;
+
     public $totalUncollectedRent;
+
     public $totalIncome;
+
     public $rentSummaryMonth;
+
     public $rentSummaryMonthOptions = [];
+
     public $rentSummaryPeriodLabel;
 
     public $rentCollectedPercentage = 0;
+
     public $uncollectedPercentage = 0;
+
     public $incomePercentage = 0;
 
-    public $revenueCurrent, $revenueTarget;
-    public $expensesCurrent, $expensesTarget;
-    public $roiCurrent, $roiTarget;
+    public $revenueCurrent;
+
+    public $revenueTarget;
+
+    public $expensesCurrent;
+
+    public $expensesTarget;
+
+    public $roiCurrent;
+
+    public $roiTarget;
 
     // Monthly data for graphs
     public $monthlyLabels = [];
+
     public $monthlyRevenue = [];
+
     public $monthlyExpenses = [];
+
     public $monthlyRentCollected = [];
 
     public $totalUnits = 0;
+
     public $fullyBookedUnits = 0;
+
     public $availableUnits = 0;
+
     public $vacantUnits = 0;
 
     public function mount()
@@ -216,8 +239,7 @@ class Dashboard extends Component
         $monthlyBillings = Transaction::where('transaction_type', 'Credit')
             ->where('category', 'Rent Payment')
             ->whereYear('transaction_date', $year)
-            ->selectRaw('EXTRACT(MONTH FROM transaction_date)::int as month, SUM(amount) as total')
-            ->groupBy('month')
+            ->selectRaw('MONTH(transaction_date) as month, SUM(amount) as total')->groupBy('month')
             ->get();
 
         foreach ($monthlyBillings as $billing) {
@@ -229,7 +251,7 @@ class Dashboard extends Component
 
         // Get monthly expenses (maintenance logs)
         $monthlyExpensesData = MaintenanceLog::whereYear('completion_date', $year)
-            ->selectRaw('EXTRACT(MONTH FROM completion_date)::int as month, SUM(cost) as total')
+            ->selectRaw('MONTH(completion_date) as month, SUM(cost) as total')
             ->groupBy('month')
             ->get();
 
