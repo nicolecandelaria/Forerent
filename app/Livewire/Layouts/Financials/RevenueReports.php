@@ -34,18 +34,21 @@ class RevenueReports extends Component
         $income = array_fill(0, 12, 0);
         $expenses = array_fill(0, 12, 0);
 
-        // Revenue/inflow source: credit transactions.
+        // 1. Revenue/inflow (MySQL MONTH() -> Postgres EXTRACT)
         $monthlyIncome = Transaction::where('transaction_type', 'Credit')
             ->whereYear('transaction_date', $year)
-            ->selectRaw('MONTH(transaction_date) as month, SUM(amount) as total')->groupBy('month')
+            ->selectRaw('EXTRACT(MONTH FROM transaction_date)::int as month, SUM(amount) as total')
+            ->groupByRaw('EXTRACT(MONTH FROM transaction_date)')
             ->get();
 
         foreach ($monthlyIncome as $row) {
             $income[(int) $row->month - 1] = (float) $row->total;
         }
 
+        // 2. Expenses (Maintenance Logs - MySQL MONTH() -> Postgres EXTRACT)
         $monthlyExpenses = MaintenanceLog::whereYear('completion_date', $year)
-            ->selectRaw('MONTH(completion_date) as month, SUM(cost) as total')->groupBy('month')
+            ->selectRaw('EXTRACT(MONTH FROM completion_date)::int as month, SUM(cost) as total')
+            ->groupByRaw('EXTRACT(MONTH FROM completion_date)')
             ->get();
 
         foreach ($monthlyExpenses as $row) {
