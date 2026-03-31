@@ -318,8 +318,6 @@ class AddManagerModal extends Component
             ]);
         }
     }
-        }
-    }
 
     public function render()
     {
