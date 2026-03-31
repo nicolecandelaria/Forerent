@@ -280,22 +280,26 @@ class SettingsForm extends Component
 
             // Handle profile picture upload
             if ($this->profilePicture) {
-                if ($user->profile_img) {
+                // Note: Only delete old image when uploading a new one
+                if ($user->profile_img && $this->existingProfileImg !== $user->profile_img) {
                     $this->deleteStoredImage($user->profile_img);
                 }
                 $updateData['profile_img'] = $this->profilePicture->store('profile-photos', 'public');
             } elseif ($this->existingProfileImg === null && $user->profile_img) {
+                // Only delete if user explicitly removed the image
                 $this->deleteStoredImage($user->profile_img);
                 $updateData['profile_img'] = null;
             }
 
             // Handle government ID image upload
             if ($this->governmentIdImage) {
-                if ($user->government_id_image) {
+                // Note: Only delete old image when uploading a new one
+                if ($user->government_id_image && $this->existingGovernmentIdImage !== $user->government_id_image) {
                     $this->deleteStoredImage($user->government_id_image);
                 }
                 $updateData['government_id_image'] = $this->governmentIdImage->store('government-ids', 'public');
             } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
+                // Only delete if user explicitly removed the image
                 $this->deleteStoredImage($user->government_id_image);
                 $updateData['government_id_image'] = null;
             }
@@ -334,10 +338,18 @@ class SettingsForm extends Component
             return;
         }
 
-        $normalized = $this->normalizeStoragePath($path);
+        try {
+            $normalized = $this->normalizeStoragePath($path);
 
-        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
-            Storage::disk('public')->delete($normalized);
+            if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+                Storage::disk('public')->delete($normalized);
+            }
+        } catch (\Throwable $exception) {
+            // File may not exist on Render ephemeral filesystem after redeploy
+            Log::debug('Could not delete stored image (may be expected on Render redeploy).', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 

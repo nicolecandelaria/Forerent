@@ -300,14 +300,24 @@ class AddManagerModal extends Component
             return;
         }
 
-        $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
+        try {
+            $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
 
-        if (str_starts_with($normalized, 'storage/')) {
-            $normalized = substr($normalized, 8);
+            if (str_starts_with($normalized, 'storage/')) {
+                $normalized = substr($normalized, 8);
+            }
+
+            if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+                Storage::disk('public')->delete($normalized);
+            }
+        } catch (\Throwable $exception) {
+            // File may not exist on Render ephemeral filesystem after redeploy
+            Log::debug('Could not delete stored image (may be expected on Render redeploy).', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
         }
-
-        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
-            Storage::disk('public')->delete($normalized);
+    }
         }
     }
 

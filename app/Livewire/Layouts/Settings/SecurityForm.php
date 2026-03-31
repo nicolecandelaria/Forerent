@@ -93,6 +93,8 @@ class SecurityForm extends Component
             // Reset inputs
             $this->reset(['current_password', 'password', 'password_confirmation']);
 
+            $this->notifySuccess('Password Updated Successfully!', 'You will be redirected to login shortly.');
+
             Auth::logout();
             request()->session()->invalidate();
             request()->session()->regenerateToken();

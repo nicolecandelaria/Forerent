@@ -94,10 +94,18 @@ class SettingsProfileController extends Controller
             return;
         }
 
-        $normalized = $this->normalizeStoragePath($path);
+        try {
+            $normalized = $this->normalizeStoragePath($path);
 
-        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
-            Storage::disk('public')->delete($normalized);
+            if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+                Storage::disk('public')->delete($normalized);
+            }
+        } catch (\Throwable $exception) {
+            // File may not exist on Render ephemeral filesystem after redeploy
+            Log::debug('Could not delete stored image (may be expected on Render redeploy).', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 

@@ -714,39 +714,17 @@ class AddTenantModal extends Component
 
         try {
             $mailMessage = $notification->toMail($createdUser);
-            $viewData = $mailMessage->viewData ?? [];
-
-            if (array_key_exists('tempPassword', $viewData)) {
-                $viewData['tempPassword'] = '[REDACTED]';
+            
+            // Only log if there's an issue rendering the email
+            // Don't log the massive HTML/text content - just verify it renders
+            if (empty($mailMessage->subject)) {
+                Log::warning('Tenant welcome email missing subject.', [
+                    'tenant_id' => $createdUser->user_id,
+                    'tenant_email' => $createdUser->email,
+                ]);
             }
-
-            $html = '';
-            $text = '';
-
-            if (!empty($mailMessage->markdown)) {
-                $markdown = app(Markdown::class);
-                $html = (string) $markdown->render($mailMessage->markdown, $viewData);
-
-                $text = method_exists($markdown, 'renderText')
-                    ? (string) $markdown->renderText($mailMessage->markdown, $viewData)
-                    : trim(strip_tags($html));
-            } elseif (!empty($mailMessage->view)) {
-                $html = view($mailMessage->view, $viewData)->render();
-                $text = trim(strip_tags($html));
-            } else {
-                $text = trim(implode("\n", $mailMessage->introLines ?? []));
-                $html = nl2br(e($text));
-            }
-
-            Log::info('Tenant welcome email preview.', [
-                'tenant_id' => $createdUser->user_id,
-                'tenant_email' => $createdUser->email,
-                'subject' => $mailMessage->subject ?? ('Notification from ' . config('app.name')),
-                'text_preview' => Str::limit($text, 12000, '...(truncated)'),
-                'html_preview' => Str::limit($html, 12000, '...(truncated)'),
-            ]);
         } catch (\Throwable $exception) {
-            Log::warning('Unable to render tenant welcome email preview.', [
+            Log::warning('Error rendering tenant welcome email.', [
                 'tenant_id' => $createdUser->user_id,
                 'tenant_email' => $createdUser->email,
                 'error' => $exception->getMessage(),
@@ -1081,14 +1059,22 @@ class AddTenantModal extends Component
             return;
         }
 
-        $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
+        try {
+            $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
 
-        if (str_starts_with($normalized, 'storage/')) {
-            $normalized = substr($normalized, 8);
-        }
+            if (str_starts_with($normalized, 'storage/')) {
+                $normalized = substr($normalized, 8);
+            }
 
-        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
-            Storage::disk('public')->delete($normalized);
+            if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+                Storage::disk('public')->delete($normalized);
+            }
+        } catch (\Throwable $exception) {
+            // File may not exist on Render ephemeral filesystem after redeploy
+            Log::debug('Could not delete stored image (may be expected on Render redeploy).', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 
