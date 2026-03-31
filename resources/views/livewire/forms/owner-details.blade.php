@@ -12,17 +12,40 @@
     }
 </style>
 
+@php
+    $authUser = auth()->user();
+    $fallbackFirstName = $firstName !== '' ? $firstName : (string) ($authUser->first_name ?? '');
+    $fallbackLastName = $lastName !== '' ? $lastName : (string) ($authUser->last_name ?? '');
+    $fallbackEmail = $email !== '' ? $email : (string) ($authUser->email ?? '');
+    $fallbackPhoneRaw = preg_replace('/\D/', '', (string) ($authUser->contact ?? '')) ?? '';
+    $fallbackPhone = $phoneNumber !== '' ? $phoneNumber : ($fallbackPhoneRaw !== '' ? substr($fallbackPhoneRaw, -10) : '');
+@endphp
+
 <div class="w-full" style="font-family: 'Open Sans', sans-serif;">
-    <div class="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-6 md:p-8">
+    <form
+        class="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-6 md:p-8"
+        wire:submit.prevent="save"
+        method="POST"
+        action="{{ route('settings.profile.update') }}"
+        enctype="multipart/form-data"
+    >
+        @csrf
+
         @if (session('success'))
             <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
                 {{ session('success') }}
             </div>
         @endif
 
+        @if ($errors->has('settings'))
+            <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {{ $errors->first('settings') }}
+            </div>
+        @endif
+
         {{-- Profile Picture --}}
         <div class="mb-8 flex items-start gap-6">
-            <div class="flex-shrink-0"
+              <div class="shrink-0"
                  x-data="{ uploading: false, progress: 0, error: false }"
                  x-on:livewire-upload-start="uploading = true; progress = 0; error = false; console.log('Upload started')"
                  x-on:livewire-upload-finish="uploading = false; progress = 100; console.log('Upload finished')"
@@ -48,7 +71,7 @@
                     <div class="absolute bottom-0 right-0 bg-white rounded-full p-1 border shadow">
                         <svg class="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     </div>
-                    <input type="file" wire:model="profilePicture" class="hidden" accept="image/*"
+                          <input type="file" wire:model="profilePicture" name="profilePicture" class="hidden" accept="image/*"
                            @change="console.log('File selected:', $event.target.files[0]?.name)">
                 </label>
                 {{-- Error message --}}
@@ -77,7 +100,9 @@
                     <input
                         type="text"
                         id="first_name"
+                        name="firstName"
                         wire:model.live="firstName"
+                        value="{{ $fallbackFirstName }}"
                         placeholder="Enter first name"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -91,7 +116,9 @@
                     <input
                         type="text"
                         id="last_name"
+                        name="lastName"
                         wire:model.live="lastName"
+                        value="{{ $fallbackLastName }}"
                         placeholder="Enter last name"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -115,7 +142,9 @@
                     <input
                         type="tel"
                         id="phone_number"
+                        name="phoneNumber"
                         wire:model.live="phoneNumber"
+                        value="{{ $fallbackPhone }}"
                         inputmode="numeric"
                         maxlength="10"
                         pattern="[0-9]{10}"
@@ -133,7 +162,9 @@
                     <input
                         type="email"
                         id="email"
+                        name="email"
                         wire:model.live="email"
+                        value="{{ $fallbackEmail }}"
                         placeholder="Enter email address"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -173,7 +204,7 @@
                         </svg>
                         <span class="text-sm font-semibold text-gray-600">Upload your Valid ID</span>
                         <span class="mt-1 text-xs text-gray-400">Photo or scan of your government-issued ID (max 10MB)</span>
-                        <input type="file" wire:model="governmentIdImage" class="hidden" accept="image/*">
+                        <input type="file" wire:model="governmentIdImage" name="governmentIdImage" class="hidden" accept="image/*">
                     </label>
                 @endif
 
@@ -189,7 +220,7 @@
                     <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#2360E8] hover:text-[#070589]" x-show="!uploading">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                         Change ID photo
-                        <input type="file" wire:model="governmentIdImage" class="hidden" accept="image/*">
+                        <input type="file" wire:model="governmentIdImage" name="governmentIdImage" class="hidden" accept="image/*">
                     </label>
                 @endif
 
@@ -199,12 +230,13 @@
 
         <div class="mt-8 flex items-center justify-end">
             <button
-                type="button"
-                wire:click="save"
+                type="submit"
+                wire:loading.attr="disabled"
+                wire:target="save,profilePicture,governmentIdImage"
                 class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
                 Update Changes
             </button>
         </div>
-    </div>
+    </form>
 </div>

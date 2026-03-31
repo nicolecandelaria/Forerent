@@ -10,8 +10,26 @@ use SendGrid\Mail\Mail;
 
 class SendGridChannel
 {
+    protected static ?array $lastAttempt = null;
+
+    public static function resetLastAttempt(): void
+    {
+        self::$lastAttempt = null;
+    }
+
+    public static function lastAttempt(): ?array
+    {
+        return self::$lastAttempt;
+    }
+
     public function send(object $notifiable, Notification $notification): void
     {
+        self::$lastAttempt = [
+            'ok' => false,
+            'status' => null,
+            'error' => null,
+        ];
+
         // Call toMail() to reuse your existing MailMessage + Blade template
         $mailMessage = $notification->toMail($notifiable);
 
@@ -45,14 +63,27 @@ class SendGridChannel
         try {
             $sg       = new SendGrid(config('services.sendgrid.api_key'));
             $response = $sg->send($email);
+            $status   = $response->statusCode();
 
-            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+            self::$lastAttempt = [
+                'ok' => $status >= 200 && $status < 300,
+                'status' => $status,
+                'error' => $status >= 200 && $status < 300 ? null : $response->body(),
+            ];
+
+            if ($status < 200 || $status >= 300) {
                 Log::error('SendGrid failed', [
-                    'status' => $response->statusCode(),
+                    'status' => $status,
                     'body'   => $response->body(),
                 ]);
             }
         } catch (\Throwable $e) {
+            self::$lastAttempt = [
+                'ok' => false,
+                'status' => null,
+                'error' => $e->getMessage(),
+            ];
+
             Log::error('SendGrid exception: ' . $e->getMessage());
         }
     }

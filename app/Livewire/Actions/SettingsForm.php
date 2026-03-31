@@ -5,6 +5,7 @@ namespace App\Livewire\Actions;
 use App\Livewire\Concerns\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Validate;
@@ -110,10 +111,10 @@ class SettingsForm extends Component
             return;
         }
 
-        $this->email = (string) ($user->email ?? '');
-        $this->phoneNumber = $this->normalizePhone((string) ($user->contact ?? ''));
-        $this->firstName = (string) ($user->first_name ?? '');
-        $this->lastName = (string) ($user->last_name ?? '');
+        $this->email = (string) ($user->getAttribute('email') ?? '');
+        $this->phoneNumber = $this->normalizePhone((string) ($user->getAttribute('contact') ?? ''));
+        $this->firstName = (string) ($user->getAttribute('first_name') ?? '');
+        $this->lastName = (string) ($user->getAttribute('last_name') ?? '');
         $this->existingProfileImg = $user->profile_img;
         $this->existingGovernmentIdImage = $user->government_id_image;
         $this->profilePicture = null;
@@ -260,56 +261,65 @@ class SettingsForm extends Component
             return;
         }
 
-        $this->validate([
-            'firstName' => 'nullable|string|max:255',
-            'lastName' => 'nullable|string|max:255',
-            'phoneNumber' => ['required', 'digits:10', Rule::unique('users', 'contact')->ignore($user->user_id, 'user_id')],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->user_id, 'user_id')],
-            'profilePicture' => 'nullable|image|max:10240',
-            'governmentIdImage' => 'nullable|image|max:10240',
-        ]);
+        try {
+            $this->validate([
+                'firstName' => 'nullable|string|max:255',
+                'lastName' => 'nullable|string|max:255',
+                'phoneNumber' => ['required', 'digits:10', Rule::unique('users', 'contact')->ignore($user->user_id, 'user_id')],
+                'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->user_id, 'user_id')],
+                'profilePicture' => 'nullable|image|max:10240',
+                'governmentIdImage' => 'nullable|image|max:10240',
+            ]);
 
-        $updateData = [
-            'first_name' => $this->firstName,
-            'last_name' => $this->lastName,
-            'email' => $this->email,
-            'contact' => $this->phoneNumber,
-        ];
+            $updateData = [
+                'first_name' => $this->firstName,
+                'last_name' => $this->lastName,
+                'email' => $this->email,
+                'contact' => $this->phoneNumber,
+            ];
 
-        // Handle profile picture upload
-        if ($this->profilePicture) {
-            if ($user->profile_img) {
+            // Handle profile picture upload
+            if ($this->profilePicture) {
+                if ($user->profile_img) {
+                    $this->deleteStoredImage($user->profile_img);
+                }
+                $updateData['profile_img'] = $this->profilePicture->store('profile-photos', 'public');
+            } elseif ($this->existingProfileImg === null && $user->profile_img) {
                 $this->deleteStoredImage($user->profile_img);
+                $updateData['profile_img'] = null;
             }
-            $updateData['profile_img'] = $this->profilePicture->store('profile-photos', 'public');
-        } elseif ($this->existingProfileImg === null && $user->profile_img) {
-            $this->deleteStoredImage($user->profile_img);
-            $updateData['profile_img'] = null;
-        }
 
-        // Handle government ID image upload
-        if ($this->governmentIdImage) {
-            if ($user->government_id_image) {
+            // Handle government ID image upload
+            if ($this->governmentIdImage) {
+                if ($user->government_id_image) {
+                    $this->deleteStoredImage($user->government_id_image);
+                }
+                $updateData['government_id_image'] = $this->governmentIdImage->store('government-ids', 'public');
+            } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
                 $this->deleteStoredImage($user->government_id_image);
+                $updateData['government_id_image'] = null;
             }
-            $updateData['government_id_image'] = $this->governmentIdImage->store('government-ids', 'public');
-        } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
-            $this->deleteStoredImage($user->government_id_image);
-            $updateData['government_id_image'] = null;
+
+            $user->update($updateData);
+            $user->refresh();
+
+            $this->profilePicture = null;
+            $this->governmentIdImage = null;
+            $this->existingProfileImg = $user->profile_img;
+            $this->existingGovernmentIdImage = $user->government_id_image;
+            $this->syncOriginalState();
+            $this->hasPendingChanges = false;
+
+            $this->dispatch('profile-updated');
+            $this->notifySuccess('Settings Saved Successfully!', 'Your personal information has been updated.');
+        } catch (\Throwable $exception) {
+            Log::error('Settings save failed.', [
+                'user_id' => $user->user_id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
         }
-
-        $user->update($updateData);
-        $user->refresh();
-
-        $this->profilePicture = null;
-        $this->governmentIdImage = null;
-        $this->existingProfileImg = $user->profile_img;
-        $this->existingGovernmentIdImage = $user->government_id_image;
-        $this->syncOriginalState();
-        $this->hasPendingChanges = false;
-
-        $this->dispatch('profile-updated');
-        $this->notifySuccess('Settings Saved Successfully!', 'Your personal information has been updated.');
     }
 
     public function cancelSave(): void

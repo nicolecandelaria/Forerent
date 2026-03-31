@@ -2,12 +2,17 @@
 
 namespace App\Livewire\Layouts\Tenants;
 
+use App\Broadcasting\SendGridChannel;
+use App\Mail\NewAccountSmtpMail;
 use App\Models\Billing;
 use App\Models\Transaction;
 use App\Notifications\NewAccount;
 use App\Services\PasswordGenerator;
 use App\Livewire\Concerns\WithNotifications;
+use Illuminate\Mail\Markdown;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\Attributes\Validate;
@@ -612,7 +617,7 @@ class AddTenantModal extends Component
         }
 
         if ($createdUser) {
-            Notification::send($createdUser, new NewAccount($createdUser->email, $password, $createdUser->role));
+            $this->attemptWelcomeEmailDelivery($createdUser, $password);
         }
 
         $this->notifySuccess(
@@ -621,6 +626,132 @@ class AddTenantModal extends Component
         );
 
         session()->flash('success', 'Tenant added successfully!');
+    }
+
+    private function attemptWelcomeEmailDelivery(User $createdUser, string $password): void
+    {
+        $notification = new NewAccount($createdUser->email, $password, $createdUser->role);
+
+        $this->logWelcomeEmailPreview($notification, $createdUser);
+
+        $sendGridAttempt = [
+            'ok' => false,
+            'status' => null,
+            'error' => 'No SendGrid attempt data.',
+        ];
+
+        try {
+            SendGridChannel::resetLastAttempt();
+            Notification::send($createdUser, $notification);
+
+            $sendGridAttempt = SendGridChannel::lastAttempt() ?? $sendGridAttempt;
+        } catch (\Throwable $exception) {
+            $sendGridAttempt = [
+                'ok' => false,
+                'status' => null,
+                'error' => $exception->getMessage(),
+            ];
+
+            Log::warning('SendGrid call failed for tenant welcome email.', [
+                'tenant_id' => $createdUser->user_id,
+                'tenant_email' => $createdUser->email,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        if (($sendGridAttempt['ok'] ?? false) === true) {
+            Log::info('Tenant welcome email sent via SendGrid.', [
+                'tenant_id' => $createdUser->user_id,
+                'tenant_email' => $createdUser->email,
+                'status' => $sendGridAttempt['status'] ?? null,
+            ]);
+
+            return;
+        }
+
+        Log::warning('Tenant welcome email SendGrid failed; trying SMTPS fallback.', [
+            'tenant_id' => $createdUser->user_id,
+            'tenant_email' => $createdUser->email,
+            'sendgrid_status' => $sendGridAttempt['status'] ?? null,
+            'sendgrid_error' => $sendGridAttempt['error'] ?? null,
+        ]);
+
+        try {
+            Mail::mailer('smtp')
+                ->to($createdUser->email)
+                ->send(new NewAccountSmtpMail(
+                    email: $createdUser->email,
+                    password: $password,
+                    role: $createdUser->role,
+                    firstName: (string) ($createdUser->first_name ?? ''),
+                    lastName: (string) ($createdUser->last_name ?? ''),
+                ));
+
+            Log::info('Tenant welcome email sent via SMTPS fallback.', [
+                'tenant_id' => $createdUser->user_id,
+                'tenant_email' => $createdUser->email,
+                'mailer' => 'smtp',
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('SMTPS fallback failed for tenant welcome email.', [
+                'tenant_id' => $createdUser->user_id,
+                'tenant_email' => $createdUser->email,
+                'error' => $exception->getMessage(),
+            ]);
+
+            $this->notifyWarning(
+                'Tenant saved, email retry failed',
+                'Email delivery failed due to provider limits. Tenant record was saved successfully.'
+            );
+        }
+    }
+
+    private function logWelcomeEmailPreview(NewAccount $notification, User $createdUser): void
+    {
+        if (!config('services.sendgrid.preview_logging', false)) {
+            return;
+        }
+
+        try {
+            $mailMessage = $notification->toMail($createdUser);
+            $viewData = $mailMessage->viewData ?? [];
+
+            if (array_key_exists('tempPassword', $viewData)) {
+                $viewData['tempPassword'] = '[REDACTED]';
+            }
+
+            $html = '';
+            $text = '';
+
+            if (!empty($mailMessage->markdown)) {
+                $markdown = app(Markdown::class);
+                $html = (string) $markdown->render($mailMessage->markdown, $viewData);
+
+                $text = method_exists($markdown, 'renderText')
+                    ? (string) $markdown->renderText($mailMessage->markdown, $viewData)
+                    : trim(strip_tags($html));
+            } elseif (!empty($mailMessage->view)) {
+                $html = view($mailMessage->view, $viewData)->render();
+                $text = trim(strip_tags($html));
+            } else {
+                $text = trim(implode("\n", $mailMessage->introLines ?? []));
+                $html = nl2br(e($text));
+            }
+
+            Log::info('Tenant welcome email preview.', [
+                'tenant_id' => $createdUser->user_id,
+                'tenant_email' => $createdUser->email,
+                'subject' => $mailMessage->subject ?? ('Notification from ' . config('app.name')),
+                'text_preview' => Str::limit($text, 12000, '...(truncated)'),
+                'html_preview' => Str::limit($html, 12000, '...(truncated)'),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to render tenant welcome email preview.', [
+                'tenant_id' => $createdUser->user_id,
+                'tenant_email' => $createdUser->email,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function saveTransfer(): void
