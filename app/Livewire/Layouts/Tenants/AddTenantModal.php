@@ -21,7 +21,9 @@ use App\Models\Lease;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class AddTenantModal extends Component
 {
@@ -484,13 +486,29 @@ class AddTenantModal extends Component
 
     private function saveNewTenant(): void
     {
-        $firebase = app(FirebaseStorageService::class);
+        $firebase = null;
+        $needsFirebase = $this->profilePicture || $this->governmentIdImage;
         $password = PasswordGenerator::generate();
         $photoPath = null;
         $idImagePath = null;
         $createdUser = null;
 
         try {
+            if ($needsFirebase) {
+                try {
+                    $firebase = app(FirebaseStorageService::class);
+                } catch (\Throwable $firebaseException) {
+                    Log::error('Firebase initialization failed while adding tenant.', [
+                        'email' => $this->email,
+                        'error' => $firebaseException->getMessage(),
+                    ]);
+
+                    throw ValidationException::withMessages([
+                        'profilePicture' => 'File upload is currently unavailable. Please try again later or submit without images.',
+                    ]);
+                }
+            }
+
             $photoPath = $this->profilePicture
                 ? $firebase->upload($this->profilePicture, 'Images')
                 : null;
@@ -595,12 +613,19 @@ class AddTenantModal extends Component
                 Bed::where('bed_id', $this->selectedBed)->update(['status' => 'Occupied']);
             });
         } catch (\Throwable $exception) {
-            if ($photoPath) {
+            if ($firebase && $photoPath) {
                 $firebase->delete($photoPath);
             }
-            if ($idImagePath) {
+            if ($firebase && $idImagePath) {
                 $firebase->delete($idImagePath);
             }
+
+            Log::error('Failed to save new tenant.', [
+                'email' => $this->email,
+                'selected_bed' => $this->selectedBed,
+                'uses_firebase' => $needsFirebase,
+                'error' => $exception->getMessage(),
+            ]);
 
             throw $exception;
         }
@@ -730,7 +755,23 @@ class AddTenantModal extends Component
 
     private function saveEditTenant(): void
     {
-        $firebase = app(FirebaseStorageService::class);
+        $firebase = null;
+        $needsFirebase = $this->profilePicture || $this->governmentIdImage;
+
+        if ($needsFirebase) {
+            try {
+                $firebase = app(FirebaseStorageService::class);
+            } catch (\Throwable $firebaseException) {
+                Log::error('Firebase initialization failed while editing tenant.', [
+                    'tenant_id' => $this->editTenantId,
+                    'error' => $firebaseException->getMessage(),
+                ]);
+
+                throw ValidationException::withMessages([
+                    'profilePicture' => 'File upload is currently unavailable. Please try again later or submit without images.',
+                ]);
+            }
+        }
 
         DB::transaction(function () use ($firebase) {
             $tenant = User::find($this->editTenantId);
@@ -796,11 +837,11 @@ class AddTenantModal extends Component
             }
 
             DB::afterCommit(function () use ($firebase, $oldProfileImg, $oldGovernmentIdImage, $photoPath, $idImagePath) {
-                if ($this->profilePicture && $oldProfileImg && $oldProfileImg !== $photoPath) {
+                if ($firebase && $this->profilePicture && $oldProfileImg && $oldProfileImg !== $photoPath) {
                     $firebase->delete($oldProfileImg);
                 }
 
-                if ($this->governmentIdImage && $oldGovernmentIdImage && $oldGovernmentIdImage !== $idImagePath) {
+                if ($firebase && $this->governmentIdImage && $oldGovernmentIdImage && $oldGovernmentIdImage !== $idImagePath) {
                     $firebase->delete($oldGovernmentIdImage);
                 }
             });

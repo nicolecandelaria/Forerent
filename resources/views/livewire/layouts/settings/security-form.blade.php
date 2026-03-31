@@ -25,10 +25,6 @@
         get allMet() {
             return this.requirementRules.every((rule) => this.requirementStatus[rule.key]);
         },
-        init() {
-            this.validatePassword();
-            this.$watch('password', () => this.validatePassword());
-        },
         validatePassword() {
             const value = this.password || '';
 
@@ -49,6 +45,7 @@
             });
         }
     }"
+    x-init="validatePassword(); $watch('password', () => validatePassword())"
 >
 
     <div class="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-6 md:p-8">
@@ -96,7 +93,7 @@
                     </div>
                     <input
                         :type="showNew ? 'text' : 'password'"
-                        wire:model.live="password"
+                        wire:model.live.debounce.250ms="password"
                         autocomplete="off"
                         placeholder="Enter new password"
                         class="flex-1 bg-transparent outline-none border-0 ring-0 focus:ring-0 focus:outline-none focus:border-0 text-gray-700 text-sm placeholder-gray-300"
@@ -194,15 +191,31 @@
     </div>
 
     <script>
-        document.addEventListener('livewire:initialized', () => {
-            Livewire.on('open-security-confirm-modal', () => {
-                const modalEl = document.getElementById('security-confirm-modal');
-                if (modalEl) {
+        (() => {
+            const registerSecurityConfirmListener = () => {
+                if (!window.Livewire || window.__securityConfirmListenerRegistered) {
+                    return;
+                }
+
+                window.__securityConfirmListenerRegistered = true;
+
+                Livewire.on('open-security-confirm-modal', () => {
+                    const modalEl = document.getElementById('security-confirm-modal');
+                    if (!modalEl) {
+                        return;
+                    }
+
                     const modal = new Modal(modalEl);
                     modal.show();
-                }
-            });
-        });
+                });
+            };
+
+            if (window.Livewire) {
+                registerSecurityConfirmListener();
+            } else {
+                document.addEventListener('livewire:init', registerSecurityConfirmListener, { once: true });
+            }
+        })();
     </script>
 
     <div id="security-confirm-modal" wire:ignore.self tabindex="-1" class="fixed left-0 right-0 top-0 z-50 hidden h-[calc(100%-1rem)] max-h-full w-full items-center justify-center overflow-x-hidden overflow-y-auto md:inset-0">

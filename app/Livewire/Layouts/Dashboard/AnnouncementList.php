@@ -6,6 +6,7 @@ use App\Models\Announcement;
 use App\Models\Lease;
 use App\Models\Unit;
 use Livewire\Component;
+use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 
@@ -15,6 +16,18 @@ class AnnouncementList extends Component
     public $role = "tenant";
 
     public function mount()
+    {
+        $this->role = Auth::user()->role;
+        $this->loadAnnouncements();
+    }
+
+    #[On('announcement-posted')]
+    public function refreshAnnouncements(): void
+    {
+        $this->loadAnnouncements();
+    }
+
+    private function loadAnnouncements(): void
     {
         $this->role = Auth::user()->role;
 

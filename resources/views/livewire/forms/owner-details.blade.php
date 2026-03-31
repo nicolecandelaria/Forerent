@@ -77,8 +77,7 @@
                     <input
                         type="text"
                         id="first_name"
-                        wire:model.defer="firstName"
-                        value="{{ $firstName ?? '' }}"
+                        wire:model.live.debounce.300ms="firstName"
                         placeholder="Enter first name"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -92,8 +91,7 @@
                     <input
                         type="text"
                         id="last_name"
-                        wire:model.defer="lastName"
-                        value="{{ $lastName ?? '' }}"
+                        wire:model.live.debounce.300ms="lastName"
                         placeholder="Enter last name"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -117,8 +115,7 @@
                     <input
                         type="tel"
                         id="phone_number"
-                        wire:model.defer="phoneNumber"
-                        value="{{ $phoneNumber ?? '' }}"
+                        wire:model.live="phoneNumber"
                         inputmode="numeric"
                         maxlength="10"
                         pattern="[0-9]{10}"
@@ -136,8 +133,7 @@
                     <input
                         type="email"
                         id="email"
-                        wire:model.defer="email"
-                        value="{{ $email ?? '' }}"
+                        wire:model.live.debounce.300ms="email"
                         placeholder="Enter email address"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -214,15 +210,31 @@
     </div>
 
     <script>
-        document.addEventListener('livewire:initialized', () => {
-            Livewire.on('open-save-confirm-modal', () => {
-                const modalEl = document.getElementById('save-confirm-modal');
-                if (modalEl) {
+        (() => {
+            const registerSaveConfirmListener = () => {
+                if (!window.Livewire || window.__saveConfirmListenerRegistered) {
+                    return;
+                }
+
+                window.__saveConfirmListenerRegistered = true;
+
+                Livewire.on('open-save-confirm-modal', () => {
+                    const modalEl = document.getElementById('save-confirm-modal');
+                    if (!modalEl) {
+                        return;
+                    }
+
                     const modal = new Modal(modalEl);
                     modal.show();
-                }
-            });
-        });
+                });
+            };
+
+            if (window.Livewire) {
+                registerSaveConfirmListener();
+            } else {
+                document.addEventListener('livewire:init', registerSaveConfirmListener, { once: true });
+            }
+        })();
     </script>
 
     <div id="save-confirm-modal" wire:ignore.self tabindex="-1" class="fixed left-0 right-0 top-0 z-50 hidden h-[calc(100%-1rem)] max-h-full w-full items-center justify-center overflow-x-hidden overflow-y-auto md:inset-0">
