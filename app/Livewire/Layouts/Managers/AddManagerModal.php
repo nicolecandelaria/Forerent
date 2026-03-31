@@ -8,11 +8,11 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\NewAccount;
-use App\Services\FirebaseStorageService;
 use App\Services\PasswordGenerator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\Attributes\Validate;
@@ -228,14 +228,11 @@ class AddManagerModal extends Component
 
             // Handle profile picture upload
             if ($this->profilePicture && !is_string($this->profilePicture)) {
-                $firebase = app(FirebaseStorageService::class);
-
-                // Delete old photo from Firebase if replacing
                 if ($this->isEditing && $manager->profile_img) {
-                    $firebase->delete($manager->profile_img);
+                    $this->deleteStoredImage($manager->profile_img);
                 }
 
-                $path = $firebase->upload($this->profilePicture, 'Images');
+                $path = $this->profilePicture->store('profile-photos', 'public');
                 $manager->update(['profile_img' => $path]);
             }
 
@@ -295,6 +292,23 @@ class AddManagerModal extends Component
         $this->reset(['profilePicture', 'selectedBuilding', 'selectedFloor', 'selectedUnits', 'allSelectedUnits', 'floors', 'availableUnits', 'managerId', 'isEditing']);
         $this->userForm->reset();
         $this->resetValidation();
+    }
+
+    private function deleteStoredImage(?string $path): void
+    {
+        if (!$path) {
+            return;
+        }
+
+        $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
+
+        if (str_starts_with($normalized, 'storage/')) {
+            $normalized = substr($normalized, 8);
+        }
+
+        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+            Storage::disk('public')->delete($normalized);
+        }
     }
 
     public function render()

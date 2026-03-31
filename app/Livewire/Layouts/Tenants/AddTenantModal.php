@@ -5,7 +5,6 @@ namespace App\Livewire\Layouts\Tenants;
 use App\Models\Billing;
 use App\Models\Transaction;
 use App\Notifications\NewAccount;
-use App\Services\FirebaseStorageService;
 use App\Services\PasswordGenerator;
 use App\Livewire\Concerns\WithNotifications;
 use Illuminate\Support\Facades\Notification;
@@ -22,8 +21,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 
 class AddTenantModal extends Component
 {
@@ -486,35 +485,18 @@ class AddTenantModal extends Component
 
     private function saveNewTenant(): void
     {
-        $firebase = null;
-        $needsFirebase = $this->profilePicture || $this->governmentIdImage;
         $password = PasswordGenerator::generate();
         $photoPath = null;
         $idImagePath = null;
         $createdUser = null;
 
         try {
-            if ($needsFirebase) {
-                try {
-                    $firebase = app(FirebaseStorageService::class);
-                } catch (\Throwable $firebaseException) {
-                    Log::error('Firebase initialization failed while adding tenant.', [
-                        'email' => $this->email,
-                        'error' => $firebaseException->getMessage(),
-                    ]);
-
-                    throw ValidationException::withMessages([
-                        'profilePicture' => 'File upload is currently unavailable. Please try again later or submit without images.',
-                    ]);
-                }
-            }
-
             $photoPath = $this->profilePicture
-                ? $firebase->upload($this->profilePicture, 'Images')
+                ? $this->profilePicture->store('profile-photos', 'public')
                 : null;
 
             $idImagePath = $this->governmentIdImage
-                ? $firebase->upload($this->governmentIdImage, 'Images')
+                ? $this->governmentIdImage->store('government-ids', 'public')
                 : null;
 
             DB::transaction(function () use ($photoPath, $idImagePath, $password, &$createdUser) {
@@ -613,17 +595,16 @@ class AddTenantModal extends Component
                 Bed::where('bed_id', $this->selectedBed)->update(['status' => 'Occupied']);
             });
         } catch (\Throwable $exception) {
-            if ($firebase && $photoPath) {
-                $firebase->delete($photoPath);
+            if ($photoPath) {
+                $this->deleteStoredImage($photoPath);
             }
-            if ($firebase && $idImagePath) {
-                $firebase->delete($idImagePath);
+            if ($idImagePath) {
+                $this->deleteStoredImage($idImagePath);
             }
 
             Log::error('Failed to save new tenant.', [
                 'email' => $this->email,
                 'selected_bed' => $this->selectedBed,
-                'uses_firebase' => $needsFirebase,
                 'error' => $exception->getMessage(),
             ]);
 
@@ -755,25 +736,7 @@ class AddTenantModal extends Component
 
     private function saveEditTenant(): void
     {
-        $firebase = null;
-        $needsFirebase = $this->profilePicture || $this->governmentIdImage;
-
-        if ($needsFirebase) {
-            try {
-                $firebase = app(FirebaseStorageService::class);
-            } catch (\Throwable $firebaseException) {
-                Log::error('Firebase initialization failed while editing tenant.', [
-                    'tenant_id' => $this->editTenantId,
-                    'error' => $firebaseException->getMessage(),
-                ]);
-
-                throw ValidationException::withMessages([
-                    'profilePicture' => 'File upload is currently unavailable. Please try again later or submit without images.',
-                ]);
-            }
-        }
-
-        DB::transaction(function () use ($firebase) {
+        DB::transaction(function () {
             $tenant = User::find($this->editTenantId);
             if (!$tenant) return;
 
@@ -781,11 +744,11 @@ class AddTenantModal extends Component
             $oldGovernmentIdImage = $tenant->government_id_image;
 
             $photoPath = $this->profilePicture
-                ? $firebase->upload($this->profilePicture, 'Images')
+                ? $this->profilePicture->store('profile-photos', 'public')
                 : $tenant->profile_img;
 
             $idImagePath = $this->governmentIdImage
-                ? $firebase->upload($this->governmentIdImage, 'Images')
+                ? $this->governmentIdImage->store('government-ids', 'public')
                 : $tenant->government_id_image;
 
             $tenant->update([
@@ -836,13 +799,13 @@ class AddTenantModal extends Component
                 }
             }
 
-            DB::afterCommit(function () use ($firebase, $oldProfileImg, $oldGovernmentIdImage, $photoPath, $idImagePath) {
-                if ($firebase && $this->profilePicture && $oldProfileImg && $oldProfileImg !== $photoPath) {
-                    $firebase->delete($oldProfileImg);
+            DB::afterCommit(function () use ($oldProfileImg, $oldGovernmentIdImage, $photoPath, $idImagePath) {
+                if ($this->profilePicture && $oldProfileImg && $oldProfileImg !== $photoPath) {
+                    $this->deleteStoredImage($oldProfileImg);
                 }
 
-                if ($firebase && $this->governmentIdImage && $oldGovernmentIdImage && $oldGovernmentIdImage !== $idImagePath) {
-                    $firebase->delete($oldGovernmentIdImage);
+                if ($this->governmentIdImage && $oldGovernmentIdImage && $oldGovernmentIdImage !== $idImagePath) {
+                    $this->deleteStoredImage($oldGovernmentIdImage);
                 }
             });
         });
@@ -979,6 +942,23 @@ class AddTenantModal extends Component
         }
 
         return $rules;
+    }
+
+    private function deleteStoredImage(?string $path): void
+    {
+        if (!$path) {
+            return;
+        }
+
+        $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
+
+        if (str_starts_with($normalized, 'storage/')) {
+            $normalized = substr($normalized, 8);
+        }
+
+        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+            Storage::disk('public')->delete($normalized);
+        }
     }
 
     private function resetForm()

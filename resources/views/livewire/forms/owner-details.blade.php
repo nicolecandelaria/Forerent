@@ -201,68 +201,19 @@
             <button
                 type="button"
                 wire:click="confirmSave"
-                @disabled(!$this->hasPendingChanges)
-                class="rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {{ $this->hasPendingChanges ? 'bg-blue-600 hover:bg-blue-700' : 'cursor-not-allowed bg-slate-300' }}"
+                class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-                {{ $this->hasPendingChanges ? 'Update Changes' : 'No Changes Yet' }}
+                Update Changes
             </button>
         </div>
     </div>
 
-    <script>
-        (() => {
-            const registerSaveConfirmListener = () => {
-                if (!window.Livewire || window.__saveConfirmListenerRegistered) {
-                    return;
-                }
-
-                window.__saveConfirmListenerRegistered = true;
-
-                Livewire.on('open-save-confirm-modal', () => {
-                    const modalEl = document.getElementById('save-confirm-modal');
-                    if (!modalEl) {
-                        return;
-                    }
-
-                    const modal = new Modal(modalEl);
-                    modal.show();
-                });
-            };
-
-            if (window.Livewire) {
-                registerSaveConfirmListener();
-            } else {
-                document.addEventListener('livewire:init', registerSaveConfirmListener, { once: true });
-            }
-        })();
-    </script>
-
-    <div id="save-confirm-modal" wire:ignore.self tabindex="-1" class="fixed left-0 right-0 top-0 z-50 hidden h-[calc(100%-1rem)] max-h-full w-full items-center justify-center overflow-x-hidden overflow-y-auto md:inset-0">
-        <div class="relative max-h-full w-full max-w-md p-4">
-            <div class="relative rounded-2xl bg-white shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
-                <button type="button" class="absolute end-2.5 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-700" data-modal-hide="save-confirm-modal">
-                    <svg class="h-3 w-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
-                    </svg>
-                    <span class="sr-only">Close modal</span>
-                </button>
-
-                <div class="p-6 text-center">
-                    <svg class="mx-auto mb-4 h-12 w-12 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 11V6m0 8h.01M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
-                    </svg>
-                    <h3 class="mb-5 text-base font-semibold text-gray-700">Are you sure you want to save these changes?</h3>
-
-                    <div class="flex items-center justify-center gap-3">
-                        <button wire:click="save" data-modal-hide="save-confirm-modal" type="button" class="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Yes, save changes
-                        </button>
-                        <button data-modal-hide="save-confirm-modal" @click="$wire.cancelSave()" type="button" class="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors duration-200 hover:bg-gray-50">
-                            No, cancel
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <x-ui.modal-confirm
+        name="settings-save-confirmation"
+        title="Save Changes?"
+        description="Are you sure you want to save these profile changes?"
+        confirmText="Yes, Save"
+        cancelText="Cancel"
+        confirmAction="save"
+    />
 </div>

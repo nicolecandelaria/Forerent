@@ -193,61 +193,12 @@
         </div>
     </div>
 
-    <script>
-        (() => {
-            const registerSecurityConfirmListener = () => {
-                if (!window.Livewire || window.__securityConfirmListenerRegistered) {
-                    return;
-                }
-
-                window.__securityConfirmListenerRegistered = true;
-
-                Livewire.on('open-security-confirm-modal', () => {
-                    const modalEl = document.getElementById('security-confirm-modal');
-                    if (!modalEl) {
-                        return;
-                    }
-
-                    const modal = new Modal(modalEl);
-                    modal.show();
-                });
-            };
-
-            if (window.Livewire) {
-                registerSecurityConfirmListener();
-            } else {
-                document.addEventListener('livewire:init', registerSecurityConfirmListener, { once: true });
-            }
-        })();
-    </script>
-
-    <div id="security-confirm-modal" wire:ignore.self tabindex="-1" class="fixed left-0 right-0 top-0 z-50 hidden h-[calc(100%-1rem)] max-h-full w-full items-center justify-center overflow-x-hidden overflow-y-auto md:inset-0">
-        <div class="relative max-h-full w-full max-w-md p-4">
-            <div class="relative rounded-2xl bg-white shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
-                <button type="button" class="absolute end-2.5 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-700" data-modal-hide="security-confirm-modal">
-                    <svg class="h-3 w-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
-                    </svg>
-                    <span class="sr-only">Close modal</span>
-                </button>
-
-                <div class="p-6 text-center">
-                    <svg class="mx-auto mb-4 h-12 w-12 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 11V6m0 8h.01M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
-                    </svg>
-                    <h3 class="mb-2 text-base font-semibold text-gray-700">Confirm password change?</h3>
-                    <p class="mb-5 text-sm text-gray-500">You will be logged out after your password is updated, and you will need to sign in again.</p>
-
-                    <div class="flex items-center justify-center gap-3">
-                        <button wire:click="updatePassword" data-modal-hide="security-confirm-modal" type="button" class="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Yes, change password
-                        </button>
-                        <button data-modal-hide="security-confirm-modal" type="button" class="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors duration-200 hover:bg-gray-50">
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <x-ui.modal-confirm
+        name="security-password-confirmation"
+        title="Confirm Password Change?"
+        description="You will be logged out after your password is updated, and you will need to sign in again."
+        confirmText="Yes, Change Password"
+        cancelText="Cancel"
+        confirmAction="updatePassword"
+    />
 </div>

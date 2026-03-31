@@ -75,7 +75,7 @@ class SecurityForm extends Component
     {
         $this->validate($this->passwordValidationRules());
 
-        $this->dispatch('open-security-confirm-modal');
+        $this->dispatch('open-modal', 'security-password-confirmation');
     }
 
     public function updatePassword()

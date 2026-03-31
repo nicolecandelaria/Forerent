@@ -45,6 +45,13 @@ class SettingsForm extends Component
         $this->loadUserData();
     }
 
+    public function hydrate(): void
+    {
+        if (!$this->hasPendingChanges && Auth::check() && $this->email === '') {
+            $this->loadUserData();
+        }
+    }
+
     public function updatedPhoneNumber($value): void
     {
         $this->phoneNumber = substr(preg_replace('/\D/', '', (string) $value), 0, 10);
@@ -116,6 +123,10 @@ class SettingsForm extends Component
             return null;
         }
 
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
         $normalized = $this->normalizeStoragePath($path);
 
         if (!Storage::disk('public')->exists($normalized)) {
@@ -128,6 +139,10 @@ class SettingsForm extends Component
     private function normalizeStoragePath(string $path): string
     {
         $normalized = ltrim(trim($path), '/');
+
+        if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
+            $normalized = ltrim((string) parse_url($normalized, PHP_URL_PATH), '/');
+        }
 
         if (str_starts_with($normalized, 'storage/')) {
             $normalized = substr($normalized, 8);
@@ -193,7 +208,7 @@ class SettingsForm extends Component
             'email' => 'required|email|max:255|unique:users,email,' . Auth::id() . ',user_id',
         ]);
 
-        $this->dispatch('open-save-confirm-modal');
+        $this->dispatch('open-modal', 'settings-save-confirmation');
     }
 
     public function save(): void
@@ -232,22 +247,22 @@ class SettingsForm extends Component
         // Handle profile picture upload
         if ($this->profilePicture) {
             if ($user->profile_img) {
-                Storage::disk('public')->delete($user->profile_img);
+                $this->deleteStoredImage($user->profile_img);
             }
             $updateData['profile_img'] = $this->profilePicture->store('profile-photos', 'public');
         } elseif ($this->existingProfileImg === null && $user->profile_img) {
-            Storage::disk('public')->delete($user->profile_img);
+            $this->deleteStoredImage($user->profile_img);
             $updateData['profile_img'] = null;
         }
 
         // Handle government ID image upload
         if ($this->governmentIdImage) {
             if ($user->government_id_image) {
-                Storage::disk('public')->delete($user->government_id_image);
+                $this->deleteStoredImage($user->government_id_image);
             }
             $updateData['government_id_image'] = $this->governmentIdImage->store('government-ids', 'public');
         } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
-            Storage::disk('public')->delete($user->government_id_image);
+            $this->deleteStoredImage($user->government_id_image);
             $updateData['government_id_image'] = null;
         }
 
@@ -262,6 +277,7 @@ class SettingsForm extends Component
         $this->hasPendingChanges = false;
 
         $this->dispatch('profile-updated');
+        $this->dispatch('close-modal', 'settings-save-confirmation');
         $this->notifySuccess('Settings Saved Successfully!', 'Your personal information has been updated.');
     }
 
@@ -269,6 +285,19 @@ class SettingsForm extends Component
     {
         $this->loadUserData();
         $this->resetValidation();
+    }
+
+    private function deleteStoredImage(?string $path): void
+    {
+        if (!$path) {
+            return;
+        }
+
+        $normalized = $this->normalizeStoragePath($path);
+
+        if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
+            Storage::disk('public')->delete($normalized);
+        }
     }
 
     public function render()
