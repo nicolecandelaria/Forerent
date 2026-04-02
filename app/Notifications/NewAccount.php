@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use App\Broadcasting\SendGridChannel;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -35,10 +34,10 @@ class NewAccount extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $recipientName = $notifiable->first_name . ' ' . $notifiable->last_name;
+        $recipientName = $notifiable->first_name.' '.$notifiable->last_name;
 
         return (new MailMessage)
-            ->subject('Your account credentials for ' . config('app.name'))
+            ->subject('Your account credentials for ForeRent')
             ->markdown('mail.new-account', [
                 'recipientName' => $recipientName,
                 'accountType' => $this->role,
