@@ -252,6 +252,11 @@ class PaymentReceipts extends Component
         return Auth::user()?->role === 'manager';
     }
 
+    private function isLandlord(): bool
+    {
+        return Auth::user()?->role === 'landlord';
+    }
+
     private function isTenant(): bool
     {
         return Auth::user()?->role === 'tenant';
@@ -269,6 +274,10 @@ class PaymentReceipts extends Component
 
         if ($this->isManager()) {
             $query->where('units.manager_id', Auth::id());
+        }
+
+        if ($this->isLandlord()) {
+            $query->where('properties.owner_id', Auth::id());
         }
 
         if ($this->isTenant()) {
