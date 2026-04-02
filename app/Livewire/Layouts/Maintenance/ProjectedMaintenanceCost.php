@@ -39,7 +39,7 @@ class ProjectedMaintenanceCost extends Component
                 DB::raw('COUNT(*) as count')
             )
             ->whereYear('created_at', date('Y'))
-            ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+            ->groupByRaw('MONTH(created_at)')
             ->get();
 
         // 3. Fill data based on real ticket counts
