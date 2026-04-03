@@ -22,6 +22,7 @@
                 placeholder="Search by reference number or category..."
                 :suggestions="$suggestions"
             />
+            <x-ui.sort-dropdown model="sortOrder" :current="$sortOrder" />
         </x-slot:filters>
 
         {{-- TABLE --}}

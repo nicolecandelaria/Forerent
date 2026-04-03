@@ -15,6 +15,7 @@ class PaymentHistory extends Component
 
     public $activeTab = 'all';
     public $search = '';
+    public $sortOrder = 'newest';
 
     public function setTab($tab) { $this->activeTab = $tab; $this->resetPage(); }
     public function updatedActiveTab() { $this->resetPage(); }
@@ -196,7 +197,8 @@ class PaymentHistory extends Component
             default    => null,
         };
 
-        $payments = $query->orderBy('billings.billing_date', 'desc')->paginate(10);
+        $direction = $this->sortOrder === 'oldest' ? 'asc' : 'desc';
+        $payments = $query->orderBy('billings.billing_date', $direction)->paginate(10);
 
         // Build suggestions from unfiltered data
         $allRecords = $this->baseQuery()->get();

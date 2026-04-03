@@ -195,7 +195,24 @@
                         </div>
 
                         @foreach($messages as $msg)
-                            @php $isMe = $msg->sender_id === auth()->id(); @endphp
+                            @php
+                                $isMe = $msg->sender_id === auth()->id();
+                                $isAutoReply = $msg->is_auto_reply ?? false;
+                                $isMyAutoReply = $isMe && $isAutoReply;
+                            @endphp
+
+                            {{-- Auto-reply sent on your behalf banner (manager view) --}}
+                            @if($isMyAutoReply)
+                                <div class="flex justify-center my-2">
+                                    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
+                                        <svg class="w-3 h-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                        <span class="text-[10px] font-medium text-amber-600">Auto-reply sent on your behalf</span>
+                                    </div>
+                                </div>
+                            @endif
+
                             <div class="flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }} mb-1">
 
                                 {{-- Their Avatar --}}
@@ -208,14 +225,18 @@
 
                                 <div class="flex flex-col max-w-[60%] {{ $isMe ? 'items-end' : 'items-start' }}">
                                     <div class="px-4 py-2.5 text-sm rounded-2xl shadow-sm
-                                        {{ $isMe
-                                            ? 'bg-[#C8D9FD] text-[#0C0B50] rounded-br-sm'
-                                            : 'bg-[#0C0A84] text-white rounded-bl-sm'
-                                        }}">
+                                        @if($isMyAutoReply)
+                                            bg-amber-50 text-amber-900 border border-amber-200 rounded-br-sm
+                                        @elseif($isMe)
+                                            bg-[#C8D9FD] text-[#0C0B50] rounded-br-sm
+                                        @else
+                                            bg-[#0C0A84] text-white rounded-bl-sm
+                                        @endif
+                                    ">
 
-                                        {{-- Auto-reply badge --}}
-                                        @if($msg->is_auto_reply ?? false)
-                                            <p class="text-[10px] font-medium {{ $isMe ? 'text-[#0C0B50]/50' : 'text-blue-200' }} mb-1 flex items-center gap-1">
+                                        {{-- Auto-reply badge (tenant view) --}}
+                                        @if($isAutoReply && !$isMe)
+                                            <p class="text-[10px] font-medium text-blue-200 mb-1 flex items-center gap-1">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                                 </svg>
@@ -243,7 +264,7 @@
                                                     </div>
                                                 </a>
                                             @endif
-                                        @elseif($msg->is_auto_reply ?? false)
+                                        @elseif($isAutoReply)
                                             <p class="text-sm leading-relaxed whitespace-pre-line">{!! strip_tags($msg->message, '<strong>') !!}</p>
                                         @else
                                             <p class="text-sm leading-relaxed whitespace-pre-line">{{ $msg->message }}</p>

@@ -111,14 +111,33 @@
                     @endphp
 
                     @forelse($messages as $index => $msg)
-                        @php $isMine = $msg->sender_id === auth()->id(); @endphp
+                        @php
+                            $isMine = $msg->sender_id === auth()->id();
+                            $isAutoReply = $msg->is_auto_reply ?? false;
+                            $isMyAutoReply = $isMine && $isAutoReply;
+                        @endphp
+
+                        {{-- Auto-reply banner (manager view) --}}
+                        @if($isMyAutoReply)
+                            <div class="flex justify-center my-1">
+                                <span class="text-[9px] font-medium text-amber-500 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">Auto-reply sent on your behalf</span>
+                            </div>
+                        @endif
+
                         <div class="flex {{ $isMine ? 'justify-end' : 'justify-start' }}">
                             <div class="max-w-[75%] px-3 py-2 rounded-2xl text-sm
-                                {{ $isMine ? 'bg-[#070589] text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md shadow-sm' }}">
+                                @if($isMyAutoReply)
+                                    bg-amber-50 text-amber-900 border border-amber-200 rounded-br-md
+                                @elseif($isMine)
+                                    bg-[#070589] text-white rounded-br-md
+                                @else
+                                    bg-white text-slate-800 rounded-bl-md shadow-sm
+                                @endif
+                            ">
 
-                                {{-- Auto-reply badge --}}
-                                @if($msg->is_auto_reply ?? false)
-                                    <p class="text-[10px] font-medium {{ $isMine ? 'text-white/50' : 'text-blue-400' }} mb-1 flex items-center gap-1">
+                                {{-- Auto-reply badge (tenant view) --}}
+                                @if($isAutoReply && !$isMine)
+                                    <p class="text-[10px] font-medium text-blue-400 mb-1 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                         </svg>
@@ -128,7 +147,7 @@
 
                                 @if($msg->type === 'file')
                                     <p class="text-xs opacity-70">📎 {{ $msg->message }}</p>
-                                @elseif($msg->is_auto_reply ?? false)
+                                @elseif($isAutoReply)
                                     <p class="whitespace-pre-line">{!! strip_tags($msg->message, '<strong>') !!}</p>
                                 @else
                                     <p class="whitespace-pre-line">{{ $msg->message }}</p>

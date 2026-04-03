@@ -37,13 +37,13 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
                 {{-- ─── HERO SECTION: Photo + Info side by side ─── --}}
-                <div class="flex flex-col sm:flex-row">
+                <div class="flex flex-col sm:flex-row sm:items-stretch">
 
                     {{-- Left: Photo Gallery Area --}}
                     @if(count($photos) > 0)
                         <div class="sm:w-[45%] relative">
                             <div
-                                class="relative h-56 sm:h-full sm:min-h-[280px] cursor-pointer group overflow-hidden"
+                                class="relative h-56 sm:h-full cursor-pointer group overflow-hidden"
                                 @click="openLightbox({{ $activePhotoIndex }})"
                             >
                                 <img
