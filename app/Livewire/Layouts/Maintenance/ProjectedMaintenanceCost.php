@@ -25,6 +25,8 @@ class ProjectedMaintenanceCost extends Component
     private function loadRealChartData()
     {
         $driver = DB::connection()->getDriverName();
+
+        // This is the "Translator" between Postgres and MySQL/TiDB
         $monthExpr = $driver === 'pgsql'
             ? 'EXTRACT(MONTH FROM created_at)::int'
             : 'MONTH(created_at)';
@@ -32,14 +34,14 @@ class ProjectedMaintenanceCost extends Component
         // 1. Setup empty months (Jan-Dec)
         $monthlyCosts = array_fill(1, 12, 0);
 
-        // 2. Query REAL requests from database using TiDB/MySQL syntax
+        // 2. Query REAL requests using the dynamic $monthExpr
         $requests = DB::table('maintenance_requests')
             ->select(
-                DB::raw('MONTH(created_at) as month'),
+                DB::raw("$monthExpr as month"), // <--- USE THE VARIABLE HERE
                 DB::raw('COUNT(*) as count')
             )
             ->whereYear('created_at', date('Y'))
-            ->groupByRaw('MONTH(created_at)')
+            ->groupByRaw($monthExpr)            // <--- AND HERE
             ->get();
 
         // 3. Fill data based on real ticket counts

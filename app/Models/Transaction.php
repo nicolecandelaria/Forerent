@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Transaction extends Model
 {
@@ -96,5 +97,17 @@ class Transaction extends Model
             ->whereYear('transaction_date', $year)
             ->selectRaw("$monthExpr as month, SUM(amount) as total")
             ->groupBy('month');
+    }
+
+    /**
+     * Custom method to handle transaction creation with a simple retry logic.
+     * This ensures the record is saved even during database deadlocks.
+     */
+    public static function createWithSequenceRetry(array $attributes)
+    {
+        // Using the full path ensures 'Undefined type' errors never happen
+        return DB::transaction(function () use ($attributes) {
+            return self::create($attributes);
+        }, 3);
     }
 }

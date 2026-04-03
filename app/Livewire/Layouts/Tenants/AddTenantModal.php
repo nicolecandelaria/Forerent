@@ -650,8 +650,7 @@ class AddTenantModal extends Component
     private function attemptWelcomeEmailDelivery(User $createdUser, string $password): void
     {
         try {
-            // Using the default mailable class to send the credentials.
-            // This will automatically use SendGrid if MAIL_MAILER=sendgrid is set on Render.
+            // Laravel will now automatically use SendGrid from your .env settings
             Mail::to($createdUser->email)->send(new NewAccountSmtpMail(
                 email: $createdUser->email,
                 password: $password,
@@ -660,18 +659,18 @@ class AddTenantModal extends Component
                 lastName: (string) ($createdUser->last_name ?? ''),
             ));
 
-            Log::info('ForeRent Tenant Email Success: Welcome email sent to ' . $createdUser->email);
+            Log::info('ForeRent Tenant Email Success: Welcome email sent to '.$createdUser->email);
 
         } catch (\Exception $e) {
-            // THE LOGGING BLOCK: Captures the specific error from SendGrid in your Render Logs
-            Log::error('ForeRent Tenant Email Failure: ' . $e->getMessage(), [
+            // This captures the exact SendGrid error in your Render logs
+            Log::error('ForeRent Tenant Email Failure: '.$e->getMessage(), [
                 'tenant_id' => $createdUser->user_id,
                 'email' => $createdUser->email,
             ]);
 
             $this->notifyWarning(
                 'Tenant saved, email delivery failed',
-                'The tenant record was saved successfully, but the welcome email could not be sent. Please check logs.'
+                'The tenant record was saved successfully, but the welcome email could not be sent. Check logs.'
             );
         }
     }
