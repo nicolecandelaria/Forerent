@@ -51,9 +51,8 @@
             margin: 0;
             color: #ffffff;
             font-size: 24px;
-            font-weight: bold;
+            font-weight: 700;
             text-align: center;
-            width: 100%;
         }
 
         /* ✅ BODY FIXED (SIDE SPACING) */
@@ -141,9 +140,8 @@
                 <p class="greeting">Hello <strong>{{ $recipientName }}</strong>,</p>
 
                 <p>
-                    We are pleased to inform you that your registration as a
-                    <strong>{{ $accountType }}</strong> is now complete.
-                    You can now use our system to help manage your properties.
+                    We are happy to inform you that your account as a <strong>{{ $accountType }}</strong> has been set
+                    up! You can now access and start using the system.
                 </p>
 
                 <p>To get started, please sign in using the details below:</p>
@@ -154,7 +152,8 @@
                 </div>
 
                 <div class="tip">
-                    <strong>Important:</strong> You will be asked to create your own password after login.
+                    <strong>Important Security Step:</strong> To keep your account safe, we recommend that you
+                    <strong>create your own personal password</strong> immediately after signing in for the first time.
                 </div>
 
                 <p>Click below to sign in:</p>
@@ -165,11 +164,13 @@
                     </a>
                 </div>
 
-                <p>If you need help, feel free to contact support.</p>
+                <p>
+                    If you have any questions or need help, please feel free to reach out to the ForeRent Team.
+                </p>
 
                 <p>
                     Best regards,<br>
-                    <strong>The ForeRent Team</strong>
+                    <strong>ForeRent Team</strong>
                 </p>
             </div>
 
