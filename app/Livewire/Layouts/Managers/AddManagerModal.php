@@ -325,47 +325,33 @@ class AddManagerModal extends Component
         }
     }
 
-    private function sendManagerWelcomeEmail(User $manager, string $tempPassword): void
+   private function sendManagerWelcomeEmail(User $manager, string $tempPassword): void
     {
         try {
-            if ($this->shouldSendWelcomeViaSmtp()) {
-                Mail::mailer('smtp')
-                    ->to($manager->email)
-                    ->send(new NewAccountSmtpMail(
-                        email: $manager->email,
-                        password: $tempPassword,
-                        role: (string) $manager->role,
-                        firstName: (string) ($manager->first_name ?? ''),
-                        lastName: (string) ($manager->last_name ?? ''),
-                    ));
+            // Using the default mailable class found in your imports
+            Mail::to($manager->email)->send(new NewAccountSmtpMail(
+                email: $manager->email,
+                password: $tempPassword,
+                role: (string) $manager->role,
+                firstName: (string) ($manager->first_name ?? ''),
+                lastName: (string) ($manager->last_name ?? ''),
+            ));
 
-                return;
-            }
+            Log::info('ForeRent Email Success: Welcome email sent to ' . $manager->email);
 
-            Notification::send($manager, new NewAccount($manager->email, $tempPassword, $manager->role));
-        } catch (\Throwable $notificationError) {
-            Log::warning('Manager account created but notification email failed.', [
+        } catch (\Exception $e) {
+            // THE LOGGING BLOCK: This captures the exact reason (e.g., "401 Unauthorized" from SendGrid)
+            Log::error("ForeRent Email Failure: " . $e->getMessage(), [
                 'manager_id' => $manager->user_id,
-                'email' => $manager->email,
-                'error' => $notificationError->getMessage(),
+                'email' => $manager->email
             ]);
-
+            
+            // Inform the UI through your existing notification trait
             $this->notifyWarning(
-                'Manager saved, email not sent',
-                'The manager was created successfully, but the account email could not be delivered.'
+                'Manager saved, email failed',
+                'The account was created, but the welcome email failed. Check system logs.'
             );
         }
-    }
-
-    private function shouldSendWelcomeViaSmtp(): bool
-    {
-        if (config('mail.default') !== 'smtp') {
-            return false;
-        }
-
-        $smtpHost = strtolower((string) config('mail.mailers.smtp.host', ''));
-
-        return str_contains($smtpHost, 'gmail.com');
     }
 
     public function render()

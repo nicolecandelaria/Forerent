@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Layouts\Tenants;
 
-use App\Broadcasting\SendGridChannel;
 use App\Livewire\Concerns\WithNotifications;
 use App\Mail\NewAccountSmtpMail;
 use App\Models\Bed;
@@ -20,7 +19,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
@@ -651,124 +649,31 @@ class AddTenantModal extends Component
 
     private function attemptWelcomeEmailDelivery(User $createdUser, string $password): void
     {
-        if ($this->shouldSendWelcomeViaSmtp()) {
-            try {
-                Mail::mailer('smtp')
-                    ->to($createdUser->email)
-                    ->send(new NewAccountSmtpMail(
-                        email: $createdUser->email,
-                        password: $password,
-                        role: $createdUser->role,
-                        firstName: (string) ($createdUser->first_name ?? ''),
-                        lastName: (string) ($createdUser->last_name ?? ''),
-                    ));
-
-                Log::info('Tenant welcome email sent via SMTP direct path.', [
-                    'tenant_id' => $createdUser->user_id,
-                    'tenant_email' => $createdUser->email,
-                    'mailer' => 'smtp',
-                ]);
-            } catch (\Throwable $exception) {
-                Log::warning('SMTP direct path failed for tenant welcome email.', [
-                    'tenant_id' => $createdUser->user_id,
-                    'tenant_email' => $createdUser->email,
-                    'error' => $exception->getMessage(),
-                ]);
-
-                $this->notifyWarning(
-                    'Tenant saved, email retry failed',
-                    'Email delivery failed. Tenant record was saved successfully.'
-                );
-            }
-
-            return;
-        }
-
-        $notification = new NewAccount($createdUser->email, $password, $createdUser->role);
-
-        $this->logWelcomeEmailPreview($notification, $createdUser);
-
-        $sendGridAttempt = [
-            'ok' => false,
-            'status' => null,
-            'error' => 'No SendGrid attempt data.',
-        ];
-
         try {
-            SendGridChannel::resetLastAttempt();
-            Notification::send($createdUser, $notification);
+            // Using the default mailable class to send the credentials.
+            // This will automatically use SendGrid if MAIL_MAILER=sendgrid is set on Render.
+            Mail::to($createdUser->email)->send(new NewAccountSmtpMail(
+                email: $createdUser->email,
+                password: $password,
+                role: $createdUser->role,
+                firstName: (string) ($createdUser->first_name ?? ''),
+                lastName: (string) ($createdUser->last_name ?? ''),
+            ));
 
-            $sendGridAttempt = SendGridChannel::lastAttempt() ?? $sendGridAttempt;
-        } catch (\Throwable $exception) {
-            $sendGridAttempt = [
-                'ok' => false,
-                'status' => null,
-                'error' => $exception->getMessage(),
-            ];
+            Log::info('ForeRent Tenant Email Success: Welcome email sent to ' . $createdUser->email);
 
-            Log::warning('SendGrid call failed for tenant welcome email.', [
+        } catch (\Exception $e) {
+            // THE LOGGING BLOCK: Captures the specific error from SendGrid in your Render Logs
+            Log::error('ForeRent Tenant Email Failure: ' . $e->getMessage(), [
                 'tenant_id' => $createdUser->user_id,
-                'tenant_email' => $createdUser->email,
-                'error' => $exception->getMessage(),
-            ]);
-        }
-
-        if (($sendGridAttempt['ok'] ?? false) === true) {
-            Log::info('Tenant welcome email sent via SendGrid.', [
-                'tenant_id' => $createdUser->user_id,
-                'tenant_email' => $createdUser->email,
-                'status' => $sendGridAttempt['status'] ?? null,
-            ]);
-
-            return;
-        }
-
-        Log::warning('Tenant welcome email SendGrid failed; trying SMTPS fallback.', [
-            'tenant_id' => $createdUser->user_id,
-            'tenant_email' => $createdUser->email,
-            'sendgrid_status' => $sendGridAttempt['status'] ?? null,
-            'sendgrid_error' => $sendGridAttempt['error'] ?? null,
-        ]);
-
-        try {
-            Mail::mailer('smtp')
-                ->to($createdUser->email)
-                ->send(new NewAccountSmtpMail(
-                    email: $createdUser->email,
-                    password: $password,
-                    role: $createdUser->role,
-                    firstName: (string) ($createdUser->first_name ?? ''),
-                    lastName: (string) ($createdUser->last_name ?? ''),
-                ));
-
-            Log::info('Tenant welcome email sent via SMTPS fallback.', [
-                'tenant_id' => $createdUser->user_id,
-                'tenant_email' => $createdUser->email,
-                'mailer' => 'smtp',
-            ]);
-        } catch (\Throwable $exception) {
-            Log::warning('SMTPS fallback failed for tenant welcome email.', [
-                'tenant_id' => $createdUser->user_id,
-                'tenant_email' => $createdUser->email,
-                'error' => $exception->getMessage(),
+                'email' => $createdUser->email,
             ]);
 
             $this->notifyWarning(
-                'Tenant saved, email retry failed',
-                'Email delivery failed due to provider limits. Tenant record was saved successfully.'
+                'Tenant saved, email delivery failed',
+                'The tenant record was saved successfully, but the welcome email could not be sent. Please check logs.'
             );
         }
-    }
-
-    private function shouldSendWelcomeViaSmtp(): bool
-    {
-        if (config('mail.default') !== 'smtp') {
-            return false;
-        }
-
-        $smtpHost = strtolower((string) config('mail.mailers.smtp.host', ''));
-
-        return str_contains($smtpHost, 'gmail.com');
     }
 
     private function logWelcomeEmailPreview(NewAccount $notification, User $createdUser): void
