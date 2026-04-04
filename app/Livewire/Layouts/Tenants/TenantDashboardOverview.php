@@ -96,6 +96,10 @@ class TenantDashboardOverview extends Component
     // Dashboard tab
     public $dashTab = 'overview';
 
+    // Payment instructions modal
+    public $showPaymentInstructions = false;
+    public $paymentInstructionsData = [];
+
     // Move-out e-signature (independent from move-in)
     public $showMoveOutSignatureModal = false;
     public $moveOutTenantSignature = null;
@@ -290,6 +294,7 @@ class TenantDashboardOverview extends Component
             ->count();
 
         $this->recentRequests = MaintenanceRequest::whereIn('lease_id', $leaseIds)
+            ->whereIn('status', ['Pending', 'Ongoing'])
             ->orderBy('created_at', 'desc')
             ->take(3)
             ->get();
@@ -408,6 +413,28 @@ class TenantDashboardOverview extends Component
     public function setDashTab(string $tab): void
     {
         $this->dashTab = $tab;
+    }
+
+    public function openPaymentInstructions(): void
+    {
+        $property = $this->lease->bed->unit->property ?? null;
+        $owner = $property?->owner;
+
+        $this->paymentInstructionsData = [
+            'property_name' => $property?->building_name ?? 'N/A',
+            'owner_name' => $owner ? ($owner->first_name . ' ' . $owner->last_name) : 'N/A',
+            'contact' => $owner?->contact ?? 'N/A',
+            'amount_due' => $this->amountDue,
+            'outstanding' => $this->outstandingBalance,
+            'due_date' => $this->dueDate,
+        ];
+
+        $this->showPaymentInstructions = true;
+    }
+
+    public function closePaymentInstructions(): void
+    {
+        $this->showPaymentInstructions = false;
     }
 
     public function openSignatureModal(): void

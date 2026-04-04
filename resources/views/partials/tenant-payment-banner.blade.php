@@ -31,17 +31,25 @@
                 @endif
             </div>
         </div>
-        @if($paymentStatus !== 'No Billing')
-            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                {{ $paymentStatus === 'Paid' ? 'bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/30' : '' }}
-                {{ $paymentStatus === 'Unpaid' ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : '' }}
-                {{ $paymentStatus === 'Overdue' ? 'bg-red-400/20 text-red-300 ring-1 ring-red-400/30' : '' }}">
-                <span class="w-1.5 h-1.5 rounded-full mr-1.5
-                    {{ $paymentStatus === 'Paid' ? 'bg-emerald-400' : '' }}
-                    {{ $paymentStatus === 'Unpaid' ? 'bg-amber-400' : '' }}
-                    {{ $paymentStatus === 'Overdue' ? 'bg-red-400' : '' }}"></span>
-                {{ $paymentStatus }}
-            </span>
-        @endif
+        <div class="flex flex-col items-end gap-2">
+            @if($paymentStatus !== 'No Billing')
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                    {{ $paymentStatus === 'Paid' ? 'bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/30' : '' }}
+                    {{ $paymentStatus === 'Unpaid' ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30' : '' }}
+                    {{ $paymentStatus === 'Overdue' ? 'bg-red-400/20 text-red-300 ring-1 ring-red-400/30' : '' }}">
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5
+                        {{ $paymentStatus === 'Paid' ? 'bg-emerald-400' : '' }}
+                        {{ $paymentStatus === 'Unpaid' ? 'bg-amber-400' : '' }}
+                        {{ $paymentStatus === 'Overdue' ? 'bg-red-400' : '' }}"></span>
+                    {{ $paymentStatus }}
+                </span>
+            @endif
+            @if(in_array($paymentStatus, ['Unpaid', 'Overdue']))
+                <button wire:click="openPaymentInstructions" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-[11px] font-bold uppercase tracking-wide transition ring-1 ring-white/25">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    Pay Now
+                </button>
+            @endif
+        </div>
     </div>
 </div>
