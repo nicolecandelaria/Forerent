@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Property;
 
 class ManagerMaintenanceList extends Component
 {
@@ -15,6 +16,9 @@ class ManagerMaintenanceList extends Component
 
     // ADDED: Sort order property initialized to 'newest'
     public $sortOrder = 'newest';
+
+    // Building filter
+    public $selectedBuilding = null;
 
     // Search
     public $search = '';
@@ -48,13 +52,17 @@ class ManagerMaintenanceList extends Component
     {
         $managerId = Auth::id();
 
-        // Base query — joins through lease → bed → unit to find tickets for this manager's units
+        // Base query — joins through lease → bed → unit → property to find tickets for this manager's units
         $baseQuery = DB::table('maintenance_requests')
             ->join('leases', 'maintenance_requests.lease_id', '=', 'leases.lease_id')
             ->join('beds', 'leases.bed_id', '=', 'beds.bed_id')
             ->join('units', 'beds.unit_id', '=', 'units.unit_id')
+            ->join('properties', 'units.property_id', '=', 'properties.property_id')
             ->join('users', 'leases.tenant_id', '=', 'users.user_id')
             ->where('units.manager_id', $managerId)
+            ->when($this->selectedBuilding, function ($query) {
+                $query->where('properties.building_name', $this->selectedBuilding);
+            })
             ->select(
                 'maintenance_requests.request_id',
                 'maintenance_requests.status',
@@ -62,6 +70,7 @@ class ManagerMaintenanceList extends Component
                 'maintenance_requests.ticket_number',
                 'maintenance_requests.created_at',
                 'units.unit_number',
+                'properties.building_name',
                 DB::raw("CONCAT(users.first_name, ' ', users.last_name) as tenant_name")
             );
 
@@ -115,6 +124,11 @@ class ManagerMaintenanceList extends Component
             ->values()
             ->toArray();
 
+        $buildingOptions = [];
+        try {
+            $buildingOptions = Property::distinct()->pluck('building_name', 'building_name')->toArray();
+        } catch (\Exception $e) { $buildingOptions = []; }
+
         return view('livewire.layouts.maintenance.manager-maintenance-list', [
             'requests' => $requests,
             'counts' => [
@@ -125,6 +139,7 @@ class ManagerMaintenanceList extends Component
             ],
             'sortOrder' => $this->sortOrder,
             'suggestions' => $suggestions,
+            'buildingOptions' => $buildingOptions,
         ]);
     }
 }

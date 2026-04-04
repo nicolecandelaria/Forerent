@@ -35,7 +35,8 @@
       "Bash(ls e:/reigne/Citispace-Forerent/docker-compose*)",
       "Bash(ls e:/reigne/Citispace-Forerent/docker/*)",
       "Bash(grep -E \"\\\\.\\(php|web\\)$\")",
-      "Bash(grep -i \"\\\\.php$\")"
+      "Bash(grep -i \"\\\\.php$\")",
+      "Bash(grep -E \"\\\\.\\(php|blade\\\\.php\\)$\")"
     ]
   }
 }

@@ -20,8 +20,24 @@
 
         />
 
-        {{-- Right Side: Sort --}}
+        {{-- Right Side: Building Filter & Sort --}}
         <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+            {{-- Building Filter --}}
+            <x-dropdown label="{{ $selectedBuilding ? Str::before($selectedBuilding, ' ') . '...' : 'Building' }}">
+                <x-dropdown-item wire:click="$set('selectedBuilding', null)" @click="open = false">
+                    All Buildings
+                </x-dropdown-item>
+                @foreach ($buildingOptions as $value => $label)
+                    <x-dropdown-item
+                        wire:click="$set('selectedBuilding', '{{ $value }}')"
+                        @click="open = false"
+                        :active="$selectedBuilding === $value"
+                    >
+                        {{ $label }}
+                    </x-dropdown-item>
+                @endforeach
+            </x-dropdown>
+
             <x-ui.sort-dropdown model="sortOrder" :current="$sortOrder" />
         </div>
 

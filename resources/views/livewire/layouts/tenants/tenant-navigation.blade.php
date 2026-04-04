@@ -22,9 +22,31 @@
 
         />
 
-        {{-- Right Side: Add Button & Sort --}}
+        {{-- Right Side: Building Filter, Sort & Add Button --}}
         <div class="flex items-center gap-3">
             <x-ui.sort-dropdown model="sortOrder" :current="$sortOrder" />
+
+            {{-- Building Filter Dropdown --}}
+            <x-dropdown label="{{ $selectedBuildingName ? explode(' ', $selectedBuildingName)[0] : 'Building' }}">
+                <x-dropdown-item
+                    wire:click="selectBuilding(null)"
+                    @click="open = false"
+                    :active="$selectedBuildingId === null"
+                >
+                    All Buildings
+                </x-dropdown-item>
+
+                @foreach ($buildingOptions as $id => $name)
+                    <x-dropdown-item
+                        wire:click="selectBuilding({{ $id }})"
+                        @click="open = false"
+                        :active="$selectedBuildingId === $id"
+                    >
+                        {{ $name }}
+                    </x-dropdown-item>
+                @endforeach
+            </x-dropdown>
+
             <x-ui.button-add
                 text="Add Tenant"
                 x-on:click="$dispatch('open-add-tenant-modal')"

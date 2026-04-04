@@ -31,7 +31,7 @@
             </x-dropdown>
 
             {{-- Building Filter --}}
-            <x-dropdown label="{{ $selectedBuilding ?? 'Building' }}">
+            <x-dropdown label="{{ $selectedBuilding ? Str::before($selectedBuilding, ' ') . '...' : 'Building' }}">
                 <x-dropdown-item wire:click="$set('selectedBuilding', null)" @click="open = false">
                     All Buildings
                 </x-dropdown-item>

@@ -13,7 +13,7 @@
     <button
         @click="open = !open"
         type="button"
-        class="w-full sm:w-auto sm:max-w-88 flex items-center justify-between gap-3 bg-[#2B66F5] hover:bg-blue-700 text-white rounded-full px-6 py-2.5 font-opensans font-semibold text-[16px] tracking-[-0.05em] shadow-md transition-all focus:ring-4 focus:ring-blue-300 outline-none"
+        class="w-full sm:w-56 flex items-center justify-between gap-3 bg-[#2B66F5] hover:bg-blue-700 text-white rounded-full px-6 py-2.5 font-opensans font-semibold text-[16px] tracking-[-0.05em] shadow-md transition-all focus:ring-4 focus:ring-blue-300 outline-none"
         aria-haspopup="true"
         :aria-expanded="open"
         title="{{ $label }}"
