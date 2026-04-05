@@ -390,6 +390,11 @@ class AddTenantModal extends Component
                     });
                 }
             }
+
+            // Filter units by tenant gender (Male → Male/Co-ed, Female → Female/Co-ed)
+            if ($this->gender) {
+                $query->whereIn('occupants', [$this->gender, 'Co-ed']);
+            }
         })->pluck('owner_id')->unique();
 
         $this->buildings = Property::whereIn('owner_id', $ownerIds)
@@ -431,8 +436,28 @@ class AddTenantModal extends Component
                 }
             }
 
+            // Filter units by tenant gender (Male → Male/Co-ed, Female → Female/Co-ed)
+            if ($this->gender) {
+                $unitQuery->whereIn('occupants', [$this->gender, 'Co-ed']);
+            }
+
             $this->units = $unitQuery->get(['unit_id', 'unit_number']);
         }
+    }
+
+    public function updatedGender($value)
+    {
+        // Reset rent details when gender changes since available units depend on gender
+        $this->selectedBuilding = '';
+        $this->selectedUnit     = '';
+        $this->selectedBed      = '';
+        $this->units            = [];
+        $this->beds             = [];
+        $this->dormType         = '';
+        $this->monthlyRate      = '';
+        $this->securityDeposit  = '';
+
+        $this->loadBuildings();
     }
 
     public function updatedSelectedUnit($unitId)
@@ -458,10 +483,18 @@ class AddTenantModal extends Component
             if ($unit) {
                 $this->dormType    = $unit->occupants;
                 $this->monthlyRate = $unit->price;
+                $this->securityDeposit = $unit->price;
             }
         }
     }
 
+    // Auto-sync security deposit when monthly rate changes
+    public function updatedMonthlyRate($value)
+    {
+        $this->securityDeposit = $value;
+    }
+
+    // Auto-compute short-term premium when term changes (does NOT affect monthlyRate)
     public function updatedTerm($value)
     {
         if ($value && (int) $value < 6) {
@@ -585,6 +618,7 @@ class AddTenantModal extends Component
                     'tenant_id'             => $createdUser->user_id,
                     'bed_id'                => $this->selectedBed,
                     'status'                => 'Active',
+                    'contract_status'       => 'draft',
                     'term'                  => $this->term,
                     'auto_renew'            => $this->autoRenew,
                     'start_date'            => $this->startDate,
@@ -595,7 +629,7 @@ class AddTenantModal extends Component
                     'move_in'               => $this->startDate,
                     'shift'                 => $this->shift,
                     'monthly_due_date'      => $this->monthlyDueDate,
-                    'late_payment_penalty'  => 100,
+                    'late_payment_penalty'  => 1,
                     'short_term_premium'    => $this->shortTermPremium,
                     'reservation_fee_paid'  => 0,
                     'early_termination_fee' => 0,
@@ -829,6 +863,7 @@ class AddTenantModal extends Component
                 'tenant_id'             => $this->transferFromTenantId,
                 'bed_id'                => $this->selectedBed,
                 'status'                => 'Active',
+                'contract_status'       => 'draft',
                 'term'                  => $this->term,
                 'auto_renew'            => $this->autoRenew,
                 'start_date'            => $this->startDate,
@@ -839,7 +874,7 @@ class AddTenantModal extends Component
                 'move_in'               => $this->startDate,
                 'shift'                 => $this->shift,
                 'monthly_due_date'      => $this->monthlyDueDate,
-                'late_payment_penalty'  => 100,
+                'late_payment_penalty'  => 1,
                 'short_term_premium'    => $this->shortTermPremium,
                 'reservation_fee_paid'  => 0,
                 'early_termination_fee' => 0,
@@ -986,7 +1021,7 @@ class AddTenantModal extends Component
                         'move_in'               => $this->startDate,
                         'shift'                 => $this->shift,
                         'monthly_due_date'      => $this->monthlyDueDate,
-                        'late_payment_penalty'  => 100,
+                        'late_payment_penalty'  => 1,
                         'short_term_premium'    => $this->shortTermPremium,
                         'reservation_fee_paid'  => 0,
                         'early_termination_fee' => 0,

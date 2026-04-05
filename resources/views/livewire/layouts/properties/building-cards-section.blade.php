@@ -1,4 +1,15 @@
-<div>
+<div
+    x-init="
+        @if($selectedBuilding)
+            $nextTick(() => {
+                Livewire.dispatch('buildingSelected', { buildingId: {{ $selectedBuilding }} });
+                @if($eventName !== 'buildingSelected')
+                    Livewire.dispatch('{{ $eventName }}', { id: {{ $selectedBuilding }} });
+                @endif
+            });
+        @endif
+    "
+>
     {{-- Header --}}
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold text-gray-900">{{ $title }}</h3>
@@ -7,6 +18,7 @@
             @if($showAddButton)
                 <x-ui.button-add
                     text="Add Property"
+                    tooltip="Register a new building or property"
                     onclick="Livewire.dispatch('{{ $addButtonEvent }}')"
                 />
             @endif
@@ -14,6 +26,7 @@
             @if($showAddUnitButton)
                 <x-ui.button-add
                     text="Add Unit"
+                    tooltip="Create a new unit in this building"
                     onclick="Livewire.dispatch('{{ $addUnitButtonEvent }}')"
                 />
             @endif
@@ -87,14 +100,16 @@
             <div class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#F4F7FC] via-[#F4F7FC]/80 to-transparent pointer-events-none"></div>
 
             {{-- Arrow button --}}
-            <button
-                @click="scrollBy(-1)"
-                class="relative ml-2 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200/80 flex items-center justify-center text-gray-700 hover:bg-[#2360E8] hover:text-white hover:border-[#2360E8] hover:shadow-[0_4px_14px_rgba(35,96,232,0.35)] transition-all duration-200 cursor-pointer active:scale-90"
-            >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
-                </svg>
-            </button>
+            <flux:tooltip :content="'View more properties to the left'" position="bottom">
+                <button
+                    @click="scrollBy(-1)"
+                    class="relative ml-2 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200/80 flex items-center justify-center text-gray-700 hover:bg-[#2360E8] hover:text-white hover:border-[#2360E8] hover:shadow-[0_4px_14px_rgba(35,96,232,0.35)] transition-all duration-200 cursor-pointer active:scale-90"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+                    </svg>
+                </button>
+            </flux:tooltip>
         </div>
 
         {{-- Right fade + arrow --}}
@@ -113,14 +128,16 @@
             <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-[#F4F7FC] via-[#F4F7FC]/80 to-transparent pointer-events-none"></div>
 
             {{-- Arrow button --}}
-            <button
-                @click="scrollBy(1)"
-                class="relative mr-2 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200/80 flex items-center justify-center text-gray-700 hover:bg-[#2360E8] hover:text-white hover:border-[#2360E8] hover:shadow-[0_4px_14px_rgba(35,96,232,0.35)] transition-all duration-200 cursor-pointer active:scale-90"
-            >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
-                </svg>
-            </button>
+            <flux:tooltip :content="'View more properties to the right'" position="bottom">
+                <button
+                    @click="scrollBy(1)"
+                    class="relative mr-2 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200/80 flex items-center justify-center text-gray-700 hover:bg-[#2360E8] hover:text-white hover:border-[#2360E8] hover:shadow-[0_4px_14px_rgba(35,96,232,0.35)] transition-all duration-200 cursor-pointer active:scale-90"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                    </svg>
+                </button>
+            </flux:tooltip>
         </div>
 
         {{-- Scrollable Container --}}
@@ -150,6 +167,7 @@
                     @if($showAddButton)
                         <x-ui.button-add
                             text="Add Your First Property"
+                            tooltip="Register your first building to get started"
                             onclick="Livewire.dispatch('{{ $addButtonEvent }}')"
                             class="mt-4"
                         />

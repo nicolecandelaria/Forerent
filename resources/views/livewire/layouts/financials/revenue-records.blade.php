@@ -1,4 +1,4 @@
-<div class="bg-[#F4F7FE] p-4 md:p-6 font-sans rounded-xl">
+<div class="w-full font-sans">
 
     {{-- 1. THE LAYOUT SHELL --}}
     <x-ui.card-with-tabs
@@ -12,19 +12,13 @@
         {{-- 2. THE FILTERS --}}
         <x-slot:filters>
 
-            <div class="w-full sm:w-72">
-                <label for="records-search" class="sr-only">Search records</label>
-                <input
-                    id="records-search"
-                    type="text"
-                    wire:model.live.debounce.300ms="search"
-                    placeholder="Search by name or reference number"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
-                />
-            </div>
+            <x-ui.search-bar
+                model="search"
+                placeholder="Search by name or reference number..."
+            />
 
             {{-- Month Filter --}}
-            <x-dropdown label="{{ $monthOptions[$selectedMonth] ?? 'Month' }}">
+            <x-dropdown label="{{ $monthOptions[$selectedMonth] ?? 'Month' }}" tooltip="Filter records by month">
                 <x-dropdown-item wire:click="$set('selectedMonth', null)" @click="open = false">
                     All Months
                 </x-dropdown-item>
@@ -41,7 +35,7 @@
             </x-dropdown>
 
             {{-- Building Filter --}}
-            <x-dropdown label="{{ $selectedBuilding ?? 'Building' }}">
+            <x-dropdown label="{{ $selectedBuilding ?? 'Building' }}" tooltip="Filter records by building">
                 {{-- CLEAR FILTER OPTION --}}
                 <x-dropdown-item wire:click="$set('selectedBuilding', null)" @click="open = false">
                     All Buildings
@@ -67,10 +61,11 @@
         @if ($activeTab === 'payment')
             <x-ui.table>
                 <x-slot:head>
-                    <x-ui.th class="w-[25%]">Reference</x-ui.th>
-                    <x-ui.th class="w-[25%]">Category</x-ui.th>
-                    <x-ui.th class="w-[25%]">Date</x-ui.th>
-                    <x-ui.th class="w-[25%]">Amount</x-ui.th>
+                    <x-ui.th class="w-[22%]">Reference</x-ui.th>
+                    <x-ui.th class="w-[20%]">Category</x-ui.th>
+                    <x-ui.th class="w-[20%]">Date</x-ui.th>
+                    <x-ui.th class="w-[20%]">Amount</x-ui.th>
+                    <x-ui.th class="w-[18%]">Action</x-ui.th>
                 </x-slot:head>
 
                 <x-slot:body>
@@ -80,6 +75,16 @@
                             <x-ui.td>{{ $payment->category }}</x-ui.td>
                             <x-ui.td>{{ \Carbon\Carbon::parse($payment->transaction_date)->format('F d, Y') }}</x-ui.td>
                             <x-ui.td>₱ {{ number_format($payment->amount, 2) }}</x-ui.td>
+                            <x-ui.td>
+                                <flux:tooltip :content="'View payment receipt and details'" position="bottom">
+                                    <button
+                                        wire:click="viewReceipt({{ $payment->billing_id }})"
+                                        class="inline-flex items-center px-3 py-1 border border-[#0906ae] text-[#0906ae] rounded-md text-xs font-bold hover:bg-blue-50 transition-colors"
+                                    >
+                                        View
+                                    </button>
+                                </flux:tooltip>
+                            </x-ui.td>
                         </x-ui.tr>
                     @endforeach
                 </x-slot:body>
@@ -123,4 +128,7 @@
         </x-slot:footer>
 
     </x-ui.card-with-tabs>
+
+    {{-- Payment Receipt Modal --}}
+    <livewire:layouts.financials.payment-receipt-modal />
 </div>

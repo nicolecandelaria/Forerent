@@ -17,28 +17,18 @@
                         </div>
 
                             <div class="flex items-center gap-2">
-                                <button
-                                    onclick="printContract('move-in-contract')"
-                                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
-                                    style="background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.25);"
-                                    onmouseover="this.style.background='rgba(255,255,255,0.25)'"
-                                    onmouseout="this.style.background='rgba(255,255,255,0.15)'"
-                                >
-                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/>
-                                    </svg>
-                                    Print Contract
-                                </button>
                                 @if($viewingTab === 'current')
-                                <button
-                                    wire:click="editTenant"
-                                    class="flex items-center gap-1.5 bg-white text-[#2360E8] rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-blue-50 transition-colors border border-white"
-                                >
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                    </svg>
-                                    Edit
-                                </button>
+                                <flux:tooltip :content="'Update this tenant\'s profile and lease information'" position="bottom">
+                                    <button
+                                        wire:click="editTenant"
+                                        class="flex items-center gap-1.5 bg-white text-[#2360E8] rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-blue-50 transition-colors border border-white"
+                                    >
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                        Edit
+                                    </button>
+                                </flux:tooltip>
                                 @endif
                             </div>
                     </div>
@@ -99,11 +89,11 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Phone</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Phone</p>
                             <p class="text-sm font-bold text-gray-800">{{ $currentTenant['contact_info']['contact_number'] }}</p>
                         </div>
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Email</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Email</p>
                             <p class="text-sm font-bold text-gray-800 truncate">{{ $currentTenant['contact_info']['email'] }}</p>
                         </div>
                     </div>
@@ -122,25 +112,25 @@
 
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Bed Number</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Bed Number</p>
                             <p class="text-sm font-bold text-gray-800">{{ $currentTenant['rent_details']['bed_number'] }}</p>
                         </div>
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Dorm Type</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Dorm Type</p>
                             <p class="text-sm font-bold text-gray-800">{{ $currentTenant['rent_details']['dorm_type'] }}</p>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div class="bg-[#EEF2FF] rounded-xl p-3.5">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Move-In Date</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Move-In Date</p>
                             <p class="text-sm font-bold text-[#070589] flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5 text-[#2360E8]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
                                 {{ \Carbon\Carbon::parse($currentTenant['rent_details']['lease_start_date'])->format('M d, Y') }}
                             </p>
                         </div>
                         <div class="bg-[#EEF2FF] rounded-xl p-3.5">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">End Date</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">End Date</p>
                             <p class="text-sm font-bold text-[#070589] flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5 text-[#2360E8]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
                                 {{ \Carbon\Carbon::parse($currentTenant['rent_details']['lease_end_date'])->format('M d, Y') }}
@@ -150,15 +140,15 @@
 
                     <div class="grid grid-cols-3 gap-3">
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50 text-center">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Term</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Term</p>
                             <p class="text-lg font-bold text-[#070589]">{{ $currentTenant['rent_details']['lease_term'] }}<span class="text-xs font-medium text-gray-400 ml-0.5">mos</span></p>
                         </div>
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50 text-center">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Shift</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Shift</p>
                             <p class="text-sm font-bold text-gray-800">{{ $currentTenant['rent_details']['shift'] }}</p>
                         </div>
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50 text-center">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Auto Renew</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Auto Renew</p>
                             @if($currentTenant['rent_details']['auto_renew'])
                                 <span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-full px-2.5 py-0.5">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Yes
@@ -185,7 +175,7 @@
 
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Monthly Rate</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Monthly Rate</p>
                             <p class="text-sm font-bold text-[#070589]">&#8369; {{ number_format($currentTenant['move_in_details']['monthly_rate'], 2) }}</p>
                         </div>
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
@@ -193,17 +183,17 @@
                                 $dueDay = $currentTenant['move_in_details']['monthly_due_date'];
                                 $dueSuffix = match((int) $dueDay) { 1 => 'st', 2 => 'nd', 3 => 'rd', default => 'th' };
                             @endphp
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Due Date</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Due Date</p>
                             <p class="text-sm font-bold text-gray-800">{{ $dueDay ? $dueDay . $dueSuffix . ' of the month' : '—' }}</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Security Deposit</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Security Deposit</p>
                             <p class="text-sm font-bold text-[#070589]">&#8369; {{ number_format($currentTenant['move_in_details']['security_deposit'], 2) }}</p>
                         </div>
                         <div class="bg-[#F8FAFF] rounded-xl p-3.5 border border-blue-50">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Payment Status</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-wider text-[#2360E8]/60 mb-1">Payment Status</p>
                             @php
                                 $status = $currentTenant['move_in_details']['payment_status'];
                                 $statusStyles = match($status) {
@@ -253,9 +243,47 @@
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
                                 </svg>
-                                Move Out
+                                {{ $moveOutInitiated ? 'Finalize Move Out' : 'Move Out' }}
                             </div>
                         </button>
+                    </div>
+                @endif
+
+                {{-- Move-Out Progress Stepper --}}
+                @if($moveOutInitiated)
+                    @php
+                        $steps = [
+                            ['label' => 'Initiated', 'done' => true],
+                            ['label' => 'Inspection', 'done' => $moveOutInspectionSaved],
+                            ['label' => 'Items Returned', 'done' => collect($itemsReturned)->isNotEmpty()],
+                            ['label' => 'Contract Signed', 'done' => $moveOutContractAgreed],
+                            ['label' => 'Finalized', 'done' => (bool) ($currentTenant['move_out_details']['move_out_date'] ?? false)],
+                        ];
+                    @endphp
+                    <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
+                                <svg class="w-3.5 h-3.5 text-[#070589]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <h5 class="text-xs font-bold text-[#070589] uppercase tracking-wide">Move-Out Progress</h5>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            @foreach($steps as $i => $step)
+                                <div class="flex flex-col items-center flex-1">
+                                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold {{ $step['done'] ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500' }}">
+                                        @if($step['done'])
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                        @else
+                                            {{ $i + 1 }}
+                                        @endif
+                                    </div>
+                                    <span class="text-[10px] mt-1 font-semibold {{ $step['done'] ? 'text-emerald-600' : 'text-gray-400' }}">{{ $step['label'] }}</span>
+                                </div>
+                                @if($i < count($steps) - 1)
+                                    <div class="flex-1 h-0.5 mx-1 {{ $step['done'] ? 'bg-emerald-400' : 'bg-gray-200' }}"></div>
+                                @endif
+                            @endforeach
+                        </div>
                     </div>
                 @endif
 
@@ -269,6 +297,7 @@
                         :saved="$inspectionSaved"
                         accentColor="emerald"
                         contentRef="moveInContent"
+                        iconPath="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75"
                     >
 
                                 @if($inspectionSaved)
@@ -380,24 +409,24 @@
                                                             <td class="p-2.5 text-gray-700 font-medium">
                                                                 {{ $item['item_name'] }}
                                                                 @error("inspectionChecklist.{$index}.condition")
-                                                                    <p class="text-[9px] text-red-500 font-normal mt-0.5">Required</p>
+                                                                    <p class="text-[11px] text-red-500 font-normal mt-0.5">Required</p>
                                                                 @enderror
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="radio" wire:model.defer="inspectionChecklist.{{ $index }}.condition" value="good"
+                                                                    <input type="radio" wire:model.live="inspectionChecklist.{{ $index }}.condition" value="good"
                                                                            class="w-4 h-4 text-emerald-500 border-gray-300 focus:ring-emerald-400">
                                                                 </label>
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="radio" wire:model.defer="inspectionChecklist.{{ $index }}.condition" value="damaged"
+                                                                    <input type="radio" wire:model.live="inspectionChecklist.{{ $index }}.condition" value="damaged"
                                                                            class="w-4 h-4 text-amber-500 border-gray-300 focus:ring-amber-400">
                                                                 </label>
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="radio" wire:model.defer="inspectionChecklist.{{ $index }}.condition" value="missing"
+                                                                    <input type="radio" wire:model.live="inspectionChecklist.{{ $index }}.condition" value="missing"
                                                                            class="w-4 h-4 text-red-500 border-gray-300 focus:ring-red-400">
                                                                 </label>
                                                             </td>
@@ -419,44 +448,87 @@
                                             <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
                                             Items Received by Tenant
                                         </h4>
-                                        <div class="overflow-x-auto rounded-xl border border-gray-200">
+                                        <div class="overflow-visible rounded-xl border border-gray-200">
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="bg-gray-50 border-b border-gray-200">
-                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-2/5">Item</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-16">Qty</th>
+                                                        <th class="text-left p-2.5 font-semibold text-gray-600">Item</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-24">Quantity</th>
                                                         <th class="text-left p-2.5 font-semibold text-gray-600">Condition</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-24">Confirmed</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-28">Tenant Confirmed</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach($itemsReceived as $index => $item)
                                                         <tr class="border-b border-gray-100 hover:bg-gray-50/50 transition-colors {{ $errors->has("itemsReceived.{$index}.quantity") || $errors->has("itemsReceived.{$index}.condition") ? 'bg-red-50/50' : '' }}">
-                                                            <td class="p-2.5 text-gray-700 font-medium">{{ $item['item_name'] }}</td>
+                                                            <td class="p-2.5 text-gray-700 font-medium">
+                                                                {{ $item['item_name'] }}
+                                                                @if($errors->has("itemsReceived.{$index}.condition") || $errors->has("itemsReceived.{$index}.quantity"))
+                                                                    <p class="text-[11px] text-red-500 font-normal mt-0.5">Required</p>
+                                                                @endif
+                                                            </td>
                                                             <td class="p-2.5 text-center">
                                                                 <input type="number" min="1" step="1"
-                                                                       wire:model.defer="itemsReceived.{{ $index }}.quantity"
+                                                                       wire:model.live.debounce.300ms="itemsReceived.{{ $index }}.quantity"
                                                                        placeholder="1"
                                                                        onkeydown="if(!/[0-9]|Backspace|Tab|ArrowLeft|ArrowRight|Delete/.test(event.key))event.preventDefault()"
                                                                        oninput="this.value=this.value.replace(/^0+/,'').replace(/[^0-9]/g,'');if(this.value==='')this.value=''"
                                                                        class="w-14 text-xs text-center border rounded-lg px-1.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReceived.{$index}.quantity") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
-                                                                @error("itemsReceived.{$index}.quantity")
-                                                                    <p class="text-[9px] text-red-500 mt-0.5">{{ $message }}</p>
-                                                                @enderror
                                                             </td>
                                                             <td class="p-2.5">
-                                                                <input type="text" wire:model.defer="itemsReceived.{{ $index }}.condition"
-                                                                       placeholder="e.g. Good, New..."
-                                                                       class="w-full text-xs border rounded-lg px-2.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReceived.{$index}.condition") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
-                                                                @error("itemsReceived.{$index}.condition")
-                                                                    <p class="text-[9px] text-red-500 mt-0.5">{{ $message }}</p>
-                                                                @enderror
+                                                                <div x-data="{
+                                                                    open: false,
+                                                                    dropUp: false,
+                                                                    toggleDropdown() {
+                                                                        if (this.open) { this.open = false; return; }
+                                                                        const btn = this.$refs.trigger{{ $index }};
+                                                                        const rect = btn.getBoundingClientRect();
+                                                                        const scrollParent = btn.closest('.overflow-y-auto') || document.documentElement;
+                                                                        const containerBottom = scrollParent === document.documentElement
+                                                                            ? window.innerHeight
+                                                                            : scrollParent.getBoundingClientRect().bottom;
+                                                                        this.dropUp = (containerBottom - rect.bottom) < 220;
+                                                                        this.open = true;
+                                                                    }
+                                                                }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative">
+                                                                    <button
+                                                                        x-ref="trigger{{ $index }}"
+                                                                        @click="toggleDropdown()"
+                                                                        type="button"
+                                                                        class="w-full flex items-center justify-between gap-1.5 bg-white border rounded-lg px-2.5 py-1.5 text-xs transition-all hover:bg-gray-50 focus:ring-1 outline-none {{ $errors->has("itemsReceived.{$index}.condition") ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-blue-400' }}"
+                                                                    >
+                                                                        <span class="truncate {{ empty($item['condition']) ? 'text-gray-400' : 'text-gray-700' }}">
+                                                                            {{ $item['condition'] ?: 'Select condition...' }}
+                                                                        </span>
+                                                                        <svg :class="{ 'rotate-180': open }" class="w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                    </button>
+                                                                    <div
+                                                                        x-show="open"
+                                                                        x-transition
+                                                                        style="display: none;"
+                                                                        class="absolute left-0 z-30 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
+                                                                        :class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
+                                                                    >
+                                                                        @foreach(['Good', 'New', 'Fair', 'Damaged', 'Not Provided'] as $condition)
+                                                                            <x-dropdown-item
+                                                                                wire:click="setItemCondition({{ $index }}, '{{ $condition }}')"
+                                                                                :active="($item['condition'] ?? '') === $condition"
+                                                                                @click="open = false"
+                                                                            >
+                                                                                {{ $condition }}
+                                                                            </x-dropdown-item>
+                                                                        @endforeach
+                                                                    </div>
+                                                                </div>
                                                             </td>
                                                             <td class="p-2.5 text-center">
-                                                                <label class="cursor-pointer">
-                                                                    <input type="checkbox" wire:model.defer="itemsReceived.{{ $index }}.tenant_confirmed"
-                                                                           class="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-blue-400">
-                                                                </label>
+                                                                @if($item['tenant_confirmed'])
+                                                                    <span class="text-blue-500 font-bold" title="Confirmed by tenant">&#10003;</span>
+                                                                @else
+                                                                    <span class="text-gray-300" title="Pending tenant confirmation">—</span>
+                                                                @endif
                                                             </td>
                                                         </tr>
                                                     @endforeach
@@ -478,11 +550,8 @@
                                             type="button"
                                             wire:click="saveInspection"
                                             wire:loading.attr="disabled"
-                                            class="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                            class="px-5 py-2 text-xs font-bold text-white bg-[#070589] hover:bg-[#000060] rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
                                         >
-                                            <span wire:loading.remove wire:target="saveInspection">
-                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-                                            </span>
                                             <span wire:loading wire:target="saveInspection">
                                                 <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                                             </span>
@@ -493,7 +562,7 @@
                     </x-inspection.expandable-card>
 
                     {{-- Move-Out Inspection & Contract (only visible after move-out) --}}
-                    @if($currentTenant['move_out_details']['move_out_date'] ?? null)
+                    @if(($currentTenant['move_out_details']['move_out_initiated_at'] ?? null) || ($currentTenant['move_out_details']['move_out_date'] ?? null))
 
                     {{-- Move-Out Inspection Expandable Card --}}
                     <x-inspection.expandable-card
@@ -502,6 +571,7 @@
                         :saved="$moveOutInspectionSaved"
                         accentColor="red"
                         contentRef="moveOutContent"
+                        iconPath="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
                     >
 
                                 @if($moveOutInspectionSaved)
@@ -600,11 +670,12 @@
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="bg-gray-50 border-b border-gray-200">
-                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-2/5">Item</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-16">Good</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-20">Damaged</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-18">Missing</th>
+                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-1/4">Item</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Good</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Damaged</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Missing</th>
                                                         <th class="text-left p-2.5 font-semibold text-gray-600">Remarks</th>
+                                                        <th class="text-right p-2.5 font-semibold text-gray-600 w-24">Repair Cost</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -613,7 +684,7 @@
                                                             <td class="p-2.5 text-gray-700 font-medium">
                                                                 {{ $item['item_name'] }}
                                                                 @error("moveOutChecklist.{$index}.condition")
-                                                                    <p class="text-[9px] text-red-500 font-normal mt-0.5">Required</p>
+                                                                    <p class="text-[11px] text-red-500 font-normal mt-0.5">Required</p>
                                                                 @enderror
                                                             </td>
                                                             <td class="p-2.5 text-center">
@@ -639,6 +710,12 @@
                                                                        placeholder="Optional notes..."
                                                                        class="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors placeholder:text-gray-300">
                                                             </td>
+                                                            <td class="p-2.5">
+                                                                <input type="number" min="0" step="0.01"
+                                                                       wire:model.defer="moveOutChecklist.{{ $index }}.repair_cost"
+                                                                       placeholder="0.00"
+                                                                       class="w-full text-xs text-right border border-gray-200 rounded-lg px-2 py-1.5 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors placeholder:text-gray-300">
+                                                            </td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
@@ -656,10 +733,11 @@
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="bg-gray-50 border-b border-gray-200">
-                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-2/5">Item</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-16">Qty</th>
+                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-1/4">Item</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Qty</th>
                                                         <th class="text-left p-2.5 font-semibold text-gray-600">Condition</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-24">Confirmed</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-16">Returned</th>
+                                                        <th class="text-right p-2.5 font-semibold text-gray-600 w-24">Replacement</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -674,7 +752,7 @@
                                                                        oninput="this.value=this.value.replace(/^0+/,'').replace(/[^0-9]/g,'');if(this.value==='')this.value=''"
                                                                        class="w-14 text-xs text-center border rounded-lg px-1.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReturned.{$index}.quantity") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
                                                                 @error("itemsReturned.{$index}.quantity")
-                                                                    <p class="text-[9px] text-red-500 mt-0.5">{{ $message }}</p>
+                                                                    <p class="text-[11px] text-red-500 mt-0.5">{{ $message }}</p>
                                                                 @enderror
                                                             </td>
                                                             <td class="p-2.5">
@@ -682,14 +760,20 @@
                                                                        placeholder="e.g. Good, Damaged..."
                                                                        class="w-full text-xs border rounded-lg px-2.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReturned.{$index}.condition") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
                                                                 @error("itemsReturned.{$index}.condition")
-                                                                    <p class="text-[9px] text-red-500 mt-0.5">{{ $message }}</p>
+                                                                    <p class="text-[11px] text-red-500 mt-0.5">{{ $message }}</p>
                                                                 @enderror
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="checkbox" wire:model.defer="itemsReturned.{{ $index }}.tenant_confirmed"
-                                                                           class="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-blue-400">
+                                                                    <input type="checkbox" wire:model.defer="itemsReturned.{{ $index }}.is_returned"
+                                                                           class="w-4 h-4 text-emerald-500 border-gray-300 rounded focus:ring-emerald-400">
                                                                 </label>
+                                                            </td>
+                                                            <td class="p-2.5">
+                                                                <input type="number" min="0" step="0.01"
+                                                                       wire:model.defer="itemsReturned.{{ $index }}.replacement_cost"
+                                                                       placeholder="0.00"
+                                                                       class="w-full text-xs text-right border border-gray-200 rounded-lg px-2 py-1.5 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-colors placeholder:text-gray-300">
                                                             </td>
                                                         </tr>
                                                     @endforeach
@@ -711,11 +795,8 @@
                                             type="button"
                                             wire:click="saveMoveOutInspection"
                                             wire:loading.attr="disabled"
-                                            class="px-5 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                            class="px-5 py-2 text-xs font-bold text-white bg-[#070589] hover:bg-[#000060] rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
                                         >
-                                            <span wire:loading.remove wire:target="saveMoveOutInspection">
-                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-                                            </span>
                                             <span wire:loading wire:target="saveMoveOutInspection">
                                                 <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                                             </span>
@@ -737,12 +818,12 @@
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
                                     <svg class="w-5 h-5 text-[#2360E8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M12 1.5v13.5m0 0l-3-3m3 3l3-3"/>
                                     </svg>
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold text-[#070589]">Move-In Contract</p>
-                                    <p class="text-[10px] text-gray-400">View or download the move-in lease agreement</p>
+                                    <p class="text-[11px] text-gray-400">View or download the move-in lease agreement</p>
                                 </div>
                             </div>
                             <svg class="w-5 h-5 text-gray-300 group-hover:text-[#2360E8] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -752,7 +833,7 @@
                     </button>
 
                     {{-- Move-Out Contract Card (only after move-out) --}}
-                    @if($currentTenant['move_out_details']['move_out_date'] ?? null)
+                    @if(($currentTenant['move_out_details']['move_out_initiated_at'] ?? null) || ($currentTenant['move_out_details']['move_out_date'] ?? null))
                     <button
                         type="button"
                         wire:click="openMoveOutContract"
@@ -762,12 +843,12 @@
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
                                     <svg class="w-5 h-5 text-[#070589]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15m0-3l-3-3m0 0l-3 3m3-3v13.5"/>
                                     </svg>
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold text-[#070589]">Move-Out Contract</p>
-                                    <p class="text-[10px] text-gray-400">View or download the move-out settlement agreement</p>
+                                    <p class="text-[11px] text-gray-400">View or download the move-out settlement agreement</p>
                                 </div>
                             </div>
                             <svg class="w-5 h-5 text-gray-300 group-hover:text-[#070589] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -798,7 +879,9 @@
                 <div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
                     <div class="bg-[#070589] text-white p-5 flex items-center justify-between flex-shrink-0">
                         <h2 class="text-lg font-bold">Move-In Contract</h2>
-                        <button @click="$el.closest('.fixed').style.display='none'; $wire.closeMoveInContract()" class="text-white hover:text-blue-200"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                        <flux:tooltip :content="'Close the contract viewer'" position="bottom">
+                            <button @click="$el.closest('.fixed').style.display='none'; $wire.closeMoveInContract()" class="text-white hover:text-blue-200"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                        </flux:tooltip>
                     </div>
                     <div class="flex-1 overflow-y-auto p-8 space-y-6 text-sm text-gray-800" id="move-in-contract" style="font-family: 'Open Sans', sans-serif;">
 
@@ -848,7 +931,9 @@
                 <div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
                     <div class="bg-[#070589] text-white p-5 flex items-center justify-between flex-shrink-0">
                         <h2 class="text-lg font-bold">Move-Out Clearance & Deposit Settlement</h2>
-                        <button @click="$el.closest('.fixed').style.display='none'; $wire.closeMoveOutContract()" class="text-white hover:text-blue-200"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                        <flux:tooltip :content="'Close the contract viewer'" position="bottom">
+                            <button @click="$el.closest('.fixed').style.display='none'; $wire.closeMoveOutContract()" class="text-white hover:text-blue-200"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                        </flux:tooltip>
                     </div>
                     <div class="flex-1 overflow-y-auto p-8 space-y-6 text-sm text-gray-800" id="move-out-contract" style="font-family: 'Open Sans', sans-serif;">
 
@@ -863,11 +948,19 @@
                             'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
                             'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
                             'moveOutContractAgreed' => $moveOutContractAgreed,
+                            'outstandingBalances' => $t['outstanding_balances'] ?? [],
+                            'depositRefund' => $t['deposit_refund'] ?? [],
                             'signatureMode' => 'manager',
                         ])
 
                     </div>
                     <div class="p-4 bg-gray-50 border-t flex justify-end gap-3 flex-shrink-0">
+                        @if($moveOutContractAgreed)
+                            <button wire:click="downloadMoveOutSignedContract" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                Download Signed PDF
+                            </button>
+                        @endif
                         <button onclick="printContract('move-out-contract')" class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors">
                             Print Contract
                         </button>
@@ -902,10 +995,10 @@
     {{-- E-SIGNATURE PAD MODALS (Move-In & Move-Out) --}}
     <x-inspection.signature-pad-modal
         :show="$showSignatureModal"
-        :title="($signatureRole === 'tenant' ? 'Tenant' : 'Lessor') . ' E-Signature'"
+        title="Lessor E-Signature"
         subtitle="Move-In Contract — Draw your signature below"
-        :signerName="$signatureRole === 'tenant' ? (($currentTenant['personal_info']['first_name'] ?? '') . ' ' . ($currentTenant['personal_info']['last_name'] ?? '')) : ($currentTenant['lessor_info']['representative'] ?? '')"
-        :signerRole="$signatureRole === 'tenant' ? 'Lessee / Tenant' : 'Lessor / Authorized Representative'"
+        :signerName="$currentTenant['lessor_info']['representative'] ?? ''"
+        signerRole="Lessor / Authorized Representative"
         legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-In Contract. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
         wireCloseMethod="closeSignatureModal"
         wireSaveMethod="saveSignature"
@@ -914,24 +1007,131 @@
 
     <x-inspection.signature-pad-modal
         :show="$showMoveOutSignatureModal"
-        :title="($moveOutSignatureRole === 'tenant' ? 'Tenant' : 'Lessor') . ' E-Signature'"
+        title="Lessor E-Signature"
         subtitle="Move-Out Contract — Draw your signature below"
-        :signerName="$moveOutSignatureRole === 'tenant' ? (($currentTenant['personal_info']['first_name'] ?? '') . ' ' . ($currentTenant['personal_info']['last_name'] ?? '')) : ($currentTenant['lessor_info']['representative'] ?? '')"
-        :signerRole="$moveOutSignatureRole === 'tenant' ? 'Lessee / Tenant' : 'Lessor / Authorized Representative'"
+        :signerName="$currentTenant['lessor_info']['representative'] ?? ''"
+        signerRole="Lessor / Authorized Representative"
         legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-Out Clearance &amp; Deposit Settlement Agreement. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
         wireCloseMethod="closeMoveOutSignatureModal"
         wireSaveMethod="saveMoveOutSignature"
         canvasRef="sigCanvasMoveOut"
     />
 
-    <x-ui.modal-confirm
-        name="move-out-confirmation"
-        title="Move Out Tenant?"
-        description="Are you sure you want to move out this tenant? Their lease will be marked as Expired and their bed will be freed."
-        confirmText="Yes, Move Out"
-        cancelText="Cancel"
-        confirmAction="confirmMoveOut"
-    />
+    {{-- Move-Out Confirmation Modal (with prerequisite checklist) --}}
+    <div
+        x-data="{ show: false }"
+        x-show="show"
+        x-on:open-modal.window="if ($event.detail === 'move-out-confirmation' || $event.detail[0] === 'move-out-confirmation') show = true"
+        x-on:close-modal.window="if ($event.detail === 'move-out-confirmation' || $event.detail[0] === 'move-out-confirmation') show = false"
+        x-on:keydown.escape.window="show = false"
+        class="fixed inset-0 z-[99] flex items-center justify-center px-4 py-6"
+        style="display: none;"
+    >
+        <div x-show="show" class="fixed inset-0 transform transition-all" x-on:click="show = false">
+            <div class="absolute inset-0 bg-gray-600 opacity-50"></div>
+        </div>
+        <div x-show="show" class="bg-white rounded-[20px] overflow-hidden shadow-xl transform transition-all sm:w-full sm:max-w-[480px] p-8 relative z-[100]">
+            <button @click="show = false" class="absolute top-5 right-5 text-[#0C0B50] hover:text-blue-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="text-center mt-2 mb-4">
+                <h3 class="text-xl font-bold text-[#0C0B50] mb-2">Finalize Move-Out</h3>
+                <p class="text-gray-500 text-sm">The lease will be marked as Expired, the deposit refund calculated, and the bed freed.</p>
+            </div>
+
+            <div class="space-y-2 mb-5">
+                @foreach($moveOutPrerequisites as $prereq)
+                    <div class="flex items-center gap-2.5 p-2.5 rounded-lg {{ $prereq['done'] ? 'bg-emerald-50' : 'bg-red-50' }}">
+                        @if($prereq['done'])
+                            <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @else
+                            <svg class="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+                        @endif
+                        <span class="text-xs font-medium {{ $prereq['done'] ? 'text-emerald-700' : 'text-red-600' }}">{{ $prereq['label'] }}</span>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="flex justify-center gap-4 px-2">
+                <button @click="show = false" class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm">
+                    Cancel
+                </button>
+                @php $allDone = collect($moveOutPrerequisites)->every(fn($p) => $p['done']); @endphp
+                <button
+                    wire:click="confirmMoveOut"
+                    wire:loading.attr="disabled"
+                    @if(!$allDone) disabled @endif
+                    class="flex-1 font-bold py-3 rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed {{ $allDone ? 'bg-[#104EA2] hover:bg-[#0d3f82] text-white shadow-md' : 'bg-gray-300 text-gray-500 cursor-not-allowed' }}"
+                >
+                    <span wire:loading.remove wire:target="confirmMoveOut">Yes, Finalize</span>
+                    <span wire:loading wire:target="confirmMoveOut">Processing...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Initiate Move-Out Form Modal --}}
+    @if($showMoveOutForm)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+            <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div class="bg-[#070589] text-white p-5">
+                    <h2 class="text-lg font-bold">Initiate Move-Out</h2>
+                    <p class="text-xs text-blue-200 mt-1">Start the move-out process for this tenant</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Reason for Vacating</label>
+                        <select wire:model="reasonForVacating" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
+                            <option value="">Select a reason...</option>
+                            <option value="End of lease term (contract expired)">End of lease term (contract expired)</option>
+                            <option value="Voluntary early termination by Lessee">Voluntary early termination by Lessee</option>
+                            <option value="Mutual agreement between both parties">Mutual agreement between both parties</option>
+                            <option value="Lease violation or termination by Lessor">Lease violation or termination by Lessor</option>
+                            <option value="Transfer to a different unit / building (internal transfer)">Transfer to a different unit / building</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Forwarding Address</label>
+                        <input type="text" wire:model="forwardingAddress" placeholder="Address for deposit refund / correspondence"
+                               class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Refund Method</label>
+                            <select wire:model="depositRefundMethod" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
+                                <option value="">Select...</option>
+                                <option value="GCash">GCash</option>
+                                <option value="Maya">Maya</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Cash">Cash</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Account Name / Number</label>
+                            <input type="text" wire:model="depositRefundAccount" placeholder="e.g. 0917-xxx-xxxx"
+                                   class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
+                    <button wire:click="closeMoveOutForm" class="px-5 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button
+                        wire:click="initiateMoveOut"
+                        wire:loading.attr="disabled"
+                        class="px-5 py-2 text-sm font-bold text-white bg-[#070589] hover:bg-[#000060] rounded-xl transition-colors flex items-center gap-1.5"
+                    >
+                        <span wire:loading wire:target="initiateMoveOut">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        </span>
+                        Start Move-Out Process
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <style>
         .custom-scrollbar::-webkit-scrollbar {

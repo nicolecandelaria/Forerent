@@ -2,7 +2,10 @@
 
 namespace App\Livewire\Layouts\Financials;
 
+use App\Models\Billing;
 use App\Models\BillingItem;
+use App\Models\Notification;
+use App\Models\PaymentRequest;
 use App\Models\Transaction;
 use App\Models\Property;
 use Livewire\Component;
@@ -23,6 +26,7 @@ class PaymentReceipts extends Component
     public $billingIdToMarkPaid = null;
     public $search = '';
 
+    public function setTab($tab) { $this->activeTab = $tab; $this->resetPage(); }
     public function updatedActiveTab()   { $this->resetPage(); }
     public function updatedSelectedMonth() { $this->resetPage(); }
     public function updatedSelectedBuilding() { $this->resetPage(); }
@@ -175,6 +179,11 @@ class PaymentReceipts extends Component
                 return;
             }
 
+            // Get lease info for the PaymentRequest record
+            $lease = DB::table('leases')
+                ->where('lease_id', $billing->lease_id)
+                ->first();
+
             DB::table('billings')
                 ->where('billing_id', $billingId)
                 ->update([
@@ -249,10 +258,39 @@ class PaymentReceipts extends Component
 
             $sequenceId = str_pad($transaction->transaction_id, 4, '0', STR_PAD_LEFT);
 
+            $refNumber = $prefix . now()->format('Ymd') . '-' . str_pad($transaction->transaction_id, 6, '0', STR_PAD_LEFT);
+
             $transaction->update([
-                'reference_number' => 'FRNT-' . strtoupper($date->format('M')) . $date->format('Y') . '-' . $sequenceId,
-                'or_number'        => 'OR-' . $date->format('Ymd') . '-' . $sequenceId,
+                'reference_number' => $refNumber,
             ]);
+
+            // Create a confirmed PaymentRequest so it appears in tenant's payment history
+            if ($lease) {
+                PaymentRequest::create([
+                    'billing_id' => $billingId,
+                    'lease_id' => $lease->lease_id,
+                    'tenant_id' => $lease->tenant_id,
+                    'payment_method' => 'Cash',
+                    'reference_number' => $refNumber,
+                    'amount_paid' => $billing->to_pay ?? 0,
+                    'proof_image' => null,
+                    'status' => 'Confirmed',
+                    'reviewed_by' => Auth::id(),
+                    'reviewed_at' => now(),
+                ]);
+
+                // Notify tenant
+                $billingPeriod = $billing->billing_date
+                    ? \Carbon\Carbon::parse($billing->billing_date)->format('F Y')
+                    : '';
+
+                Notification::create([
+                    'user_id' => $lease->tenant_id,
+                    'type' => 'payment_confirmed',
+                    'title' => 'Cash Payment Recorded',
+                    'message' => 'Your cash payment of ₱' . number_format($billing->to_pay, 2) . ' for ' . $billingPeriod . ' billing has been recorded and confirmed by the manager.',
+                ]);
+            }
         });
 
         $this->dispatch('notify', type: 'success', title: 'Payment Updated', description: 'Billing marked as paid successfully.');
@@ -264,6 +302,11 @@ class PaymentReceipts extends Component
     private function isManager(): bool
     {
         return Auth::user()?->role === 'manager';
+    }
+
+    private function isLandlord(): bool
+    {
+        return Auth::user()?->role === 'landlord';
     }
 
     private function isTenant(): bool
@@ -283,6 +326,10 @@ class PaymentReceipts extends Component
 
         if ($this->isManager()) {
             $query->where('units.manager_id', Auth::id());
+        }
+
+        if ($this->isLandlord()) {
+            $query->where('properties.owner_id', Auth::id());
         }
 
         if ($this->isTenant()) {

@@ -161,7 +161,48 @@ class BillingSeeder extends Seeder
                     'description'     => 'Short-Term Premium (contract under 6 months)',
                     'amount'          => 500.00,
                 ]);
-                $totalCharges += 500.00;
+                $totalCharges += $contractPrice;
+
+                // NOTE: Utility shares (electricity_share, water_share) are created
+                // by UtilityBillSeeder which also creates the matching UtilityBill records.
+                // This keeps seeded data consistent with the production flow.
+
+                // B. Conditional: Short-Term Premium (if lease term < 6 months)
+                if ($leaseTerm < 6) {
+                    BillingItem::create([
+                        'billing_id'      => $billing->billing_id,
+                        'charge_category' => 'conditional',
+                        'charge_type'     => 'short_term_premium',
+                        'description'     => 'Short-Term Premium (contract under 6 months)',
+                        'amount'          => 500.00,
+                    ]);
+                    $totalCharges += 500.00;
+                }
+
+                // B. Conditional: Late Payment Fee (~10% chance, only for past months)
+                // Penalty = (late_payment_penalty% of contract_rate) × days late
+                if ($isPast && $this->faker->boolean(10)) {
+                    $penaltyRate = $lease->late_payment_penalty ?? 1; // percentage
+                    $daysLate = $this->faker->numberBetween(1, 10);
+                    $dailyPenalty = round(($penaltyRate / 100) * $lease->contract_rate, 2);
+                    $lateFee = $dailyPenalty * $daysLate;
+                    BillingItem::create([
+                        'billing_id'      => $billing->billing_id,
+                        'charge_category' => 'conditional',
+                        'charge_type'     => 'late_fee',
+                        'description'     => "Late Payment Fee ({$daysLate} day(s) × ₱" . number_format($dailyPenalty, 2) . "/day)",
+                        'amount'          => $lateFee,
+                    ]);
+                    $totalCharges += $lateFee;
+                }
+
+                // Update billing totals
+                $billing->update([
+                    'to_pay' => $totalCharges,
+                    'amount' => $totalCharges,
+                ]);
+
+                $billingDate->addMonth();
             }
 
             // Conditional: Late Payment Fee (~10% chance, past months only)

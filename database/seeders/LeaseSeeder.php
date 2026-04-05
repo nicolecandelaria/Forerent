@@ -30,20 +30,16 @@ class LeaseSeeder extends Seeder
 
         $bedPool     = $managedBeds->shuffle();
         $tenantCycle = 0;
+        $assignedTenantIds = collect();
 
-        // Every tenant gets at least one lease
-        foreach ($tenants as $tenant) {
-            if ($bedPool->isEmpty()) {
-                break;
-            }
-
-            // Find a compatible bed for this tenant
-            $bedIndex = $this->findCompatibleBedIndex($bedPool, $tenant->gender);
-            if ($bedIndex === null) {
+        foreach ($bedsToOccupy as $bed) {
+            $tenant = $this->pickTenantForBed($bed->unit->occupants, $tenants, $maleTenants, $femaleTenants, $tenantCycle, $assignedTenantIds);
+            if (!$tenant) {
                 continue;
             }
 
-            $bed = $bedPool->splice($bedIndex, 1)->first();
+            $assignedTenantIds->push($tenant->user_id);
+
             $unitPrice = (float) $bed->unit->price;
 
             // Build a chain of leases starting from a random date in 2021 up to today
@@ -53,12 +49,7 @@ class LeaseSeeder extends Seeder
         }
     }
 
-    /**
-     * Creates a chain of leases for a tenant starting from 2021.
-     * If a lease expires before today, a renewal is created starting from the expiry date.
-     * The final/active lease will have status 'Active'.
-     */
-    private function createLeaseChain(int $tenantId, Bed $bed, float $unitPrice): void
+    private function pickTenantForBed(string $occupantsType, $allTenants, $maleTenants, $femaleTenants, int &$tenantCycle, $assignedTenantIds)
     {
         $today = Carbon::today();
 
@@ -124,7 +115,16 @@ class LeaseSeeder extends Seeder
             }
         }
 
-        // Fall back to any available bed
-        return $bedPool->isNotEmpty() ? 0 : null;
+        // Filter out already-assigned tenants
+        $available = $pool->filter(fn($t) => !$assignedTenantIds->contains($t->user_id));
+
+        if ($available->isEmpty()) {
+            return null;
+        }
+
+        $tenant = $available->first();
+        $tenantCycle++;
+
+        return $tenant;
     }
 }

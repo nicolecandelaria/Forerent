@@ -10,7 +10,6 @@
     x-data="{
         lightbox: false,
         lightboxSrc: '',
-
         feedbackOpen: false,
         rating: 0,
         hoverRating: 0,
@@ -56,14 +55,16 @@
         style="display: none;"
     >
         <img :src="lightboxSrc" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl" @click.stop>
-        <button
-            @click="lightbox = false"
-            class="absolute top-5 right-5 w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition-colors"
-        >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>
+        <flux:tooltip :content="'Close the image viewer'" position="bottom">
+            <button
+                @click="lightbox = false"
+                class="absolute top-5 right-5 w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition-colors"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </flux:tooltip>
     </div>
 
     {{-- ══════════════════════════════════════════════
@@ -107,15 +108,17 @@
             {{-- ── Sticky Header ── --}}
             <div class="flex-shrink-0 bg-[#2B66F5] px-6 py-5 flex justify-between items-center rounded-t-2xl">
                 <h3 class="text-xl font-bold text-white">Maintenance Feedback</h3>
-                <button
-                    @click="feedbackOpen = false"
-                    type="button"
-                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors text-white"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
+                <flux:tooltip :content="'Close the feedback form'" position="bottom">
+                    <button
+                        @click="feedbackOpen = false"
+                        type="button"
+                        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors text-white"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </flux:tooltip>
             </div>
 
             {{-- ── Scrollable Body ── --}}
@@ -216,6 +219,17 @@
         </div>
     </div>
 
+    {{-- ── Confirmation Modals (reusable component) ── --}}
+    <x-ui.modal-confirm name="confirm-cancel-request"
+        title="Cancel this request?"
+        description="This action cannot be undone. Your maintenance request will be permanently cancelled."
+        confirmText="Yes, Cancel Request" cancelText="Keep Request" confirmAction="cancelRequest"/>
+
+    <x-ui.modal-confirm name="confirm-reopen-request"
+        title="Reopen this request?"
+        description="The issue will be re-submitted as Pending and your manager will be notified."
+        confirmText="Yes, Reopen" cancelText="Cancel" confirmAction="reopenRequest"/>
+
     {{-- ══════════════════════════════════════════════
          MAIN DETAIL CONTENT
     ══════════════════════════════════════════════ --}}
@@ -271,11 +285,48 @@
                     <p class="text-sm text-blue-100 mt-0.5 truncate">{{ $buildingDisplay }}</p>
                 </div>
 
-                {{-- Right: Send Feedback button (only when Completed / Resolved) --}}
-                @if($isResolved)
-                    <div class="flex-shrink-0 pt-1">
+                {{-- Right: Action buttons --}}
+                <div class="flex-shrink-0 pt-1 flex items-center gap-2">
+                    {{-- Edit + Cancel buttons (only Pending) --}}
+                    @if($ticket->status === 'Pending')
+                        <button
+                            wire:click="startEditing"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-bold hover:bg-white/30 transition-colors whitespace-nowrap"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit
+                        </button>
+                        <button
+                            x-on:click="$dispatch('open-modal', 'confirm-cancel-request')"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 text-white text-xs font-bold hover:bg-red-500/40 transition-colors whitespace-nowrap"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Cancel Request
+                        </button>
+                    @endif
+
+                    {{-- Completed/Resolved actions --}}
+                    @if($isResolved)
+                        {{-- Reopen button --}}
+                        <button
+                            x-on:click="$dispatch('open-modal', 'confirm-reopen-request')"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500/20 text-white text-xs font-bold hover:bg-orange-500/40 transition-colors whitespace-nowrap"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Reopen
+                        </button>
+
+                        {{-- Feedback button --}}
                         @if($feedbackSubmitted)
-                            {{-- Already submitted — show confirmation badge --}}
                             <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-semibold">
                                 <svg class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -294,8 +345,8 @@
                                 Send Feedback
                             </button>
                         @endif
-                    </div>
-                @endif
+                    @endif
+                </div>
             </div>
 
             <p class="text-xs text-blue-200 mt-3 pt-3 border-t border-blue-400/30">
@@ -318,11 +369,11 @@
                     </h3>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
-                            <p class="text-gray-400 text-[10px] uppercase font-bold tracking-wide mb-1">Ticket Number</p>
+                            <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Ticket Number</p>
                             <p class="text-[#070642] font-semibold font-mono text-sm">{{ $ticketIdDisplay }}</p>
                         </div>
                         <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
-                            <p class="text-gray-400 text-[10px] uppercase font-bold tracking-wide mb-1">Priority Level</p>
+                            <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Priority Level</p>
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full {{ $uc['dot'] }}"></span>
                                 <span class="text-[#070642] font-semibold text-sm">{{ $ticket->urgency }}</span>
@@ -330,17 +381,74 @@
                             </div>
                         </div>
                         <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
-                            <p class="text-gray-400 text-[10px] uppercase font-bold tracking-wide mb-1">Category</p>
+                            <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Category</p>
                             <p class="text-[#070642] font-semibold text-sm">{{ $ticket->category ?? 'General Maintenance' }}</p>
                         </div>
                         <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
-                            <p class="text-gray-400 text-[10px] uppercase font-bold tracking-wide mb-1">Status</p>
+                            <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Status</p>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ $statusStyles }}">
                                 {{ $ticket->status }}
                             </span>
                         </div>
+                        @if($ticket->assigned_to)
+                            <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
+                                <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Assigned To</p>
+                                <p class="text-[#070642] font-semibold text-sm">{{ $ticket->assigned_to }}</p>
+                            </div>
+                        @endif
+                        @if($ticket->expected_completion_date)
+                            <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
+                                <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Expected Completion</p>
+                                <p class="text-[#070642] font-semibold text-sm">{{ \Carbon\Carbon::parse($ticket->expected_completion_date)->format('M d, Y') }}</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
+
+                {{-- Edit Form (Pending only) --}}
+                @if($editing && $ticket->status === 'Pending')
+                    <div class="bg-blue-50/50 border border-blue-200 rounded-2xl p-5 space-y-4">
+                        <h3 class="text-sm font-bold text-[#070642] flex items-center gap-2">
+                            <span class="w-1 h-4 bg-[#2B66F5] rounded-full"></span>
+                            Edit Request
+                        </h3>
+
+                        {{-- Category --}}
+                        <div>
+                            <label class="text-[10px] uppercase font-bold tracking-wide text-gray-400 mb-1.5 block">Category</label>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach(['Plumbing', 'Electrical', 'Structural', 'Appliance', 'Pest Control'] as $cat)
+                                    <button type="button" wire:click="$set('editCategory', '{{ $cat }}')"
+                                        class="px-4 py-1.5 rounded-lg border text-xs font-semibold transition-all
+                                            {{ $editCategory === $cat
+                                                ? 'bg-[#2672EC] border-[#2672EC] text-white'
+                                                : 'bg-white border-gray-200 text-[#2672EC] hover:bg-blue-50' }}">
+                                        {{ $cat }}
+                                    </button>
+                                @endforeach
+                            </div>
+                            @error('editCategory') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        {{-- Description --}}
+                        <div>
+                            <label class="text-[10px] uppercase font-bold tracking-wide text-gray-400 mb-1.5 block">Description</label>
+                            <textarea wire:model="editDescription" rows="4"
+                                class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#2672EC] resize-none placeholder-gray-400"
+                                placeholder="Describe the issue (min 10 characters)..."></textarea>
+                            @error('editDescription') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="flex justify-end gap-2">
+                            <button wire:click="cancelEditing" class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                                Cancel
+                            </button>
+                            <button wire:click="saveEdit" class="px-4 py-2 rounded-xl text-sm font-bold bg-[#2B66F5] text-white hover:bg-[#1a4fd1] transition-colors">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Description --}}
                 <div>
@@ -359,7 +467,7 @@
                         <h3 class="text-sm font-bold text-[#070642] mb-3 flex items-center gap-2">
                             <span class="w-1 h-4 bg-[#2B66F5] rounded-full"></span>
                             Photos
-                            <span class="text-[10px] text-gray-400 font-normal ml-1">(click to enlarge)</span>
+                            <span class="text-[11px] text-gray-400 font-normal ml-1">(click to enlarge)</span>
                         </h3>
                         <div class="grid {{ count($imagePaths) === 1 ? 'grid-cols-1' : 'grid-cols-2' }} gap-3">
                             @foreach($imagePaths as $imgPath)

@@ -3,6 +3,7 @@
 namespace App\Livewire\Layouts\Tenants;
 
 use App\Models\Lease;
+use App\Models\Property;
 use App\Models\Unit;
 use App\Models\Billing;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,8 @@ class TenantNavigation extends Component
     public $user;
     public $activeTenantId = null;
     public ?int $selectedBuildingId = null;
+    public $selectedBuildingName = null;
+    public $buildingOptions = [];
     public $activeTab = 'current';
     public $sortOrder = 'newest';
     public $search = '';
@@ -28,42 +31,45 @@ class TenantNavigation extends Component
     public function mount($tenants = null): void
     {
         $this->user = Auth::user();
+        $this->loadBuildingOptions();
+        $this->loadTenants();
+        $this->loadCounts();
 
-        $firstProperty = \App\Models\Property::whereHas('units', function ($query) {
-            $query->where('manager_id', Auth::id());
-        })->first();
+        $this->autoSelectFirst();
+    }
 
-        if ($firstProperty) {
-            $this->selectedBuildingId = $firstProperty->property_id;
-            $this->loadTenants();
-            $this->loadCounts();
+    private function autoSelectFirst(): void
+    {
+        if (!empty($this->tenants)) {
+            $this->selectTenant($this->tenants[0]['id']);
         }
     }
 
-    #[On('tenant-property-selected')]
-    public function onPropertySelected(int $id): void
+    public function selectBuilding($id = null): void
     {
-        $this->switchBuilding($id);
-    }
+        $id = $id ? (int) $id : null;
 
-    #[On('buildingSelected')]
-    public function onBuildingSelected($buildingId): void
-    {
-        $this->switchBuilding((int) $buildingId);
-    }
-
-    private function switchBuilding(int $id): void
-    {
-        if ($this->selectedBuildingId === $id && $this->activeTab === 'current') {
+        if ($this->selectedBuildingId === $id) {
             return;
         }
 
         $this->selectedBuildingId = $id;
+        $this->selectedBuildingName = $id ? ($this->buildingOptions[$id] ?? null) : null;
         $this->activeTab = 'current';
         $this->activeTenantId = null;
         $this->search = '';
         $this->loadTenants();
         $this->loadCounts();
+        $this->autoSelectFirst();
+    }
+
+    private function loadBuildingOptions(): void
+    {
+        $this->buildingOptions = Property::whereHas('units', function ($q) {
+            $q->where('manager_id', Auth::id());
+        })->orderBy('property_id')
+            ->pluck('building_name', 'property_id')
+            ->toArray();
     }
 
     public function setTab($tab): void
@@ -72,6 +78,7 @@ class TenantNavigation extends Component
         $this->activeTenantId = null;
         $this->search = '';
         $this->loadTenants();
+        $this->autoSelectFirst();
     }
 
     public function updatedSortOrder(): void
@@ -83,18 +90,14 @@ class TenantNavigation extends Component
     {
         $this->activeTenantId = null;
         $this->loadTenants();
+        $this->autoSelectFirst();
     }
 
     #[On('refresh-tenant-list')]
     public function refreshTenantList(): void
     {
-        if ($this->selectedBuildingId) {
-            $this->loadTenants();
-            $this->loadCounts();
-        } else {
-            $this->tenants = [];
-            $this->allTenants = [];
-        }
+        $this->loadTenants();
+        $this->loadCounts();
     }
 
     #[On('tenantActivated')]
@@ -106,7 +109,8 @@ class TenantNavigation extends Component
     public function selectTenant(int $tenantId): void
     {
         $this->activeTenantId = $tenantId;
-        $this->dispatch('tenantSelected',
+        $this->dispatch(
+            'tenantSelected',
             tenantId: $tenantId,
             tab: $this->activeTab,
             buildingId: $this->selectedBuildingId
@@ -127,15 +131,20 @@ class TenantNavigation extends Component
 
     private function loadCurrentTenants(): array
     {
-        $leases = Lease::where('leases.status', 'Active')
-            ->join('beds', 'beds.bed_id', '=', 'leases.bed_id')
-            ->join('units', 'units.unit_id', '=', 'beds.unit_id')
-            ->where('units.manager_id', Auth::id())
-            ->where('units.property_id', $this->selectedBuildingId)
-            ->with([
+        $query = Unit::where('manager_id', Auth::id());
+
+        if ($this->selectedBuildingId !== null) {
+            $query->where('property_id', $this->selectedBuildingId);
+        }
+
+        return $query->with([
+            'beds.leases' => fn($q) => $q->where('status', 'Active')->with([
                 'tenant' => fn($q) => $q->where('role', 'tenant'),
-                'bed.unit',
+                'billings' => fn($q) => $q
+                    ->latest('billing_date')
+                    ->limit(1)
             ])
+        ])
             ->select('leases.*')
             ->get()
             ->filter(fn($lease) => $lease->tenant !== null);
@@ -189,9 +198,13 @@ class TenantNavigation extends Component
 
     private function getUnitIds()
     {
-        return Unit::where('manager_id', Auth::id())
-            ->where('property_id', $this->selectedBuildingId)
-            ->pluck('unit_id');
+        $query = Unit::where('manager_id', Auth::id());
+
+        if ($this->selectedBuildingId !== null) {
+            $query->where('property_id', $this->selectedBuildingId);
+        }
+
+        return $query->pluck('unit_id');
     }
 
     private function loadTransferredTenants(): array

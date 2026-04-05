@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Property extends Model
 {
@@ -17,7 +18,21 @@ class Property extends Model
         'building_name',
         'address',
         'prop_description',
+        'contract_settings',
     ];
+
+    protected $casts = [
+        'contract_settings' => 'array',
+    ];
+
+    /**
+     * Get a contract setting with a default fallback.
+     * Settings keys: house_rules, inclusions, exclusions, policies, penalty_schedule
+     */
+    public function getContractSetting(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->contract_settings, $key, $default);
+    }
 
     public function owner()
     {
@@ -54,6 +69,16 @@ class Property extends Model
     public function photos()
     {
         return $this->documents()->where('category', 'property_photo');
+    }
+
+    /**
+     * Get the thumbnail URL (first uploaded property photo).
+     */
+    public function getThumbnailAttribute(): ?string
+    {
+        $firstPhoto = $this->photos()->oldest()->first();
+
+        return $firstPhoto ? Storage::url($firstPhoto->file_path) : null;
     }
 
     public function tenantsForManager($managerId)

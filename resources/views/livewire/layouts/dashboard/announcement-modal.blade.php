@@ -7,30 +7,32 @@
         <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
 
             {{-- 1. Header Section --}}
-            <div class="bg-[#070589] text-white p-6 flex-shrink-0">
+            <div class="bg-[#070589] text-white p-4 sm:p-6 flex-shrink-0">
                 <div class="flex items-start justify-between">
                     <div>
                         <h2 class="text-xl font-bold uppercase">{{ $editingAnnouncementId ? 'EDIT' : '' }} ANNOUNCEMENT</h2>
                         <p class="mt-1 text-sm text-blue-100">{{ $editingAnnouncementId ? 'Update the details of your announcement' : 'Fill in the details to post a new update' }}</p>
                     </div>
                     {{-- Close Button (Triggers Discard Modal) --}}
-                    <button
-                        type="button"
-                        x-on:click="$dispatch('open-modal', 'discard-announcement-confirmation')"
-                        class="text-white hover:text-blue-200 transition-colors focus:outline-none">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    <flux:tooltip :content="'Discard and close this form'" position="bottom">
+                        <button
+                            type="button"
+                            x-on:click="$dispatch('open-modal', 'discard-announcement-confirmation')"
+                            class="text-white hover:text-blue-200 transition-colors focus:outline-none">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </flux:tooltip>
                 </div>
             </div>
 
             {{-- 2. Form Body --}}
-            <div class="flex-1 overflow-y-auto p-8">
+            <div class="flex-1 overflow-y-auto p-4 sm:p-8">
                 <div class="space-y-6">
 
                     {{-- White Container Card --}}
-                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+                    <div class="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm space-y-6">
 
                         {{-- Headline --}}
                         <div class="relative">
@@ -126,7 +128,7 @@
             </div>
 
             {{-- 3. Footer --}}
-            <div class="p-6 pt-0 flex justify-end">
+            <div class="p-4 sm:p-6 pt-0 flex justify-end">
                 {{-- Save Button   --}}
                 <button
                     type="button"
