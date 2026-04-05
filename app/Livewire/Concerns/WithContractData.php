@@ -82,7 +82,9 @@ trait WithContractData
                 'payment_status'        => $billing?->status ?? 'No billing',
                 'monthly_due_date'      => $lease?->monthly_due_date,
                 'late_payment_penalty'  => $lease?->late_payment_penalty,
-                'short_term_premium'    => $lease?->short_term_premium,
+                'short_term_premium'    => $lease?->short_term_premium > 0
+                    ? $lease->short_term_premium
+                    : (($lease?->term && (int) $lease->term < 6) ? 500 : 0),
                 'reservation_fee_paid'  => $lease?->reservation_fee_paid,
                 'early_termination_fee' => $lease?->early_termination_fee,
             ],

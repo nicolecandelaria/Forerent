@@ -493,6 +493,52 @@
                     </div>
                 @endif
 
+                {{-- Maintenance Costs (read-only for tenant) --}}
+                @if(!empty($costItems))
+                    <div>
+                        <h3 class="text-sm font-bold text-[#070642] mb-3 flex items-center gap-2">
+                            <span class="w-1 h-4 rounded-full" style="background-color: #10b981;"></span>
+                            Maintenance Costs
+                        </h3>
+
+                        {{-- Total --}}
+                        <div class="relative overflow-hidden rounded-2xl p-4 text-white shadow-sm mb-3" style="background: linear-gradient(135deg, #10b981, #059669);">
+                            <div class="absolute top-0 right-0 w-16 h-16 rounded-full" style="background: rgba(255,255,255,0.1); transform: translate(16px, -16px);"></div>
+                            <p class="text-[10px] uppercase font-bold tracking-wider mb-1" style="color: #d1fae5;">Total Cost</p>
+                            <p class="text-2xl font-extrabold tracking-tight">
+                                @php
+                                    $formatted = number_format($costTotal, 2);
+                                    $parts = explode('.', $formatted);
+                                @endphp
+                                <span class="text-base font-bold mr-0.5" style="color: #a7f3d0;">PHP</span>{{ $parts[0] }}<span class="text-base" style="color: #a7f3d0;">.{{ $parts[1] }}</span>
+                            </p>
+                            <p class="text-[10px] mt-1.5" style="color: #a7f3d0;">
+                                {{ count($costItems) }} {{ count($costItems) === 1 ? 'item' : 'items' }} logged
+                            </p>
+                        </div>
+
+                        {{-- Cost items list --}}
+                        <div class="space-y-2">
+                            @foreach($costItems as $ci)
+                                <div class="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-sm text-gray-700 font-medium">{{ $ci['description'] ?? 'Maintenance cost' }}</p>
+                                        <p class="text-[10px] text-gray-400 mt-0.5">
+                                            {{ \Carbon\Carbon::parse($ci['created_at'])->format('M d, Y') }}
+                                            @if(!empty($ci['charged_to']) && $ci['charged_to'] === 'tenant')
+                                                <span class="ml-1 px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold">Charged to you</span>
+                                            @endif
+                                        </p>
+                                    </div>
+                                    <p class="text-sm font-bold text-[#070642] flex-shrink-0 ml-3 font-mono">
+                                        PHP {{ number_format($ci['cost'], 2) }}
+                                    </p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 {{-- Updates Timeline --}}
                 <div>
                     <h3 class="text-sm font-bold text-[#070642] mb-4 flex items-center gap-2">

@@ -131,20 +131,19 @@ class TenantNavigation extends Component
 
     private function loadCurrentTenants(): array
     {
-        $query = Unit::where('manager_id', Auth::id());
+        $unitIds = $this->getUnitIds();
 
-        if ($this->selectedBuildingId !== null) {
-            $query->where('property_id', $this->selectedBuildingId);
+        if ($unitIds->isEmpty()) {
+            return [];
         }
 
-        return $query->with([
-            'beds.leases' => fn($q) => $q->where('status', 'Active')->with([
+        $leases = Lease::where('leases.status', 'Active')
+            ->join('beds', 'beds.bed_id', '=', 'leases.bed_id')
+            ->whereIn('beds.unit_id', $unitIds)
+            ->with([
                 'tenant' => fn($q) => $q->where('role', 'tenant'),
-                'billings' => fn($q) => $q
-                    ->latest('billing_date')
-                    ->limit(1)
+                'bed.unit',
             ])
-        ])
             ->select('leases.*')
             ->get()
             ->filter(fn($lease) => $lease->tenant !== null);
@@ -188,7 +187,7 @@ class TenantNavigation extends Component
                     'unit'           => $lease->bed->unit->unit_number ?? 'N/A',
                     'bed_number'     => $lease->bed->bed_number ?? 'N/A',
                     'payment_status' => $latestBilling?->status ?? 'No billing',
-                    'next_billing'   => $latestBilling?->billing_date ?? null, // <-- changed
+                    'next_billing'   => $latestBilling?->billing_date ?? null,
                     'created_at'     => $lease->created_at,
                 ];
             })

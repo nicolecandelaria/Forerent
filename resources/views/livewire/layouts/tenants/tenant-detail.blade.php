@@ -252,36 +252,63 @@
                 {{-- Move-Out Progress Stepper --}}
                 @if($moveOutInitiated)
                     @php
-                        $steps = [
-                            ['label' => 'Initiated', 'done' => true],
-                            ['label' => 'Inspection', 'done' => $moveOutInspectionSaved],
-                            ['label' => 'Items Returned', 'done' => collect($itemsReturned)->isNotEmpty()],
-                            ['label' => 'Contract Signed', 'done' => $moveOutContractAgreed],
-                            ['label' => 'Finalized', 'done' => (bool) ($currentTenant['move_out_details']['move_out_date'] ?? false)],
+                        $moveOutSteps = [
+                            ['num' => 1, 'title' => 'Initiated', 'done' => true],
+                            ['num' => 2, 'title' => 'Inspection', 'done' => $moveOutInspectionSaved],
+                            ['num' => 3, 'title' => 'Items Returned', 'done' => collect($itemsReturned)->isNotEmpty()],
+                            ['num' => 4, 'title' => 'Contract Signed', 'done' => $moveOutContractAgreed],
+                            ['num' => 5, 'title' => 'Finalized', 'done' => (bool) ($currentTenant['move_out_details']['move_out_date'] ?? false)],
                         ];
+                        $currentMoveOutStep = count($moveOutSteps);
+                        foreach ($moveOutSteps as $s) {
+                            if (!$s['done']) { $currentMoveOutStep = $s['num']; break; }
+                        }
                     @endphp
-                    <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                        <div class="flex items-center gap-2 mb-3">
+                    <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-4">
                             <div class="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
                                 <svg class="w-3.5 h-3.5 text-[#070589]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </div>
                             <h5 class="text-xs font-bold text-[#070589] uppercase tracking-wide">Move-Out Progress</h5>
                         </div>
                         <div class="flex items-center justify-between">
-                            @foreach($steps as $i => $step)
-                                <div class="flex flex-col items-center flex-1">
-                                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold {{ $step['done'] ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500' }}">
-                                        @if($step['done'])
-                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-                                        @else
-                                            {{ $i + 1 }}
-                                        @endif
+                            @foreach($moveOutSteps as $i => $step)
+                                <div class="flex items-center {{ $i < count($moveOutSteps) - 1 ? 'flex-1' : '' }}">
+                                    <div class="flex flex-col items-center">
+                                        <div
+                                            class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-200
+                                            {{ $currentMoveOutStep === $step['num']
+                                                ? 'bg-[#070589] text-white border-[#070589] shadow-lg shadow-blue-500/20'
+                                                : ($step['done']
+                                                    ? 'bg-[#070589]/10 text-[#070589] border-[#070589]/30'
+                                                    : 'bg-transparent text-gray-300 border-gray-200') }}"
+                                        >
+                                            @if($step['done'] && $currentMoveOutStep !== $step['num'])
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                            @else
+                                                {{ $step['num'] }}
+                                            @endif
+                                        </div>
+                                        <span
+                                            class="text-[11px] font-semibold mt-1.5 tracking-wide transition-all duration-200
+                                            {{ $currentMoveOutStep === $step['num']
+                                                ? 'text-[#070589]'
+                                                : ($step['done']
+                                                    ? 'text-[#070589]/60'
+                                                    : 'text-gray-300') }}"
+                                        >{{ $step['title'] }}</span>
                                     </div>
-                                    <span class="text-[10px] mt-1 font-semibold {{ $step['done'] ? 'text-emerald-600' : 'text-gray-400' }}">{{ $step['label'] }}</span>
+                                    @if($i < count($moveOutSteps) - 1)
+                                        <div class="flex-1 mx-2 mt-[-14px]">
+                                            <div class="h-0.5 rounded-full bg-gray-200 relative overflow-hidden">
+                                                <div
+                                                    class="absolute inset-y-0 left-0 bg-[#070589]/40 rounded-full transition-all duration-300 ease-out"
+                                                    style="width: {{ $step['done'] ? '100%' : '0%' }}"
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
-                                @if($i < count($steps) - 1)
-                                    <div class="flex-1 h-0.5 mx-1 {{ $step['done'] ? 'bg-emerald-400' : 'bg-gray-200' }}"></div>
-                                @endif
                             @endforeach
                         </div>
                     </div>
@@ -689,19 +716,19 @@
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="radio" wire:model.defer="moveOutChecklist.{{ $index }}.condition" value="good"
+                                                                    <input type="radio" wire:model.live="moveOutChecklist.{{ $index }}.condition" value="good"
                                                                            class="w-4 h-4 text-emerald-500 border-gray-300 focus:ring-emerald-400">
                                                                 </label>
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="radio" wire:model.defer="moveOutChecklist.{{ $index }}.condition" value="damaged"
+                                                                    <input type="radio" wire:model.live="moveOutChecklist.{{ $index }}.condition" value="damaged"
                                                                            class="w-4 h-4 text-amber-500 border-gray-300 focus:ring-amber-400">
                                                                 </label>
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
-                                                                    <input type="radio" wire:model.defer="moveOutChecklist.{{ $index }}.condition" value="missing"
+                                                                    <input type="radio" wire:model.live="moveOutChecklist.{{ $index }}.condition" value="missing"
                                                                            class="w-4 h-4 text-red-500 border-gray-300 focus:ring-red-400">
                                                                 </label>
                                                             </td>
@@ -743,25 +770,67 @@
                                                 <tbody>
                                                     @foreach($itemsReturned as $index => $item)
                                                         <tr class="border-b border-gray-100 hover:bg-gray-50/50 transition-colors {{ $errors->has("itemsReturned.{$index}.quantity") || $errors->has("itemsReturned.{$index}.condition") ? 'bg-red-50/50' : '' }}">
-                                                            <td class="p-2.5 text-gray-700 font-medium">{{ $item['item_name'] }}</td>
+                                                            <td class="p-2.5 text-gray-700 font-medium">
+                                                                {{ $item['item_name'] }}
+                                                                @if($errors->has("itemsReturned.{$index}.condition") || $errors->has("itemsReturned.{$index}.quantity"))
+                                                                    <p class="text-[11px] text-red-500 font-normal mt-0.5">Required</p>
+                                                                @endif
+                                                            </td>
                                                             <td class="p-2.5 text-center">
                                                                 <input type="number" min="1" step="1"
-                                                                       wire:model.defer="itemsReturned.{{ $index }}.quantity"
+                                                                       wire:model.live.debounce.300ms="itemsReturned.{{ $index }}.quantity"
                                                                        placeholder="1"
                                                                        onkeydown="if(!/[0-9]|Backspace|Tab|ArrowLeft|ArrowRight|Delete/.test(event.key))event.preventDefault()"
                                                                        oninput="this.value=this.value.replace(/^0+/,'').replace(/[^0-9]/g,'');if(this.value==='')this.value=''"
                                                                        class="w-14 text-xs text-center border rounded-lg px-1.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReturned.{$index}.quantity") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
-                                                                @error("itemsReturned.{$index}.quantity")
-                                                                    <p class="text-[11px] text-red-500 mt-0.5">{{ $message }}</p>
-                                                                @enderror
                                                             </td>
                                                             <td class="p-2.5">
-                                                                <input type="text" wire:model.defer="itemsReturned.{{ $index }}.condition"
-                                                                       placeholder="e.g. Good, Damaged..."
-                                                                       class="w-full text-xs border rounded-lg px-2.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReturned.{$index}.condition") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
-                                                                @error("itemsReturned.{$index}.condition")
-                                                                    <p class="text-[11px] text-red-500 mt-0.5">{{ $message }}</p>
-                                                                @enderror
+                                                                <div x-data="{
+                                                                    open: false,
+                                                                    dropUp: false,
+                                                                    toggleDropdown() {
+                                                                        if (this.open) { this.open = false; return; }
+                                                                        const btn = this.$refs.moTrigger{{ $index }};
+                                                                        const rect = btn.getBoundingClientRect();
+                                                                        const scrollParent = btn.closest('.overflow-y-auto') || document.documentElement;
+                                                                        const containerBottom = scrollParent === document.documentElement
+                                                                            ? window.innerHeight
+                                                                            : scrollParent.getBoundingClientRect().bottom;
+                                                                        this.dropUp = (containerBottom - rect.bottom) < 220;
+                                                                        this.open = true;
+                                                                    }
+                                                                }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative">
+                                                                    <button
+                                                                        x-ref="moTrigger{{ $index }}"
+                                                                        @click="toggleDropdown()"
+                                                                        type="button"
+                                                                        class="w-full flex items-center justify-between gap-1.5 bg-white border rounded-lg px-2.5 py-1.5 text-xs transition-all hover:bg-gray-50 focus:ring-1 outline-none {{ $errors->has("itemsReturned.{$index}.condition") ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-blue-400' }}"
+                                                                    >
+                                                                        <span class="truncate {{ empty($item['condition']) ? 'text-gray-400' : 'text-gray-700' }}">
+                                                                            {{ $item['condition'] ?: 'Select condition...' }}
+                                                                        </span>
+                                                                        <svg :class="{ 'rotate-180': open }" class="w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                    </button>
+                                                                    <div
+                                                                        x-show="open"
+                                                                        x-transition
+                                                                        style="display: none;"
+                                                                        class="absolute left-0 z-30 w-full bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
+                                                                        :class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
+                                                                    >
+                                                                        @foreach(['Good', 'New', 'Fair', 'Damaged', 'Not Returned'] as $condition)
+                                                                            <x-dropdown-item
+                                                                                wire:click="setMoveOutItemCondition({{ $index }}, '{{ $condition }}')"
+                                                                                :active="($item['condition'] ?? '') === $condition"
+                                                                                @click="open = false"
+                                                                            >
+                                                                                {{ $condition }}
+                                                                            </x-dropdown-item>
+                                                                        @endforeach
+                                                                    </div>
+                                                                </div>
                                                             </td>
                                                             <td class="p-2.5 text-center">
                                                                 <label class="cursor-pointer">
@@ -1072,66 +1141,50 @@
     </div>
 
     {{-- Initiate Move-Out Form Modal --}}
-    @if($showMoveOutForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-            <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div class="bg-[#070589] text-white p-5">
-                    <h2 class="text-lg font-bold">Initiate Move-Out</h2>
-                    <p class="text-xs text-blue-200 mt-1">Start the move-out process for this tenant</p>
+    <x-ui.modal-confirm
+        name="initiate-move-out"
+        title="Initiate Move-Out"
+        description="Start the move-out process for this tenant"
+        confirmText="Start Move-Out Process"
+        cancelText="Cancel"
+        confirmAction="initiateMoveOut"
+    >
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Reason for Vacating</label>
+                <select wire:model="reasonForVacating" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
+                    <option value="">Select a reason...</option>
+                    <option value="End of lease term (contract expired)">End of lease term (contract expired)</option>
+                    <option value="Voluntary early termination by Lessee">Voluntary early termination by Lessee</option>
+                    <option value="Mutual agreement between both parties">Mutual agreement between both parties</option>
+                    <option value="Lease violation or termination by Lessor">Lease violation or termination by Lessor</option>
+                    <option value="Transfer to a different unit / building (internal transfer)">Transfer to a different unit / building</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Forwarding Address</label>
+                <input type="text" wire:model="forwardingAddress" placeholder="Address for deposit refund / correspondence"
+                       class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Refund Method</label>
+                    <select wire:model="depositRefundMethod" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
+                        <option value="">Select...</option>
+                        <option value="GCash">GCash</option>
+                        <option value="Maya">Maya</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cash">Cash</option>
+                    </select>
                 </div>
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Reason for Vacating</label>
-                        <select wire:model="reasonForVacating" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
-                            <option value="">Select a reason...</option>
-                            <option value="End of lease term (contract expired)">End of lease term (contract expired)</option>
-                            <option value="Voluntary early termination by Lessee">Voluntary early termination by Lessee</option>
-                            <option value="Mutual agreement between both parties">Mutual agreement between both parties</option>
-                            <option value="Lease violation or termination by Lessor">Lease violation or termination by Lessor</option>
-                            <option value="Transfer to a different unit / building (internal transfer)">Transfer to a different unit / building</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Forwarding Address</label>
-                        <input type="text" wire:model="forwardingAddress" placeholder="Address for deposit refund / correspondence"
-                               class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Refund Method</label>
-                            <select wire:model="depositRefundMethod" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
-                                <option value="">Select...</option>
-                                <option value="GCash">GCash</option>
-                                <option value="Maya">Maya</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                                <option value="Cash">Cash</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Account Name / Number</label>
-                            <input type="text" wire:model="depositRefundAccount" placeholder="e.g. 0917-xxx-xxxx"
-                                   class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
-                        </div>
-                    </div>
-                </div>
-                <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
-                    <button wire:click="closeMoveOutForm" class="px-5 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
-                        Cancel
-                    </button>
-                    <button
-                        wire:click="initiateMoveOut"
-                        wire:loading.attr="disabled"
-                        class="px-5 py-2 text-sm font-bold text-white bg-[#070589] hover:bg-[#000060] rounded-xl transition-colors flex items-center gap-1.5"
-                    >
-                        <span wire:loading wire:target="initiateMoveOut">
-                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                        </span>
-                        Start Move-Out Process
-                    </button>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Account Name / Number</label>
+                    <input type="text" wire:model="depositRefundAccount" placeholder="e.g. 0917-xxx-xxxx"
+                           class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
                 </div>
             </div>
         </div>
-    @endif
+    </x-ui.modal-confirm>
 
     <style>
         .custom-scrollbar::-webkit-scrollbar {

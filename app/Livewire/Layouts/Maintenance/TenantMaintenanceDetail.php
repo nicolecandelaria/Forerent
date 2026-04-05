@@ -21,6 +21,10 @@ class TenantMaintenanceDetail extends Component
     public string $editCategory    = '';
     public string $editDescription = '';
 
+    // Cost visibility (read-only)
+    public array $costItems     = [];
+    public float $costTotal     = 0;
+
     public function mount(?int $initialRequestId = null): void
     {
         if ($initialRequestId) {
@@ -279,7 +283,29 @@ class TenantMaintenanceDetail extends Component
                 ->where('request_id', $this->ticket->request_id)
                 ->where('tenant_id', Auth::id())
                 ->exists();
+
+            // Load costs for this ticket (read-only visibility)
+            $this->loadCosts();
         }
+    }
+
+    private function loadCosts(): void
+    {
+        if (!$this->ticket) {
+            $this->costItems = [];
+            $this->costTotal = 0;
+            return;
+        }
+
+        $this->costItems = DB::table('maintenance_logs')
+            ->where('request_id', $this->ticket->request_id)
+            ->whereNull('deleted_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn($item) => (array) $item)
+            ->toArray();
+
+        $this->costTotal = collect($this->costItems)->sum('cost');
     }
 
     public function render()

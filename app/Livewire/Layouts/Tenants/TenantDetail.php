@@ -69,7 +69,6 @@ class TenantDetail extends Component
 
     // Move-out workflow
     public $moveOutInitiated = false;
-    public $showMoveOutForm = false;
     public $moveOutPrerequisites = [];
 
     public function mount(?int $initialTenantId = null): void
@@ -263,12 +262,46 @@ class TenantDetail extends Component
 
     public function updatedMoveOutChecklist($value, $key): void
     {
-        $this->handleChecklistUpdate($key, 'moveOutChecklist');
+        $parts = explode('.', $key);
+        if (count($parts) === 2 && $parts[1] === 'condition') {
+            $currentIndex = (int) $parts[0];
+
+            $this->resetErrorBag("moveOutChecklist.{$currentIndex}.condition");
+
+            for ($i = 0; $i < $currentIndex; $i++) {
+                if (empty($this->moveOutChecklist[$i]['condition'])) {
+                    $this->addError(
+                        "moveOutChecklist.{$i}.condition",
+                        "Please select a condition for \"{$this->moveOutChecklist[$i]['item_name']}\"."
+                    );
+                }
+            }
+        }
     }
 
     public function updatedItemsReturned($value, $key): void
     {
         $this->handleItemsUpdate($value, $key, 'itemsReturned', $this->itemsReturned);
+        $this->validateSkippedMoveOutChecklist();
+    }
+
+    public function setMoveOutItemCondition(int $index, string $condition): void
+    {
+        $this->itemsReturned[$index]['condition'] = $condition;
+        $this->handleItemsUpdate($condition, "{$index}.condition", 'itemsReturned', $this->itemsReturned);
+        $this->validateSkippedMoveOutChecklist();
+    }
+
+    private function validateSkippedMoveOutChecklist(): void
+    {
+        foreach ($this->moveOutChecklist as $i => $item) {
+            if (empty($item['condition'])) {
+                $this->addError(
+                    "moveOutChecklist.{$i}.condition",
+                    "Please select a condition for \"{$item['item_name']}\"."
+                );
+            }
+        }
     }
 
     public function saveMoveOutInspection(): void
@@ -379,7 +412,6 @@ class TenantDetail extends Component
         $this->moveOutOwnerSignedAt = null;
         $this->moveOutContractAgreed = false;
         $this->moveOutInitiated = false;
-        $this->showMoveOutForm = false;
         $this->moveOutPrerequisites = [];
     }
 
@@ -409,12 +441,7 @@ class TenantDetail extends Component
         }
 
         // Otherwise open the initiation form
-        $this->showMoveOutForm = true;
-    }
-
-    public function closeMoveOutForm(): void
-    {
-        $this->showMoveOutForm = false;
+        $this->dispatch('open-modal', 'initiate-move-out');
     }
 
     public function initiateMoveOut(): void
@@ -447,7 +474,7 @@ class TenantDetail extends Component
             'link' => '/tenant?tab=inspection',
         ]);
 
-        $this->showMoveOutForm = false;
+        $this->dispatch('close-modal', 'initiate-move-out');
         $this->moveOutInitiated = true;
 
         // Reload tenant data to unlock the move-out UI
