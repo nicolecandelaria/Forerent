@@ -82,7 +82,7 @@ class BillingSeeder extends Seeder
         // Resolve the unit_id through bed → unit
         $unitId = $lease->bed->unit_id;
 
-        $billingDate = Carbon::parse($lease->start_date)->startOfMonth();
+        $billingDate = Carbon::parse($lease->start_date)->startOfMonth()->addMonth();
         $leaseEnd    = Carbon::parse($lease->end_date)->startOfMonth();
         $ceiling     = $leaseEnd->lt($today->copy()->startOfMonth())
             ? $leaseEnd

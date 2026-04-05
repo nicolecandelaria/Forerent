@@ -78,10 +78,25 @@ class MaintenanceSeeder extends Seeder
 
         $allLeases = DB::table('leases')
             ->whereIn('status', ['Active', 'Expired'])
-            ->get(['lease_id', 'status']);
+            ->get(['lease_id', 'status', 'bed_id']);
 
-        $leaseIds      = $allLeases->pluck('lease_id')->toArray();
         $expiredLeases = $allLeases->where('status', 'Expired')->pluck('lease_id')->flip()->toArray();
+
+        // Group leases by unit via beds
+        $bedIds = $allLeases->pluck('bed_id')->unique()->toArray();
+        $bedToUnit = DB::table('beds')
+            ->whereIn('bed_id', $bedIds)
+            ->pluck('unit_id', 'bed_id')
+            ->toArray();
+
+        // Group leases by unit_id
+        $leasesByUnit = [];
+        foreach ($allLeases as $lease) {
+            $unitId = $bedToUnit[$lease->bed_id] ?? null;
+            if ($unitId) {
+                $leasesByUnit[$unitId][] = $lease->lease_id;
+            }
+        }
 
         $managerNames = DB::table('users')
             ->where('role', 'manager')
@@ -89,7 +104,7 @@ class MaintenanceSeeder extends Seeder
             ->map(fn($u) => "{$u->first_name} {$u->last_name}")
             ->toArray();
 
-        if (empty($leaseIds)) {
+        if (empty($leasesByUnit)) {
             $this->command->error('No leases found. Run LeaseSeeder first.');
             return;
         }
@@ -101,54 +116,58 @@ class MaintenanceSeeder extends Seeder
 
         $maintenanceRequests = [];
         $maintenanceLogs     = [];
+        $requestId           = 1;
 
-        $requestId   = 1;
         $currentDate = Carbon::create(2021, 1, 1);
         $endDate     = Carbon::now();
 
         while ($currentDate->lte($endDate)) {
-            $requestsThisMonth = rand(4, 10);
-            $monthStart        = $currentDate->copy()->startOfMonth();
-            $monthEnd          = $currentDate->copy()->endOfMonth()->min($endDate);
+            $monthStart = $currentDate->copy()->startOfMonth();
+            $monthEnd   = $currentDate->copy()->endOfMonth()->min($endDate);
 
-            for ($i = 0; $i < $requestsThisMonth; $i++) {
-                $category = $this->maintenanceCategories[array_rand($this->maintenanceCategories)];
-                $urgency  = $this->getWeightedUrgency($category);
-                $leaseId  = $leaseIds[array_rand($leaseIds)];
-                $logDate  = $monthStart->copy()->addDays(rand(0, $monthStart->diffInDays($monthEnd)));
+            // Each unit gets its own random request count this month
+            foreach ($leasesByUnit as $unitId => $unitLeaseIds) {
+                $requestsThisUnit = rand(0, 2); // 0–2 requests per unit per month
 
-                $monthsAgo = $logDate->diffInMonths(Carbon::now());
-                $status    = isset($expiredLeases[$leaseId])
-                    ? 'Completed'
-                    : $this->resolveStatus($monthsAgo);
+                for ($i = 0; $i < $requestsThisUnit; $i++) {
+                    $category = $this->maintenanceCategories[array_rand($this->maintenanceCategories)];
+                    $urgency  = $this->getWeightedUrgency($category);
+                    $leaseId  = $unitLeaseIds[array_rand($unitLeaseIds)];
+                    $logDate  = $monthStart->copy()->addDays(rand(0, $monthStart->diffInDays($monthEnd)));
 
-                $maintenanceRequests[] = [
-                    'lease_id'      => $leaseId,
-                    'status'        => $status,
-                    'logged_by'     => $managerNames[array_rand($managerNames)],
-                    'ticket_number' => 'TICKET-' . str_pad($requestId, 6, '0', STR_PAD_LEFT),
-                    'log_date'      => $logDate->format('Y-m-d'),
-                    'problem'       => $this->problems[$category][array_rand($this->problems[$category])],
-                    'urgency'       => $urgency,
-                    'category'      => $category,
-                    'created_at'    => $logDate->format('Y-m-d H:i:s'),
-                    'updated_at'    => $logDate->format('Y-m-d H:i:s'),
-                ];
+                    $monthsAgo = $logDate->diffInMonths(Carbon::now());
+                    $status    = isset($expiredLeases[$leaseId])
+                        ? 'Completed'
+                        : $this->resolveStatus($monthsAgo);
 
-                if ($status === 'Completed') {
-                    $completionDays = $this->getCompletionDays($category, $urgency);
-                    $completionDate = $logDate->copy()->addDays($completionDays)->min($endDate);
-
-                    $maintenanceLogs[] = [
-                        'request_id'      => $requestId,
-                        'completion_date' => $completionDate->format('Y-m-d'),
-                        'cost'            => $this->calculateCost($category, $logDate->month),
-                        'created_at'      => $completionDate->format('Y-m-d H:i:s'),
-                        'updated_at'      => $completionDate->format('Y-m-d H:i:s'),
+                    $maintenanceRequests[] = [
+                        'lease_id'      => $leaseId,
+                        'status'        => $status,
+                        'logged_by'     => $managerNames[array_rand($managerNames)],
+                        'ticket_number' => 'TICKET-' . str_pad($requestId, 6, '0', STR_PAD_LEFT),
+                        'log_date'      => $logDate->format('Y-m-d'),
+                        'problem'       => $this->problems[$category][array_rand($this->problems[$category])],
+                        'urgency'       => $urgency,
+                        'category'      => $category,
+                        'created_at'    => $logDate->format('Y-m-d H:i:s'),
+                        'updated_at'    => $logDate->format('Y-m-d H:i:s'),
                     ];
-                }
 
-                $requestId++;
+                    if ($status === 'Completed') {
+                        $completionDays = $this->getCompletionDays($category, $urgency);
+                        $completionDate = $logDate->copy()->addDays($completionDays)->min($endDate);
+
+                        $maintenanceLogs[] = [
+                            'request_id'      => $requestId,
+                            'completion_date' => $completionDate->format('Y-m-d'),
+                            'cost'            => $this->calculateCost($category, $logDate->month),
+                            'created_at'      => $completionDate->format('Y-m-d H:i:s'),
+                            'updated_at'      => $completionDate->format('Y-m-d H:i:s'),
+                        ];
+                    }
+
+                    $requestId++;
+                }
             }
 
             $currentDate->addMonth()->startOfMonth();
