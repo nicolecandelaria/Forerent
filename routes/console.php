@@ -382,6 +382,218 @@ Artisan::command('leases:handle-expiration {--dry-run : Show what would change w
     }
 })->purpose('Handle lease expiry warnings, auto-renewals, and auto-expiration');
 
+/*
+|--------------------------------------------------------------------------
+| test:tricia-move-in
+|--------------------------------------------------------------------------
+| Simulates the full move-in flow for Tricia Tenant.
+| Run: php artisan test:tricia-move-in
+| Add --reset to clear her existing lease first.
+*/
+Artisan::command('test:tricia-move-in {--reset : Remove existing active lease first}', function () {
+    $reset = (bool) $this->option('reset');
+
+    $this->newLine();
+    $this->info('========================================');
+    $this->info('  TRICIA\'S MOVE-IN FLOW TEST');
+    $this->info('========================================');
+
+    // STEP 1: Find or create Tricia
+    $this->newLine();
+    $this->comment('--- STEP 1: Find/Create Tenant ---');
+
+    $tricia = \App\Models\User::where('email', 'tenant@example.com')->first();
+
+    if (!$tricia) {
+        $tricia = \App\Models\User::create([
+            'first_name' => 'Tricia', 'last_name' => 'Tenant', 'gender' => 'Female',
+            'email' => 'tenant@example.com', 'contact' => '9171234567', 'role' => 'tenant',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'permanent_address' => '123 Main St, Quezon City',
+            'government_id_type' => 'National ID', 'government_id_number' => 'NID-2024-00001',
+            'company_school' => 'UP Diliman', 'position_course' => 'BS Computer Science',
+            'emergency_contact_name' => 'Maria Tenant',
+            'emergency_contact_relationship' => 'Mother',
+            'emergency_contact_number' => '9179876543',
+        ]);
+        $this->line("  [CREATED] Tricia Tenant (user_id: {$tricia->user_id})");
+    } else {
+        $tricia->update(array_filter([
+            'gender' => $tricia->gender ?: 'Female',
+            'contact' => $tricia->contact ?: '9171234567',
+            'permanent_address' => $tricia->permanent_address ?: '123 Main St, Quezon City',
+            'government_id_type' => $tricia->government_id_type ?: 'National ID',
+            'government_id_number' => $tricia->government_id_number ?: 'NID-2024-00001',
+            'company_school' => $tricia->company_school ?: 'UP Diliman',
+            'position_course' => $tricia->position_course ?: 'BS Computer Science',
+            'emergency_contact_name' => $tricia->emergency_contact_name ?: 'Maria Tenant',
+            'emergency_contact_relationship' => $tricia->emergency_contact_relationship ?: 'Mother',
+            'emergency_contact_number' => $tricia->emergency_contact_number ?: '9179876543',
+        ]));
+        $this->line("  [FOUND] Tricia Tenant (user_id: {$tricia->user_id})");
+    }
+
+    // Reset if requested
+    if ($reset) {
+        $existing = \App\Models\Lease::where('tenant_id', $tricia->user_id)->where('status', 'Active')->first();
+        if ($existing) {
+            \App\Models\MoveInInspection::where('lease_id', $existing->lease_id)->delete();
+            \App\Models\Bed::where('bed_id', $existing->bed_id)->update(['status' => 'Vacant']);
+            $existing->update(['status' => 'Expired']);
+            $this->warn("  [RESET] Expired lease #{$existing->lease_id}, freed bed #{$existing->bed_id}");
+        }
+    }
+
+    // STEP 2: Find vacant bed
+    $this->newLine();
+    $this->comment('--- STEP 2: Find Vacant Bed ---');
+
+    $existingLease = \App\Models\Lease::where('tenant_id', $tricia->user_id)->where('status', 'Active')->first();
+
+    if ($existingLease) {
+        $this->warn("  [!] Already has active lease #{$existingLease->lease_id} (contract: {$existingLease->contract_status})");
+        $this->line("  Skipping to inspection step...");
+        $lease = $existingLease;
+        $bed = \App\Models\Bed::find($lease->bed_id);
+    } else {
+        $bed = \App\Models\Bed::where('status', 'Vacant')
+            ->whereHas('unit', fn($q) => $q->whereIn('occupants', ['Female', 'Co-ed']))
+            ->with('unit.property')->first();
+        if (!$bed) $bed = \App\Models\Bed::where('status', 'Vacant')->with('unit.property')->first();
+        if (!$bed) {
+            $this->error('  No vacant beds available!');
+            return 1;
+        }
+
+        $unit = $bed->unit;
+        $property = $unit->property;
+        $this->line("  [FOUND] Bed #{$bed->bed_number} in Unit {$unit->unit_number}, {$property->name}");
+
+        // STEP 3: Create lease + billings
+        $this->newLine();
+        $this->comment('--- STEP 3: Create Lease ---');
+
+        $startDate = Carbon::today();
+        $term = 12;
+        $monthlyRate = $unit->price ?? 5500;
+        $securityDeposit = $monthlyRate;
+        $lease = null;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($tricia, $bed, $startDate, $term, $monthlyRate, $securityDeposit, &$lease) {
+            $lease = \App\Models\Lease::create([
+                'tenant_id' => $tricia->user_id, 'bed_id' => $bed->bed_id,
+                'status' => 'Active', 'contract_status' => 'draft', 'term' => $term,
+                'auto_renew' => false, 'start_date' => $startDate,
+                'end_date' => $startDate->copy()->addMonths($term),
+                'contract_rate' => $monthlyRate, 'advance_amount' => $monthlyRate,
+                'security_deposit' => $securityDeposit, 'move_in' => $startDate,
+                'shift' => 'Morning', 'monthly_due_date' => 5, 'late_payment_penalty' => 1,
+                'short_term_premium' => 0, 'reservation_fee_paid' => 0, 'early_termination_fee' => 0,
+            ]);
+
+            $billing = \App\Models\Billing::create([
+                'lease_id' => $lease->lease_id, 'billing_date' => $startDate,
+                'next_billing' => $startDate->copy()->addMonth(),
+                'to_pay' => $monthlyRate, 'amount' => $monthlyRate, 'status' => 'Paid',
+            ]);
+
+            $depBilling = \App\Models\Billing::create([
+                'lease_id' => $lease->lease_id, 'billing_date' => $startDate,
+                'next_billing' => $startDate, 'to_pay' => $securityDeposit,
+                'amount' => $securityDeposit, 'status' => 'Unpaid',
+            ]);
+
+            $advTx = \App\Models\Transaction::createWithSequenceRetry([
+                'billing_id' => $billing->billing_id, 'reference_number' => 'placeholder',
+                'transaction_type' => 'Debit', 'category' => 'Advance',
+                'transaction_date' => today(), 'amount' => $monthlyRate,
+            ]);
+            $advTx->update(['reference_number' => 'ADV' . now()->format('Ymd') . '-' . str_pad($advTx->transaction_id, 6, '0', STR_PAD_LEFT)]);
+
+            $depTx = \App\Models\Transaction::createWithSequenceRetry([
+                'billing_id' => $depBilling->billing_id, 'reference_number' => 'placeholder',
+                'transaction_type' => 'Debit', 'category' => 'Deposit',
+                'transaction_date' => today(), 'amount' => $securityDeposit,
+            ]);
+            $depTx->update(['reference_number' => 'DEP' . now()->format('Ymd') . '-' . str_pad($depTx->transaction_id, 6, '0', STR_PAD_LEFT)]);
+
+            $bed->update(['status' => 'Occupied']);
+        });
+
+        $this->line("  [CREATED] Lease #{$lease->lease_id}");
+        $this->line("    Rate: PHP {$monthlyRate}/mo | Deposit: PHP {$securityDeposit}");
+        $this->line("    Start: {$startDate->toDateString()} | Contract: {$lease->contract_status}");
+    }
+
+    // STEP 4: Move-in inspection
+    $this->newLine();
+    $this->comment('--- STEP 4: Move-In Inspection ---');
+
+    $checklistItems = ['Bed Frame', 'Cabinet', 'AC Unit', 'Bathroom Fixtures', 'Electrical', 'Windows', 'Walls', 'Floor', 'Door Lock'];
+    $receivedItems = ['Unit Key(s)', 'Building Access Card', 'Wi-Fi Credentials', 'AC Remote', 'Cabinet Key'];
+
+    foreach ($checklistItems as $item) {
+        \App\Models\MoveInInspection::updateOrCreate(
+            ['lease_id' => $lease->lease_id, 'type' => 'checklist', 'item_name' => $item],
+            ['condition' => 'good', 'remarks' => null, 'tenant_confirmed' => true]
+        );
+    }
+    $this->line('  [OK] ' . count($checklistItems) . ' checklist items (all good)');
+
+    foreach ($receivedItems as $item) {
+        \App\Models\MoveInInspection::updateOrCreate(
+            ['lease_id' => $lease->lease_id, 'type' => 'item_received', 'item_name' => $item],
+            ['condition' => 'good', 'quantity' => 1, 'remarks' => null, 'tenant_confirmed' => true]
+        );
+    }
+    $this->line('  [OK] ' . count($receivedItems) . ' items received');
+
+    // STEP 5: Contract signing
+    $this->newLine();
+    $this->comment('--- STEP 5: Contract Signing ---');
+
+    $lease->update([
+        'contract_status' => 'pending_tenant',
+        'owner_signature' => 'data:image/png;base64,OWNER_SIG_PLACEHOLDER',
+        'owner_signed_at' => now(), 'owner_signed_ip' => '127.0.0.1',
+    ]);
+    $this->line('  [OK] Owner signed -> pending_tenant');
+
+    $lease->update([
+        'contract_status' => 'executed',
+        'tenant_signature' => 'data:image/png;base64,TENANT_SIG_PLACEHOLDER',
+        'tenant_signed_at' => now(), 'tenant_signed_ip' => '127.0.0.1',
+        'contract_agreed' => true,
+    ]);
+    $this->line('  [OK] Tenant signed -> executed');
+
+    // SUMMARY
+    $lease->refresh();
+    $billings = \App\Models\Billing::where('lease_id', $lease->lease_id)->get();
+    $inspCount = \App\Models\MoveInInspection::where('lease_id', $lease->lease_id)->count();
+
+    $this->newLine();
+    $this->info('========================================');
+    $this->info('  MOVE-IN COMPLETE');
+    $this->info('========================================');
+    $this->line("  Tenant:    {$tricia->first_name} {$tricia->last_name} ({$tricia->email})");
+    $this->line("  Lease:     #{$lease->lease_id}");
+    $this->line("  Bed:       #{$lease->bed_id} (" . \App\Models\Bed::find($lease->bed_id)->status . ')');
+    $this->line("  Status:    {$lease->status} | Contract: {$lease->contract_status}");
+    $this->line("  Move-In:   {$lease->move_in}");
+    $this->line("  Billings:  {$billings->count()}");
+    foreach ($billings as $b) {
+        $this->line("    - #{$b->billing_id}: PHP {$b->amount} ({$b->status})");
+    }
+    $this->line("  Inspections: {$inspCount} items");
+    $this->line("  Signed:    Owner=" . ($lease->owner_signed_at ? 'Yes' : 'No') . " | Tenant=" . ($lease->tenant_signed_at ? 'Yes' : 'No'));
+    $this->newLine();
+    $this->info('  Flow complete. You can view Tricia in the dashboard.');
+    $this->newLine();
+
+    return 0;
+})->purpose('Test: Simulate Tricia\'s full move-in flow');
+
 // Schedule: run daily at midnight
 Schedule::command('billings:apply-late-fees')->daily();
 Schedule::command('leases:handle-expiration')->daily();

@@ -365,10 +365,13 @@ class TenantDashboardOverview extends Component
             ->get();
 
         $this->itemsReceived = $inspections->map(fn($i) => [
+            'id' => $i->id,
             'item_name' => $i->item_name,
             'quantity' => $i->quantity,
             'condition' => $i->remarks,
             'tenant_confirmed' => (bool) $i->tenant_confirmed,
+            'dispute_status' => $i->dispute_status ?? 'none',
+            'resolution_remarks' => $i->resolution_remarks,
         ])->toArray();
 
         // Check if all items are confirmed by tenant
@@ -689,10 +692,13 @@ class TenantDashboardOverview extends Component
         // Items returned
         $returnedItems = $moveOutInspections->where('type', 'item_returned');
         $this->itemsReturned = $returnedItems->map(fn($i) => [
+            'id' => $i->id,
             'item_name' => $i->item_name,
             'quantity' => $i->quantity,
             'condition' => $i->remarks,
             'tenant_confirmed' => (bool) $i->tenant_confirmed,
+            'dispute_status' => $i->dispute_status ?? 'none',
+            'resolution_remarks' => $i->resolution_remarks,
         ])->toArray();
 
         $this->itemsReturnedConfirmedByTenant = count($this->itemsReturned) > 0
