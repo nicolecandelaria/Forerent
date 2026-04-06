@@ -287,25 +287,37 @@ trait WithContractData
         foreach (InspectionConfig::CHECKLIST_ITEMS as $item) {
             $saved = $savedChecklist->firstWhere('item_name', $item);
             $checklist[] = [
-                'item_name'   => $item,
-                'condition'   => $saved?->condition ?? '',
-                'remarks'     => $saved?->remarks ?? '',
-                'repair_cost' => $saved?->repair_cost ?? '',
+                'item_name'          => $item,
+                'condition'          => $saved?->condition ?? '',
+                'remarks'            => $saved?->remarks ?? '',
+                'repair_cost'        => $saved?->repair_cost ?? '',
+                'id'                 => $saved?->id,
+                'dispute_status'     => $saved?->dispute_status ?? 'none',
+                'dispute_remarks'    => $saved?->dispute_remarks,
+                'resolution_remarks' => $saved?->resolution_remarks,
             ];
         }
         $this->$checklistProp = $checklist;
 
         $items = [];
+        $isMoveOut = $itemType === 'item_returned';
         foreach ($itemsList as $item) {
             $saved = $savedItems->firstWhere('item_name', $item);
-            $items[] = [
-                'item_name'         => $item,
-                'quantity'          => $saved?->quantity ?? '',
-                'condition'         => $saved?->remarks ?? '',
-                'tenant_confirmed'  => $saved?->tenant_confirmed ?? false,
-                'is_returned'       => $saved?->is_returned ?? false,
-                'replacement_cost'  => $saved?->replacement_cost ?? '',
+            $entry = [
+                'item_name'          => $item,
+                'quantity'           => $saved?->quantity ?? '',
+                'condition'          => $saved?->remarks ?? '',
+                'tenant_confirmed'   => $saved?->tenant_confirmed ?? false,
+                'id'                 => $saved?->id,
+                'dispute_status'     => $saved?->dispute_status ?? 'none',
+                'dispute_remarks'    => $saved?->dispute_remarks,
+                'resolution_remarks' => $saved?->resolution_remarks,
             ];
+            if ($isMoveOut) {
+                $entry['is_returned'] = $saved?->is_returned ?? false;
+                $entry['replacement_cost'] = $saved?->replacement_cost ?? '';
+            }
+            $items[] = $entry;
         }
         $this->$itemsProp = $items;
     }

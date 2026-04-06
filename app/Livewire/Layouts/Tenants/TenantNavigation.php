@@ -24,6 +24,7 @@ class TenantNavigation extends Component
     public $search = '';
     public $counts = [
         'current'     => 0,
+        'moving_out'  => 0,
         'transferred' => 0,
         'moved_out'   => 0,
     ];
@@ -120,6 +121,7 @@ class TenantNavigation extends Component
     private function loadTenants(): void
     {
         $raw = match ($this->activeTab) {
+            'moving_out'  => $this->loadMovingOutTenants(),
             'transferred' => $this->loadTransferredTenants(),
             'moved_out'   => $this->loadMovedOutTenants(),
             default       => $this->loadCurrentTenants(),
@@ -188,6 +190,48 @@ class TenantNavigation extends Component
                     'bed_number'     => $lease->bed->bed_number ?? 'N/A',
                     'payment_status' => $latestBilling?->status ?? 'No billing',
                     'next_billing'   => $latestBilling?->billing_date ?? null,
+                    'created_at'     => $lease->created_at,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
+    private function loadMovingOutTenants(): array
+    {
+        $unitIds = $this->getUnitIds();
+
+        if ($unitIds->isEmpty()) {
+            return [];
+        }
+
+        $leases = Lease::where('leases.status', 'Active')
+            ->whereNotNull('leases.move_out_initiated_at')
+            ->join('beds', 'beds.bed_id', '=', 'leases.bed_id')
+            ->whereIn('beds.unit_id', $unitIds)
+            ->with([
+                'tenant' => fn($q) => $q->where('role', 'tenant'),
+                'bed.unit',
+            ])
+            ->select('leases.*')
+            ->get()
+            ->filter(fn($lease) => $lease->tenant !== null);
+
+        if ($leases->isEmpty()) {
+            return [];
+        }
+
+        return $leases
+            ->unique('tenant_id')
+            ->map(function ($lease) {
+                return [
+                    'id'             => $lease->tenant->user_id,
+                    'first_name'     => $lease->tenant->first_name,
+                    'last_name'      => $lease->tenant->last_name,
+                    'unit'           => $lease->bed->unit->unit_number ?? 'N/A',
+                    'bed_number'     => $lease->bed->bed_number ?? 'N/A',
+                    'payment_status' => 'Moving Out',
+                    'next_billing'   => $lease->move_out_initiated_at,
                     'created_at'     => $lease->created_at,
                 ];
             })
@@ -289,9 +333,20 @@ class TenantNavigation extends Component
         $unitIds = $this->getUnitIds();
 
         if ($unitIds->isEmpty()) {
-            $this->counts = ['current' => 0, 'transferred' => 0, 'moved_out' => 0];
+            $this->counts = ['current' => 0, 'moving_out' => 0, 'transferred' => 0, 'moved_out' => 0];
             return;
         }
+
+        $movingOutCount = Lease::where('leases.status', 'Active')
+            ->whereNotNull('move_out_initiated_at')
+            ->whereIn('bed_id', function ($q) use ($unitIds) {
+                $q->select('bed_id')->from('beds')->whereIn('unit_id', $unitIds);
+            })
+            ->whereIn('tenant_id', function ($q) {
+                $q->select('user_id')->from('users')->where('role', 'tenant');
+            })
+            ->distinct()
+            ->count('tenant_id');
 
         $currentCount = Lease::where('leases.status', 'Active')
             ->whereIn('bed_id', function ($q) use ($unitIds) {
@@ -345,6 +400,7 @@ class TenantNavigation extends Component
 
         $this->counts = [
             'current'     => $currentCount,
+            'moving_out'  => $movingOutCount,
             'transferred' => $transferredCount,
             'moved_out'   => $movedOutCount,
         ];
