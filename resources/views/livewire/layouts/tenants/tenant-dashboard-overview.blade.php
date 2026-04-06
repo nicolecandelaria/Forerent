@@ -9,11 +9,11 @@
             'inspection' => 'Inspection & Contract',
         ];
         $dashCounts = [];
-        if (($paymentStatus === 'Overdue' || ($paymentStatus === 'Unpaid' && $daysUntilDue <= 3)) || (!$tenantSignature && $ownerSignature) || $openMaintenanceCount > 0) {
+        if (($paymentStatus === 'Overdue' || ($paymentStatus === 'Unpaid' && $daysUntilDue <= 3)) || (!$tenantSignature && $ownerSignature && $managerSignature) || $openMaintenanceCount > 0) {
             $actionCount = 0;
             if ($paymentStatus === 'Overdue' || ($paymentStatus === 'Unpaid' && $daysUntilDue <= 3)) $actionCount++;
-            if (!$tenantSignature && $ownerSignature) $actionCount++;
-            if ($moveOutDate && !$moveOutTenantSignature && $moveOutOwnerSignature) $actionCount++;
+            if (!$tenantSignature && $ownerSignature && $managerSignature) $actionCount++;
+            if ($moveOutDate && !$moveOutTenantSignature && $moveOutOwnerSignature && $moveOutManagerSignature) $actionCount++;
             if ($openMaintenanceCount > 0) $actionCount++;
             if ($lease && $daysUntilExpiry <= 30 && $daysUntilExpiry > 0) $actionCount++;
             if ($actionCount > 0) $dashCounts['overview'] = $actionCount;
@@ -215,37 +215,52 @@
                     </div>
                     @if($contractAgreed)
                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase" style="background:#eef2ff;color:#070589">Signed</span>
-                    @elseif(!$tenantSignature && $ownerSignature)
+                    @elseif(!$tenantSignature && $ownerSignature && $managerSignature)
                         <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-bold uppercase animate-pulse">Action Needed</span>
                     @else
                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase" style="background:#eef2ff;color:#070589">Pending</span>
                     @endif
                 </div>
-                <div class="flex items-center gap-2 mb-5">
-                    <div class="flex items-center gap-2 flex-1 p-2.5 rounded-xl" style="background:{{ $ownerSignature ? '#eef2ff' : '#f9fafb' }}">
-                        <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $ownerSignature ? '#070589' : '#e5e7eb' }}">
+                {{-- 3-step signing pipeline: Owner → Manager/Witness → You --}}
+                <div class="flex items-center gap-1.5 mb-5">
+                    {{-- Step 1: Owner --}}
+                    <div class="flex items-center gap-1.5 flex-1 p-2 rounded-xl" style="background:{{ $ownerSignature ? '#eef2ff' : '#f9fafb' }}">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $ownerSignature ? '#070589' : '#e5e7eb' }}">
                             @if($ownerSignature)
-                                <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                             @else
-                                <span class="text-[13px] font-bold text-gray-400">1</span>
+                                <span class="text-[11px] font-bold text-gray-400">1</span>
                             @endif
                         </div>
-                        <div><p class="text-xs font-bold" style="color:{{ $ownerSignature ? '#070589' : '#9ca3af' }}">Lessor</p><p class="text-[13px]" style="color:{{ $ownerSignature ? '#2563eb' : '#d1d5db' }}">{{ $ownerSignature ? 'Signed' : 'Waiting' }}</p></div>
+                        <div><p class="text-[11px] font-bold" style="color:{{ $ownerSignature ? '#070589' : '#9ca3af' }}">Owner</p><p class="text-[11px]" style="color:{{ $ownerSignature ? '#2563eb' : '#d1d5db' }}">{{ $ownerSignature ? 'Signed' : 'Waiting' }}</p></div>
                     </div>
-                    <div class="w-5 h-px" style="background:{{ $ownerSignature ? '#070589' : '#e5e7eb' }}"></div>
-                    <div class="flex items-center gap-2 flex-1 p-2.5 rounded-xl" style="background:{{ $tenantSignature ? '#eef2ff' : ($ownerSignature ? '#eff6ff' : '#f9fafb') }}">
-                        <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $tenantSignature ? '#070589' : ($ownerSignature ? '#2563eb' : '#e5e7eb') }}">
-                            @if($tenantSignature)
-                                <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    <div class="w-3 h-px" style="background:{{ $ownerSignature ? '#070589' : '#e5e7eb' }}"></div>
+                    {{-- Step 2: Manager/Witness --}}
+                    <div class="flex items-center gap-1.5 flex-1 p-2 rounded-xl" style="background:{{ $managerSignature ? '#eef2ff' : ($ownerSignature ? '#eff6ff' : '#f9fafb') }}">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $managerSignature ? '#070589' : ($ownerSignature ? '#d97706' : '#e5e7eb') }}">
+                            @if($managerSignature)
+                                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                             @else
-                                <span class="text-[13px] font-bold {{ $ownerSignature ? 'text-white' : 'text-gray-400' }}">2</span>
+                                <span class="text-[11px] font-bold {{ $ownerSignature ? 'text-white' : 'text-gray-400' }}">2</span>
                             @endif
                         </div>
-                        <div><p class="text-xs font-bold" style="color:{{ $tenantSignature ? '#070589' : ($ownerSignature ? '#2563eb' : '#9ca3af') }}">You</p><p class="text-[13px]" style="color:{{ $tenantSignature ? '#2563eb' : ($ownerSignature ? '#60a5fa' : '#d1d5db') }}">{{ $tenantSignature ? 'Signed' : ($ownerSignature ? 'Your turn' : 'Waiting') }}</p></div>
+                        <div><p class="text-[11px] font-bold" style="color:{{ $managerSignature ? '#070589' : ($ownerSignature ? '#d97706' : '#9ca3af') }}">Witness</p><p class="text-[11px]" style="color:{{ $managerSignature ? '#2563eb' : ($ownerSignature ? '#f59e0b' : '#d1d5db') }}">{{ $managerSignature ? 'Signed' : 'Waiting' }}</p></div>
+                    </div>
+                    <div class="w-3 h-px" style="background:{{ $managerSignature ? '#070589' : '#e5e7eb' }}"></div>
+                    {{-- Step 3: Tenant (You) --}}
+                    <div class="flex items-center gap-1.5 flex-1 p-2 rounded-xl" style="background:{{ $tenantSignature ? '#eef2ff' : ($managerSignature ? '#eff6ff' : '#f9fafb') }}">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $tenantSignature ? '#070589' : ($managerSignature ? '#2563eb' : '#e5e7eb') }}">
+                            @if($tenantSignature)
+                                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            @else
+                                <span class="text-[11px] font-bold {{ $managerSignature ? 'text-white' : 'text-gray-400' }}">3</span>
+                            @endif
+                        </div>
+                        <div><p class="text-[11px] font-bold" style="color:{{ $tenantSignature ? '#070589' : ($managerSignature ? '#2563eb' : '#9ca3af') }}">You</p><p class="text-[11px]" style="color:{{ $tenantSignature ? '#2563eb' : ($managerSignature ? '#60a5fa' : '#d1d5db') }}">{{ $tenantSignature ? 'Signed' : ($managerSignature ? 'Your turn' : 'Waiting') }}</p></div>
                     </div>
                 </div>
                 <div class="mt-auto">
-                    @if(!$tenantSignature && $ownerSignature)
+                    @if(!$tenantSignature && $ownerSignature && $managerSignature)
                         <button wire:click="toggleContract" class="w-full py-2.5 px-4 text-white font-bold rounded-xl text-[13px] transition-all flex items-center justify-center gap-2 hover:opacity-90" style="background:#070589;box-shadow:0 4px 14px rgba(7,5,137,0.3)">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
                             Read & Sign Contract
@@ -337,8 +352,7 @@
 
                             @if($vio['status'] === 'Issued')
                                 <button
-                                    wire:click="acknowledgeViolation({{ $vio['violation_id'] }})"
-                                    wire:confirm="Are you sure you want to acknowledge this violation? This confirms you have received and read the notice."
+                                    wire:click="promptAcknowledgeViolation({{ $vio['violation_id'] }})"
                                     class="px-3 py-1.5 bg-[#070589] text-white text-[10px] font-bold rounded-lg hover:bg-[#0a0a6e] transition"
                                 >
                                     Acknowledge
@@ -488,7 +502,7 @@
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold uppercase tracking-wider">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>Signed
                                 </span>
-                            @elseif($ownerSignature && !$tenantSignature)
+                            @elseif($ownerSignature && $managerSignature && !$tenantSignature)
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-bold uppercase tracking-wider animate-pulse">
                                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>Action Needed
                                 </span>
@@ -547,8 +561,9 @@
                             </div>
                         </div>
 
-                        {{-- Signatures --}}
+                        {{-- Signatures (3-party: Owner → Manager/Witness → Tenant) --}}
                         <div class="space-y-2 mb-4">
+                            {{-- Owner Signature --}}
                             <div class="flex items-center justify-between p-2.5 rounded-xl {{ $ownerSignature ? 'bg-emerald-50/50' : 'bg-gray-50/50' }}">
                                 <div class="flex items-center gap-2">
                                     <div class="w-7 h-7 rounded-lg {{ $ownerSignature ? 'bg-emerald-100' : 'bg-gray-100' }} flex items-center justify-center">
@@ -559,44 +574,63 @@
                                         @endif
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold {{ $ownerSignature ? 'text-emerald-600' : 'text-gray-400' }}">Lessor / Manager</p>
-                                        <p class="text-[13px] {{ $ownerSignature ? 'text-emerald-500' : 'text-gray-300' }}">{{ $ownerSignature ? 'Signed: ' . $ownerSignedAt : 'Awaiting signature' }}</p>
+                                        <p class="text-xs font-bold {{ $ownerSignature ? 'text-emerald-600' : 'text-gray-400' }}">Property Owner</p>
+                                        <p class="text-[11px] {{ $ownerSignature ? 'text-emerald-500' : 'text-gray-300' }}">{{ $ownerSignature ? 'Signed: ' . $ownerSignedAt : 'Awaiting signature' }}</p>
                                     </div>
                                 </div>
-                                @if($ownerSignature)<img src="{{ asset('storage/' . $ownerSignature) }}" class="h-7 object-contain" alt="Signature">@endif
+                                @if($ownerSignature)<img src="{{ asset('storage/' . $ownerSignature) }}" class="h-6 object-contain" alt="Signature">@endif
                             </div>
 
-                            <div class="flex items-center justify-between p-2.5 rounded-xl {{ $tenantSignature ? 'bg-emerald-50/50' : 'bg-blue-50/30' }}">
+                            {{-- Manager/Witness Signature --}}
+                            <div class="flex items-center justify-between p-2.5 rounded-xl {{ $managerSignature ? 'bg-amber-50/50' : 'bg-gray-50/50' }}">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-7 h-7 rounded-lg {{ $tenantSignature ? 'bg-emerald-100' : 'bg-blue-100' }} flex items-center justify-center">
-                                        @if($tenantSignature)
-                                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    <div class="w-7 h-7 rounded-lg {{ $managerSignature ? 'bg-amber-100' : 'bg-gray-100' }} flex items-center justify-center">
+                                        @if($managerSignature)
+                                            <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                         @else
-                                            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                            <svg class="w-3.5 h-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         @endif
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold {{ $tenantSignature ? 'text-emerald-600' : 'text-blue-600' }}">Your Signature</p>
-                                        <p class="text-[13px] {{ $tenantSignature ? 'text-emerald-500' : 'text-blue-400' }}">{{ $tenantSignature ? 'Signed: ' . $tenantSignedAt : 'Your signature is required' }}</p>
+                                        <p class="text-xs font-bold {{ $managerSignature ? 'text-amber-600' : 'text-gray-400' }}">Manager (Witness)</p>
+                                        <p class="text-[11px] {{ $managerSignature ? 'text-amber-500' : 'text-gray-300' }}">{{ $managerSignature ? 'Witnessed: ' . $managerSignedAt : 'Awaiting witness signature' }}</p>
                                     </div>
                                 </div>
-                                @if($tenantSignature)<img src="{{ asset('storage/' . $tenantSignature) }}" class="h-7 object-contain" alt="Signature">@endif
+                                @if($managerSignature)<img src="{{ asset('storage/' . $managerSignature) }}" class="h-6 object-contain" alt="Signature">@endif
+                            </div>
+
+                            {{-- Tenant Signature --}}
+                            <div class="flex items-center justify-between p-2.5 rounded-xl {{ $tenantSignature ? 'bg-emerald-50/50' : ($managerSignature ? 'bg-blue-50/30' : 'bg-gray-50/50') }}">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg {{ $tenantSignature ? 'bg-emerald-100' : ($managerSignature ? 'bg-blue-100' : 'bg-gray-100') }} flex items-center justify-center">
+                                        @if($tenantSignature)
+                                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        @else
+                                            <svg class="w-3.5 h-3.5 {{ $managerSignature ? 'text-blue-400' : 'text-gray-300' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold {{ $tenantSignature ? 'text-emerald-600' : ($managerSignature ? 'text-blue-600' : 'text-gray-400') }}">Your Signature</p>
+                                        <p class="text-[11px] {{ $tenantSignature ? 'text-emerald-500' : ($managerSignature ? 'text-blue-400' : 'text-gray-300') }}">{{ $tenantSignature ? 'Signed: ' . $tenantSignedAt : ($ownerSignature && $managerSignature ? 'Your signature is required' : 'Waiting for owner & witness') }}</p>
+                                    </div>
+                                </div>
+                                @if($tenantSignature)<img src="{{ asset('storage/' . $tenantSignature) }}" class="h-6 object-contain" alt="Signature">@endif
                             </div>
                         </div>
 
                         <button wire:click="toggleContract" class="w-full py-2.5 px-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl text-[13px] transition-colors flex items-center justify-center gap-2">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
-                            {{ !$tenantSignature && $ownerSignature ? 'Read & Sign Contract' : 'View Contract' }}
+                            {{ !$tenantSignature && $ownerSignature && $managerSignature ? 'Read & Sign Contract' : 'View Contract' }}
                         </button>
 
                         @if($contractAgreed)
                             <div class="text-center py-2 px-3 bg-emerald-50/50 rounded-xl mt-3">
                                 <p class="text-[13px] font-bold text-emerald-600">Contract Fully Signed</p>
-                                <p class="text-[13px] text-emerald-400 mt-0.5">Both parties have signed electronically per RA 8792.</p>
+                                <p class="text-[13px] text-emerald-400 mt-0.5">All parties have signed electronically per RA 8792.</p>
                             </div>
-                        @elseif(!$tenantSignature && !$ownerSignature)
+                        @elseif(!$ownerSignature)
                             <div class="text-center py-2 px-3 bg-gray-50/50 rounded-xl mt-3">
-                                <p class="text-xs text-gray-400">Waiting for the lessor/manager to sign first.</p>
+                                <p class="text-xs text-gray-400">Waiting for the property owner to sign first.</p>
                             </div>
                         @endif
                     </div>
@@ -644,8 +678,9 @@
                             </div>
                         </div>
 
-                        {{-- Move-Out Signatures --}}
+                        {{-- Move-Out Signatures (3-party: Owner → Manager/Witness → Tenant) --}}
                         <div class="space-y-2 mb-4">
+                            {{-- Owner --}}
                             <div class="flex items-center justify-between p-2.5 rounded-xl {{ $moveOutOwnerSignature ? 'bg-emerald-50/50' : 'bg-gray-50/50' }}">
                                 <div class="flex items-center gap-2">
                                     <div class="w-7 h-7 rounded-lg {{ $moveOutOwnerSignature ? 'bg-emerald-100' : 'bg-gray-100' }} flex items-center justify-center">
@@ -656,28 +691,45 @@
                                         @endif
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold {{ $moveOutOwnerSignature ? 'text-emerald-600' : 'text-gray-400' }}">Lessor / Manager</p>
-                                        <p class="text-[13px] {{ $moveOutOwnerSignature ? 'text-emerald-500' : 'text-gray-300' }}">{{ $moveOutOwnerSignature ? 'Signed: ' . $moveOutOwnerSignedAt : 'Awaiting signature' }}</p>
+                                        <p class="text-xs font-bold {{ $moveOutOwnerSignature ? 'text-emerald-600' : 'text-gray-400' }}">Property Owner</p>
+                                        <p class="text-[11px] {{ $moveOutOwnerSignature ? 'text-emerald-500' : 'text-gray-300' }}">{{ $moveOutOwnerSignature ? 'Signed: ' . $moveOutOwnerSignedAt : 'Awaiting signature' }}</p>
                                     </div>
                                 </div>
-                                @if($moveOutOwnerSignature)<img src="{{ asset('storage/' . $moveOutOwnerSignature) }}" class="h-7 object-contain" alt="Signature">@endif
+                                @if($moveOutOwnerSignature)<img src="{{ asset('storage/' . $moveOutOwnerSignature) }}" class="h-6 object-contain" alt="Signature">@endif
                             </div>
-
-                            <div class="flex items-center justify-between p-2.5 rounded-xl {{ $moveOutTenantSignature ? 'bg-emerald-50/50' : 'bg-blue-50/30' }}">
+                            {{-- Manager/Witness --}}
+                            <div class="flex items-center justify-between p-2.5 rounded-xl {{ $moveOutManagerSignature ? 'bg-amber-50/50' : 'bg-gray-50/50' }}">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-7 h-7 rounded-lg {{ $moveOutTenantSignature ? 'bg-emerald-100' : 'bg-blue-100' }} flex items-center justify-center">
-                                        @if($moveOutTenantSignature)
-                                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    <div class="w-7 h-7 rounded-lg {{ $moveOutManagerSignature ? 'bg-amber-100' : 'bg-gray-100' }} flex items-center justify-center">
+                                        @if($moveOutManagerSignature)
+                                            <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                         @else
-                                            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                            <svg class="w-3.5 h-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         @endif
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold {{ $moveOutTenantSignature ? 'text-emerald-600' : 'text-blue-600' }}">Your Signature</p>
-                                        <p class="text-[13px] {{ $moveOutTenantSignature ? 'text-emerald-500' : 'text-blue-400' }}">{{ $moveOutTenantSignature ? 'Signed: ' . $moveOutTenantSignedAt : 'Your signature is required' }}</p>
+                                        <p class="text-xs font-bold {{ $moveOutManagerSignature ? 'text-amber-600' : 'text-gray-400' }}">Manager (Witness)</p>
+                                        <p class="text-[11px] {{ $moveOutManagerSignature ? 'text-amber-500' : 'text-gray-300' }}">{{ $moveOutManagerSignature ? 'Witnessed: ' . $moveOutManagerSignedAt : 'Awaiting witness signature' }}</p>
                                     </div>
                                 </div>
-                                @if($moveOutTenantSignature)<img src="{{ asset('storage/' . $moveOutTenantSignature) }}" class="h-7 object-contain" alt="Signature">@endif
+                                @if($moveOutManagerSignature)<img src="{{ asset('storage/' . $moveOutManagerSignature) }}" class="h-6 object-contain" alt="Signature">@endif
+                            </div>
+                            {{-- Tenant --}}
+                            <div class="flex items-center justify-between p-2.5 rounded-xl {{ $moveOutTenantSignature ? 'bg-emerald-50/50' : ($moveOutManagerSignature ? 'bg-blue-50/30' : 'bg-gray-50/50') }}">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg {{ $moveOutTenantSignature ? 'bg-emerald-100' : ($moveOutManagerSignature ? 'bg-blue-100' : 'bg-gray-100') }} flex items-center justify-center">
+                                        @if($moveOutTenantSignature)
+                                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        @else
+                                            <svg class="w-3.5 h-3.5 {{ $moveOutManagerSignature ? 'text-blue-400' : 'text-gray-300' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold {{ $moveOutTenantSignature ? 'text-emerald-600' : ($moveOutManagerSignature ? 'text-blue-600' : 'text-gray-400') }}">Your Signature</p>
+                                        <p class="text-[11px] {{ $moveOutTenantSignature ? 'text-emerald-500' : ($moveOutManagerSignature ? 'text-blue-400' : 'text-gray-300') }}">{{ $moveOutTenantSignature ? 'Signed: ' . $moveOutTenantSignedAt : ($moveOutOwnerSignature && $moveOutManagerSignature ? 'Your signature is required' : 'Waiting for owner & witness') }}</p>
+                                    </div>
+                                </div>
+                                @if($moveOutTenantSignature)<img src="{{ asset('storage/' . $moveOutTenantSignature) }}" class="h-6 object-contain" alt="Signature">@endif
                             </div>
                         </div>
 
@@ -689,7 +741,7 @@
                         @if($moveOutContractAgreed)
                             <div class="text-center py-2 px-3 bg-emerald-50/50 rounded-xl mt-3">
                                 <p class="text-[13px] font-bold text-emerald-600">Move-Out Contract Fully Signed</p>
-                                <p class="text-[13px] text-emerald-400 mt-0.5">Both parties have signed electronically per RA 8792.</p>
+                                <p class="text-[13px] text-emerald-400 mt-0.5">All parties have signed electronically per RA 8792.</p>
                             </div>
                         @endif
                     </div>
@@ -788,8 +840,10 @@
                 'inspectionChecklist' => $moveOutInspectionChecklist,
                 'moveOutTenantSignature' => $moveOutTenantSignature,
                 'moveOutOwnerSignature' => $moveOutOwnerSignature,
+                'moveOutManagerSignature' => $moveOutManagerSignature,
                 'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
                 'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
+                'moveOutManagerSignedAt' => $moveOutManagerSignedAt,
                 'moveOutContractAgreed' => $moveOutContractAgreed,
                 'outstandingBalances' => $t['outstanding_balances'] ?? [],
                 'depositRefund' => $t['deposit_refund'] ?? [],
@@ -803,7 +857,7 @@
                         Download Signed PDF
                     </button>
                 @endif
-                @if(!$moveOutTenantSignature && $moveOutOwnerSignature)
+                @if(!$moveOutTenantSignature && $moveOutOwnerSignature && $moveOutManagerSignature)
                     <button wire:click="openMoveOutSignatureModal" class="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
                         Sign Move-Out Contract
@@ -843,14 +897,16 @@
                 'itemsReceived' => $itemsReceived,
                 'tenantSignature' => $tenantSignature,
                 'ownerSignature' => $ownerSignature,
+                'managerSignature' => $managerSignature,
                 'tenantSignedAt' => $tenantSignedAt,
                 'ownerSignedAt' => $ownerSignedAt,
+                'managerSignedAt' => $managerSignedAt,
                 'contractAgreed' => $contractAgreed,
                 'signatureMode' => 'tenant',
             ])
 
             <x-slot:footer>
-                @if(!$tenantSignature && $ownerSignature)
+                @if(!$tenantSignature && $ownerSignature && $managerSignature)
                     <button wire:click="openSignatureModal" class="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
                         Read & Sign Contract
@@ -1277,5 +1333,11 @@
             discardAction="closePaymentModal"
         />
     @endif
+
+    {{-- Acknowledge Violation Confirmation --}}
+    <x-ui.modal-confirm name="confirm-acknowledge-violation"
+        title="Acknowledge Violation?"
+        description="Are you sure you want to acknowledge this violation? This confirms you have received and read the notice."
+        confirmText="Yes, Acknowledge" cancelText="Cancel" confirmAction="confirmAcknowledgeViolation"/>
 
 </div>

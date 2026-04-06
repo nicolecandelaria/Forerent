@@ -189,16 +189,28 @@
 
                 {{-- Footer --}}
                 <div class="p-6 bg-white border-t border-gray-200 flex justify-between flex-shrink-0">
-                    <button type="button" wire:click="close"
+                    <button type="button" x-on:click="$dispatch('open-modal', 'discard-violation-confirmation')"
                         class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-8 rounded-xl text-sm transition-colors">
                         Cancel
                     </button>
-                    <button type="button" wire:click="save"
+                    <button type="button" x-on:click="$dispatch('open-modal', 'save-violation-confirmation')"
                         class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-3 px-10 rounded-xl text-sm transition-colors shadow-lg">
                         Issue Violation
                     </button>
                 </div>
             </div>
         </div>
+
+        {{-- Confirm Save Modal --}}
+        <x-ui.modal-confirm name="save-violation-confirmation"
+            title="Issue Violation?"
+            description="Are you sure you want to issue this violation? The tenant will be notified."
+            confirmText="Yes, Issue Violation" cancelText="Cancel" confirmAction="save"/>
+
+        {{-- Discard Cancel Modal --}}
+        <x-ui.modal-cancel name="discard-violation-confirmation"
+            title="Discard Violation?"
+            description="Are you sure you want to close? All unsaved progress will be lost."
+            discardText="Discard" returnText="Keep Editing" discardAction="close"/>
     @endif
 </div>

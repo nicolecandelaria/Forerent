@@ -69,8 +69,7 @@
                 @if($violation->status === 'Issued')
                     <div class="mt-4 pt-3 border-t border-red-600/50">
                         <button
-                            wire:click="acknowledgeViolation"
-                            wire:confirm="Are you sure you want to acknowledge this violation? This confirms you have received and read the notice."
+                            x-on:click="$dispatch('open-modal', 'confirm-acknowledge-violation')"
                             class="px-5 py-2 bg-white text-red-800 text-xs font-bold rounded-xl hover:bg-red-50 transition shadow-sm"
                         >
                             Acknowledge Violation
@@ -185,6 +184,12 @@
                 </div>
             </div>
         </div>
+
+        {{-- Acknowledge Confirmation Modal --}}
+        <x-ui.modal-confirm name="confirm-acknowledge-violation"
+            title="Acknowledge Violation?"
+            description="Are you sure you want to acknowledge this violation? This confirms you have received and read the notice."
+            confirmText="Yes, Acknowledge" cancelText="Cancel" confirmAction="acknowledgeViolation"/>
 
     @else
         {{-- Empty State --}}

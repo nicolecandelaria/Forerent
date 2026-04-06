@@ -80,7 +80,7 @@ class AddPropertyModal extends Component
             'buildingName' => 'required|string|max:255',
             'address' => 'required|string',
             'description' => 'required|string',
-            'propertyPhotos' => $photoRule . '|array|min:1',
+            'propertyPhotos' => $hasExistingPhotos ? 'nullable|array' : 'required|array|min:1',
             'propertyPhotos.*' => 'image|max:10240',
             'newPhotos.*' => 'nullable|image|max:10240',
         ];
@@ -144,7 +144,7 @@ class AddPropertyModal extends Component
                 ->where('category', 'property_photo')
                 ->map(fn($doc) => [
                     'id' => $doc->id,
-                    'url' => Storage::url($doc->file_path),
+                    'url' => Storage::disk('public')->url($doc->file_path),
                     'name' => $doc->original_name,
                 ])->values()->toArray();
 
@@ -154,7 +154,7 @@ class AddPropertyModal extends Component
                     'id' => $doc->id,
                     'category' => $doc->category,
                     'name' => $doc->original_name,
-                    'url' => Storage::url($doc->file_path),
+                    'url' => Storage::disk('public')->url($doc->file_path),
                 ])->values()->toArray();
 
             $this->isOpen = true;
