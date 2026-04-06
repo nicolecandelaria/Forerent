@@ -13,10 +13,12 @@
     - $itemsReceived        : array of received items (optional, defaults to [])
     - $tenantSignature      : tenant signature path (nullable)
     - $ownerSignature       : owner signature path (nullable)
+    - $managerSignature     : manager/witness signature path (nullable)
     - $tenantSignedAt       : formatted date string (nullable)
     - $ownerSignedAt        : formatted date string (nullable)
+    - $managerSignedAt      : formatted date string (nullable)
     - $contractAgreed       : bool
-    - $signatureMode        : 'manager' (interactive sign buttons) or 'tenant' (read-only display)
+    - $signatureMode        : 'owner' (owner sign buttons), 'manager' (manager witness sign buttons), 'tenant' (tenant sign buttons), or 'readonly'
 --}}
 
 @php
@@ -289,32 +291,17 @@
 </div>
 
 {{-- SECTION 14: Signatures --}}
+@php
+    $managerSignature = $managerSignature ?? null;
+    $managerSignedAt = $managerSignedAt ?? null;
+@endphp
 <div>
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 14 — Agreement and Signatures</h3>
-    <p class="text-xs text-gray-700 mb-4">By signing below, both parties acknowledge that they have read, understood, and voluntarily agree to all terms and conditions stated in this Move-In Contract.</p>
+    <p class="text-xs text-gray-700 mb-4">By signing below, all parties acknowledge that they have read, understood, and voluntarily agree to all terms and conditions stated in this Move-In Contract.</p>
 
-    {{-- Signature display (read-only for both views) --}}
-    <div class="grid grid-cols-2 gap-8 mt-4">
-        {{-- Tenant Signature --}}
-        <div class="text-center">
-            @if($tenantSignature)
-                <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
-                    <img src="{{ asset('storage/' . $tenantSignature) }}" class="max-h-full max-w-full object-contain" alt="Tenant Signature">
-                </div>
-                <div class="border-b border-gray-400 mb-1"></div>
-                <p class="text-xs font-semibold text-gray-800">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
-                <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $tenantSignedAt }}</p>
-            @else
-                <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
-                    <span class="text-[11px] text-gray-400">Awaiting tenant signature</span>
-                </div>
-                <div class="border-b border-gray-400 mb-1"></div>
-                <p class="text-xs font-semibold text-gray-500">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
-                <p class="text-[11px] text-gray-400 mt-1">Tenant's Signature</p>
-            @endif
-        </div>
-
-        {{-- Owner/Manager Signature --}}
+    {{-- 3 Signature blocks: Owner (1st) → Manager/Witness (2nd) → Tenant (3rd) --}}
+    <div class="grid grid-cols-3 gap-4 mt-4">
+        {{-- 1. Owner/Lessor Signature (signs first) --}}
         <div class="text-center">
             @if($ownerSignature)
                 <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
@@ -324,9 +311,9 @@
                 <p class="text-xs font-semibold text-gray-800">{{ $t['lessor_info']['representative'] }}</p>
                 <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $ownerSignedAt }}</p>
             @else
-                @if($signatureMode === 'manager')
+                @if($signatureMode === 'owner')
                     <button
-                        wire:click="openSignatureModal('owner')"
+                        wire:click="openSignatureModal"
                         class="w-full border-2 border-dashed border-indigo-300 bg-indigo-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer group"
                     >
                         <svg class="w-6 h-6 text-indigo-400 group-hover:text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
@@ -334,12 +321,70 @@
                     </button>
                 @else
                     <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
-                        <span class="text-[11px] text-gray-400">Awaiting signature</span>
+                        <span class="text-[11px] text-gray-400">Awaiting owner signature</span>
                     </div>
                 @endif
                 <div class="border-b border-gray-400 mb-1"></div>
                 <p class="text-xs font-semibold text-gray-500">{{ $t['lessor_info']['representative'] }}</p>
-                <p class="text-[11px] text-gray-400 mt-1">Lessor / Authorized Representative</p>
+                <p class="text-[11px] text-gray-400 mt-1">Lessor / Property Owner</p>
+            @endif
+        </div>
+
+        {{-- 2. Manager/Witness Signature (signs second) --}}
+        <div class="text-center">
+            @if($managerSignature)
+                <div class="border-2 border-amber-200 bg-amber-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
+                    <img src="{{ asset('storage/' . $managerSignature) }}" class="max-h-full max-w-full object-contain" alt="Manager Witness Signature">
+                </div>
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-800">{{ $t['manager_info']['name'] ?? 'Unit Manager' }}</p>
+                <p class="text-[11px] text-amber-600 font-medium mt-1">Witnessed: {{ $managerSignedAt }}</p>
+            @else
+                @if($signatureMode === 'manager' && $ownerSignature)
+                    <button
+                        wire:click="openSignatureModal('manager')"
+                        class="w-full border-2 border-dashed border-amber-300 bg-amber-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-amber-50 hover:border-amber-400 transition-all cursor-pointer group"
+                    >
+                        <svg class="w-6 h-6 text-amber-400 group-hover:text-amber-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                        <span class="text-[11px] font-semibold text-amber-500 group-hover:text-amber-600">Sign as Witness</span>
+                    </button>
+                @else
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
+                        <span class="text-[11px] text-gray-400">{{ $ownerSignature ? 'Awaiting witness signature' : 'Waiting for owner' }}</span>
+                    </div>
+                @endif
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-500">{{ $t['manager_info']['name'] ?? 'Unit Manager' }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">Witness</p>
+            @endif
+        </div>
+
+        {{-- 3. Tenant Signature (signs last) --}}
+        <div class="text-center">
+            @if($tenantSignature)
+                <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
+                    <img src="{{ asset('storage/' . $tenantSignature) }}" class="max-h-full max-w-full object-contain" alt="Tenant Signature">
+                </div>
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-800">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
+                <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $tenantSignedAt }}</p>
+            @else
+                @if($signatureMode === 'tenant' && $ownerSignature && $managerSignature)
+                    <button
+                        wire:click="openSignatureModal"
+                        class="w-full border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group"
+                    >
+                        <svg class="w-6 h-6 text-blue-400 group-hover:text-blue-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                        <span class="text-[11px] font-semibold text-blue-500 group-hover:text-blue-600">Click to Sign</span>
+                    </button>
+                @else
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
+                        <span class="text-[11px] text-gray-400">{{ ($ownerSignature && $managerSignature) ? 'Awaiting tenant signature' : 'Waiting for owner & witness' }}</span>
+                    </div>
+                @endif
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-500">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">Tenant / Lessee</p>
             @endif
         </div>
     </div>
@@ -348,7 +393,7 @@
     @if($contractAgreed)
         <div class="mt-6 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
             <span class="text-sm font-bold text-emerald-700">Contract Fully Signed</span>
-            <p class="text-[11px] text-emerald-600 mt-1">Both parties have signed this agreement electronically per RA 8792.</p>
+            <p class="text-[11px] text-emerald-600 mt-1">All parties have signed this agreement electronically per RA 8792.</p>
         </div>
     @endif
 

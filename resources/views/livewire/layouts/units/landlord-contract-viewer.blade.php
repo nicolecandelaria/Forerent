@@ -85,10 +85,12 @@
                             'itemsReceived' => $itemsReceived,
                             'tenantSignature' => $tenantSignature,
                             'ownerSignature' => $ownerSignature,
+                            'managerSignature' => $managerSignature,
                             'tenantSignedAt' => $tenantSignedAt,
                             'ownerSignedAt' => $ownerSignedAt,
+                            'managerSignedAt' => $managerSignedAt,
                             'contractAgreed' => $contractAgreed,
-                            'signatureMode' => 'tenant',
+                            'signatureMode' => 'owner',
                             'contractSettings' => $contractSettings,
                         ])
                     @elseif($contractType === 'move-out')
@@ -100,10 +102,12 @@
                             'inspectionChecklist' => $inspectionChecklist,
                             'moveOutTenantSignature' => $moveOutTenantSignature,
                             'moveOutOwnerSignature' => $moveOutOwnerSignature,
+                            'moveOutManagerSignature' => $moveOutManagerSignature,
                             'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
                             'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
+                            'moveOutManagerSignedAt' => $moveOutManagerSignedAt,
                             'moveOutContractAgreed' => $moveOutContractAgreed,
-                            'signatureMode' => 'tenant',
+                            'signatureMode' => 'owner',
                             'outstandingBalances' => $contractData['outstanding_balances'] ?? [],
                             'depositRefund' => $contractData['deposit_refund'] ?? [],
                         ])
@@ -112,7 +116,17 @@
 
                 {{-- Footer --}}
                 <div class="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                    <p class="text-xs text-gray-400">Read-only view</p>
+                    <p class="text-xs text-gray-400">
+                        @if($contractAgreed || $moveOutContractAgreed)
+                            Contract fully signed
+                        @elseif(!$ownerSignature && $contractType === 'move-in')
+                            Sign this contract as property owner
+                        @elseif(!$moveOutOwnerSignature && $contractType === 'move-out')
+                            Sign this contract as property owner
+                        @else
+                            Waiting for other parties to sign
+                        @endif
+                    </p>
                     <button
                         wire:click="closeModal"
                         class="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -122,5 +136,30 @@
                 </div>
             </div>
         </div>
+
+        {{-- Owner Signature Pad Modals --}}
+        <x-inspection.signature-pad-modal
+            :show="$showSignatureModal"
+            title="Owner E-Signature"
+            subtitle="Move-In Contract — Sign as property owner"
+            signerName=""
+            signerRole="Property Owner / Lessor"
+            legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-In Contract. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
+            wireCloseMethod="closeSignatureModal"
+            wireSaveMethod="saveOwnerSignature"
+            canvasRef="sigCanvasOwnerMoveIn"
+        />
+
+        <x-inspection.signature-pad-modal
+            :show="$showMoveOutSignatureModal"
+            title="Owner E-Signature"
+            subtitle="Move-Out Contract — Sign as property owner"
+            signerName=""
+            signerRole="Property Owner / Lessor"
+            legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-Out Clearance &amp; Deposit Settlement Agreement. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
+            wireCloseMethod="closeMoveOutSignatureModal"
+            wireSaveMethod="saveMoveOutOwnerSignature"
+            canvasRef="sigCanvasOwnerMoveOut"
+        />
     @endif
 </div>

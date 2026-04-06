@@ -1127,8 +1127,10 @@
                             'itemsReceived' => $itemsReceived,
                             'tenantSignature' => $tenantSignature,
                             'ownerSignature' => $ownerSignature,
+                            'managerSignature' => $managerSignature,
                             'tenantSignedAt' => $tenantSignedAt,
                             'ownerSignedAt' => $ownerSignedAt,
+                            'managerSignedAt' => $managerSignedAt,
                             'contractAgreed' => $contractAgreed,
                             'signatureMode' => 'manager',
                         ])
@@ -1175,8 +1177,10 @@
                             'inspectionChecklist' => $inspectionChecklist,
                             'moveOutTenantSignature' => $moveOutTenantSignature,
                             'moveOutOwnerSignature' => $moveOutOwnerSignature,
+                            'moveOutManagerSignature' => $moveOutManagerSignature,
                             'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
                             'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
+                            'moveOutManagerSignedAt' => $moveOutManagerSignedAt,
                             'moveOutContractAgreed' => $moveOutContractAgreed,
                             'outstandingBalances' => $t['outstanding_balances'] ?? [],
                             'depositRefund' => $t['deposit_refund'] ?? [],
@@ -1225,11 +1229,11 @@
     {{-- E-SIGNATURE PAD MODALS (Move-In & Move-Out) --}}
     <x-inspection.signature-pad-modal
         :show="$showSignatureModal"
-        title="Lessor E-Signature"
-        subtitle="Move-In Contract — Draw your signature below"
-        :signerName="$currentTenant['lessor_info']['representative'] ?? ''"
-        signerRole="Lessor / Authorized Representative"
-        legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-In Contract. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
+        title="Witness E-Signature"
+        subtitle="Move-In Contract — Sign as witness below"
+        signerName=""
+        signerRole="Unit Manager / Witness"
+        legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have witnessed the signing of this Move-In Contract and attest to its authenticity. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
         wireCloseMethod="closeSignatureModal"
         wireSaveMethod="saveSignature"
         canvasRef="sigCanvasMoveIn"
@@ -1237,11 +1241,11 @@
 
     <x-inspection.signature-pad-modal
         :show="$showMoveOutSignatureModal"
-        title="Lessor E-Signature"
-        subtitle="Move-Out Contract — Draw your signature below"
-        :signerName="$currentTenant['lessor_info']['representative'] ?? ''"
-        signerRole="Lessor / Authorized Representative"
-        legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-Out Clearance &amp; Deposit Settlement Agreement. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
+        title="Witness E-Signature"
+        subtitle="Move-Out Contract — Sign as witness below"
+        signerName=""
+        signerRole="Unit Manager / Witness"
+        legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have witnessed the signing of this Move-Out Clearance &amp; Deposit Settlement Agreement. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
         wireCloseMethod="closeMoveOutSignatureModal"
         wireSaveMethod="saveMoveOutSignature"
         canvasRef="sigCanvasMoveOut"

@@ -16,6 +16,7 @@ class MoveOutInspection extends Model
         'remarks',
         'repair_cost',
         'replacement_cost',
+        'repair_cost_confirmed',
         'tenant_confirmed',
         'is_returned',
         'dispute_status',
@@ -27,6 +28,7 @@ class MoveOutInspection extends Model
 
     protected $casts = [
         'tenant_confirmed' => 'boolean',
+        'repair_cost_confirmed' => 'boolean',
         'is_returned' => 'boolean',
         'repair_cost' => 'decimal:2',
         'replacement_cost' => 'decimal:2',

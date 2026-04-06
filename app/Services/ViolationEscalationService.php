@@ -85,7 +85,20 @@ class ViolationEscalationService
             ->orderBy('billing_date', 'desc')
             ->first();
 
-        if (!$billing) return;
+        // No active billing — create a standalone "Violation Charges" billing
+        if (!$billing) {
+            $lease = Lease::find($violation->lease_id);
+            $billing = Billing::create([
+                'lease_id'     => $violation->lease_id,
+                'tenant_id'    => $lease?->tenant_id,
+                'billing_type' => 'charges',
+                'billing_date' => now(),
+                'due_date'     => now()->addDays(5),
+                'to_pay'       => 0,
+                'amount'       => 0,
+                'status'       => 'Unpaid',
+            ]);
+        }
 
         $billingItem = BillingItem::create([
             'billing_id' => $billing->billing_id,

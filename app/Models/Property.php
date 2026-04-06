@@ -78,7 +78,7 @@ class Property extends Model
     {
         $firstPhoto = $this->photos()->oldest()->first();
 
-        return $firstPhoto ? Storage::url($firstPhoto->file_path) : null;
+        return $firstPhoto ? Storage::disk('public')->url($firstPhoto->file_path) : null;
     }
 
     public function tenantsForManager($managerId)

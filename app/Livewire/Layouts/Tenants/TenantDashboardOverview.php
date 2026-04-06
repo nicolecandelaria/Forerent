@@ -78,6 +78,7 @@ class TenantDashboardOverview extends Component
     // Violations
     public $violations = [];
     public $violationCounts = ['total' => 0, 'issued' => 0, 'acknowledged' => 0, 'resolved' => 0];
+    public ?int $pendingAcknowledgeViolationId = null;
 
     // Contract & E-Signature
     public $showSignatureModal = false;
@@ -85,6 +86,8 @@ class TenantDashboardOverview extends Component
     public $tenantSignedAt = null;
     public $ownerSignature = null;
     public $ownerSignedAt = null;
+    public $managerSignature = null;
+    public $managerSignedAt = null;
     public $contractAgreed = false;
     public $signedContractPath = null;
     public $showContract = false;
@@ -126,6 +129,8 @@ class TenantDashboardOverview extends Component
     public $moveOutTenantSignedAt = null;
     public $moveOutOwnerSignature = null;
     public $moveOutOwnerSignedAt = null;
+    public $moveOutManagerSignature = null;
+    public $moveOutManagerSignedAt = null;
     public $moveOutContractAgreed = false;
 
     public function mount()
@@ -348,6 +353,20 @@ class TenantDashboardOverview extends Component
             'acknowledged' => $statusCounts->get('Acknowledged', 0),
             'resolved' => $statusCounts->get('Resolved', 0),
         ];
+    }
+
+    public function promptAcknowledgeViolation(int $violationId): void
+    {
+        $this->pendingAcknowledgeViolationId = $violationId;
+        $this->dispatch('open-modal', 'confirm-acknowledge-violation');
+    }
+
+    public function confirmAcknowledgeViolation(): void
+    {
+        if ($this->pendingAcknowledgeViolationId) {
+            $this->acknowledgeViolation($this->pendingAcknowledgeViolationId);
+            $this->pendingAcknowledgeViolationId = null;
+        }
     }
 
     public function acknowledgeViolation(int $violationId): void
@@ -673,6 +692,11 @@ class TenantDashboardOverview extends Component
 
     public function openSignatureModal(): void
     {
+        // Both owner and manager must sign before tenant
+        if (!$this->ownerSignature || !$this->managerSignature) {
+            $this->dispatch('notify', type: 'warning', title: 'Not Yet Available', description: 'The property owner and manager must sign the contract first.');
+            return;
+        }
         $this->showSignatureModal = true;
     }
 
@@ -695,22 +719,25 @@ class TenantDashboardOverview extends Component
         $this->tenantSignedAt = $result['signedAt'];
         $this->contractAgreed = $result['agreed'];
 
-        // Notify the manager that the tenant signed the contract
+        // Notify the manager and owner that the tenant signed the contract
         $this->notifyManagerOfSign($this->lease, 'move-in');
 
-        // If contract is now fully executed (tenant signed last), notify manager
+        // If contract is now fully executed (tenant signed last), notify all parties
         if ($result['agreed']) {
             $this->lease->refresh();
             $this->signedContractPath = $this->lease->signed_contract_path;
 
             $managerId = $this->findManagerIdForLease($this->lease);
-            if ($managerId) {
-                $user = Auth::user();
+            $ownerId = $this->findOwnerIdForLease($this->lease);
+            $user = Auth::user();
+
+            $notifyIds = array_filter(array_unique([$managerId, $ownerId]));
+            foreach ($notifyIds as $id) {
                 Notification::create([
-                    'user_id' => $managerId,
+                    'user_id' => $id,
                     'type' => 'contract_executed',
                     'title' => 'Contract Fully Executed',
-                    'message' => $user->first_name . ' ' . $user->last_name . '\'s move-in contract is now fully signed by both parties.',
+                    'message' => $user->first_name . ' ' . $user->last_name . '\'s move-in contract is now fully signed by all parties.',
                     'link' => '/manager/tenant',
                 ]);
             }
@@ -871,6 +898,11 @@ class TenantDashboardOverview extends Component
 
     public function openMoveOutSignatureModal(): void
     {
+        // Both owner and manager must sign before tenant
+        if (!$this->moveOutOwnerSignature || !$this->moveOutManagerSignature) {
+            $this->dispatch('notify', type: 'warning', title: 'Not Yet Available', description: 'The property owner and manager must sign the move-out contract first.');
+            return;
+        }
         $this->showMoveOutSignatureModal = true;
     }
 
@@ -888,7 +920,7 @@ class TenantDashboardOverview extends Component
         $this->moveOutTenantSignedAt = $result['signedAt'];
         $this->moveOutContractAgreed = $result['agreed'];
 
-        // Notify the manager that the tenant signed the move-out contract
+        // Notify the manager and owner that the tenant signed the move-out contract
         $this->notifyManagerOfSign($this->lease, 'move-out');
 
         // Reload contract data so outstanding balances / deposit refund are fresh

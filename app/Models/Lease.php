@@ -32,6 +32,9 @@ class Lease extends Model
         'owner_signature',
         'owner_signed_at',
         'owner_signed_ip',
+        'manager_signature',
+        'manager_signed_at',
+        'manager_signed_ip',
         'signed_contract_path',
         'contract_agreed',
         'forwarding_address',
@@ -46,6 +49,9 @@ class Lease extends Model
         'moveout_owner_signature',
         'moveout_owner_signed_at',
         'moveout_owner_signed_ip',
+        'moveout_manager_signature',
+        'moveout_manager_signed_at',
+        'moveout_manager_signed_ip',
         'moveout_contract_agreed',
         'moveout_contract_status',
         'moveout_signed_contract_path',
@@ -68,9 +74,11 @@ class Lease extends Model
         'monthly_due_date' => 'integer',
         'tenant_signed_at' => 'datetime',
         'owner_signed_at' => 'datetime',
+        'manager_signed_at' => 'datetime',
         'contract_agreed' => 'boolean',
         'moveout_tenant_signed_at' => 'datetime',
         'moveout_owner_signed_at' => 'datetime',
+        'moveout_manager_signed_at' => 'datetime',
         'moveout_contract_agreed' => 'boolean',
         'deposit_refund_amount' => 'decimal:2',
         'deposit_deductions' => 'array',
@@ -145,6 +153,14 @@ class Lease extends Model
             $deductions[] = ['label' => 'Late Payment Fees', 'amount' => $lateFees];
         }
 
+        // 2b. Violation fines (shown as separate line item for transparency)
+        $violationFines = \App\Models\BillingItem::whereHas('billing', fn($q) => $q->where('lease_id', $this->lease_id))
+            ->where('charge_type', 'violation_fee')
+            ->sum('amount');
+        if ($violationFines > 0) {
+            $deductions[] = ['label' => 'Violation Fines', 'amount' => $violationFines];
+        }
+
         // 3. Damage costs — use actual repair_cost entered by manager
         $moveInItems = $this->moveInInspections()->where('type', 'checklist')->get()->keyBy('item_name');
         $moveOutItems = $this->moveOutInspections()->where('type', 'checklist')->get()->keyBy('item_name');
@@ -174,6 +190,7 @@ class Lease extends Model
         }
 
         // 5. Early termination (if moved out before original end_date)
+        // Security deposit is forfeited if tenant terminates early
         if ($this->move_out && $endDate && $this->move_out->lt($endDate)) {
             $earlyFee = (float) ($this->early_termination_fee ?? $deposit);
             $deductions[] = ['label' => 'Early Termination Fee', 'amount' => $earlyFee];

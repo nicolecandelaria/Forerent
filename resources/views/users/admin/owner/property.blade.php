@@ -8,38 +8,30 @@
 
     @include('livewire.layouts.dashboard.admingreeting')
 
-    {{-- Main Content Grid --}}
-    <div class="flex flex-col lg:flex-row gap-6">
+    {{-- Buildings Section (full width) --}}
+    <div>
+        <livewire:layouts.properties.building-cards-section
+            :properties="$properties ?? []"
+            :show-add-button="true"
+            :show-add-unit-button="false"
+            title="Buildings"
+            add-button-event="openAddPropertyModal_property-dashboard"
+        />
+    </div>
 
-        {{-- Left Column: 70% --}}
-        <div class="w-full lg:w-[70%] flex flex-col gap-6">
-
-            {{-- Buildings Section --}}
-            <div>
-                <livewire:layouts.properties.building-cards-section
-                    :properties="$properties ?? []"
-                    :show-add-button="true"
-                    :show-add-unit-button="false"
-                    title="Buildings"
-                    add-button-event="openAddPropertyModal_property-dashboard"
-                />
-            </div>
-
-            {{-- Property Details Section --}}
-            <div class="mt-6">
-                <livewire:layouts.properties.property-details />
-            </div>
-
-            {{-- Units Section --}}
-            <div class="mt-6">
-                <livewire:layouts.units.unit-accordion :show-add-button="false" />
-            </div>
+    {{-- Property Details + Bed Status --}}
+    <div class="mt-6 flex flex-col lg:flex-row gap-6">
+        <div class="w-full lg:w-[70%]">
+            <livewire:layouts.properties.property-details />
         </div>
-
-        {{-- Right Sidebar: 30% --}}
-        <div class="w-full lg:w-[30%] flex flex-col gap-6">
-            <livewire:layouts.property-widgets />
+        <div class="w-full lg:w-[30%]">
+            <livewire:layouts.property-widgets :initial-building-id="optional($properties->first())->property_id" />
         </div>
+    </div>
+
+    {{-- Units Section (full width) --}}
+    <div class="mt-6">
+        <livewire:layouts.units.unit-accordion :show-add-button="false" />
     </div>
 
     {{-- Modals --}}

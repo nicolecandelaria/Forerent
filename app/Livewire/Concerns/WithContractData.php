@@ -32,6 +32,7 @@ trait WithContractData
         $unit     = $bed?->unit;
         $property = $unit?->property;
         $owner    = $property?->owner;
+        $manager  = $unit?->manager_id ? User::find($unit->manager_id) : null;
         $billing  = $lease?->billings->first();
 
         return [
@@ -42,6 +43,9 @@ trait WithContractData
                 'contact'          => $owner?->contact,
                 'email'            => $owner?->email,
                 'representative'   => $owner ? ($owner->first_name . ' ' . $owner->last_name) : '—',
+            ],
+            'manager_info' => [
+                'name' => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
             ],
             'personal_info' => [
                 'first_name'       => $tenant->first_name,
@@ -101,6 +105,8 @@ trait WithContractData
                 'tenant_signed_at'      => $lease?->tenant_signed_at?->format('M d, Y h:i A'),
                 'owner_signature'       => $lease?->owner_signature,
                 'owner_signed_at'       => $lease?->owner_signed_at?->format('M d, Y h:i A'),
+                'manager_signature'     => $lease?->manager_signature,
+                'manager_signed_at'     => $lease?->manager_signed_at?->format('M d, Y h:i A'),
                 'contract_agreed'       => (bool) $lease?->contract_agreed,
                 'signed_contract_path'  => $lease?->signed_contract_path,
             ],
@@ -127,15 +133,19 @@ trait WithContractData
         // Move-in
         $this->tenantSignature = $lease?->tenant_signature;
         $this->ownerSignature = $lease?->owner_signature;
+        $this->managerSignature = $lease?->manager_signature;
         $this->tenantSignedAt = $lease?->tenant_signed_at?->format('M d, Y h:i A');
         $this->ownerSignedAt = $lease?->owner_signed_at?->format('M d, Y h:i A');
+        $this->managerSignedAt = $lease?->manager_signed_at?->format('M d, Y h:i A');
         $this->contractAgreed = (bool) $lease?->contract_agreed;
 
         // Move-out
         $this->moveOutTenantSignature = $lease?->moveout_tenant_signature;
         $this->moveOutOwnerSignature = $lease?->moveout_owner_signature;
+        $this->moveOutManagerSignature = $lease?->moveout_manager_signature;
         $this->moveOutTenantSignedAt = $lease?->moveout_tenant_signed_at?->format('M d, Y h:i A');
         $this->moveOutOwnerSignedAt = $lease?->moveout_owner_signed_at?->format('M d, Y h:i A');
+        $this->moveOutManagerSignedAt = $lease?->moveout_manager_signed_at?->format('M d, Y h:i A');
         $this->moveOutContractAgreed = (bool) $lease?->moveout_contract_agreed;
     }
 
@@ -217,7 +227,79 @@ trait WithContractData
     }
 
     /**
-     * Notify the tenant that the manager/owner signed a contract.
+     * Find the owner ID for a lease (via bed → unit → property → owner_id).
+     */
+    protected function findOwnerIdForLease(Lease $lease): ?int
+    {
+        return DB::table('beds')
+            ->join('units', 'beds.unit_id', '=', 'units.unit_id')
+            ->join('properties', 'units.property_id', '=', 'properties.property_id')
+            ->where('beds.bed_id', $lease->bed_id)
+            ->value('properties.owner_id');
+    }
+
+    /**
+     * Notify that the owner has signed — next is manager.
+     */
+    protected function notifyManagerOfOwnerSign(Lease $lease, string $contractType): void
+    {
+        $managerId = $this->findManagerIdForLease($lease);
+        if (!$managerId) return;
+
+        $label = $contractType === 'move-out' ? 'move-out contract' : 'move-in contract';
+
+        Notification::create([
+            'user_id' => $managerId,
+            'type' => 'contract_signed',
+            'title' => 'Contract Signed by Owner',
+            'message' => 'The property owner has signed the ' . $label . '. Please sign as witness.',
+            'link' => '/manager/tenant',
+        ]);
+    }
+
+    /**
+     * Notify that the manager (witness) has signed — next is tenant.
+     */
+    protected function notifyTenantOfManagerSign(Lease $lease, string $contractType): void
+    {
+        if (!$lease->tenant_id) return;
+
+        $label = $contractType === 'move-out' ? 'move-out contract' : 'move-in contract';
+
+        Notification::create([
+            'user_id' => $lease->tenant_id,
+            'type' => 'contract_signed',
+            'title' => 'Contract Ready for Your Signature',
+            'message' => 'The owner and manager have signed the ' . $label . '. Please review and sign.',
+            'link' => '/tenant?tab=inspection',
+        ]);
+    }
+
+    /**
+     * Notify the manager and owner that the tenant signed a contract.
+     */
+    protected function notifyManagerOfSign(Lease $lease, string $contractType): void
+    {
+        $managerId = $this->findManagerIdForLease($lease);
+        $ownerId = $this->findOwnerIdForLease($lease);
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $label = $contractType === 'move-out' ? 'move-out contract' : 'contract';
+
+        $notifyIds = array_filter(array_unique([$managerId, $ownerId]));
+
+        foreach ($notifyIds as $id) {
+            Notification::create([
+                'user_id' => $id,
+                'type' => 'contract_signed',
+                'title' => 'Contract Signed by Tenant',
+                'message' => $user->first_name . ' ' . $user->last_name . ' has read and signed the ' . $label . '.',
+                'link' => '/manager/tenant',
+            ]);
+        }
+    }
+
+    /**
+     * Notify the tenant that the owner signed a contract (kept for backward compat).
      */
     protected function notifyTenantOfSign(Lease $lease, string $contractType): void
     {
@@ -231,26 +313,6 @@ trait WithContractData
             'title' => 'Contract Signed by Lessor',
             'message' => 'The lessor/authorized representative has signed your ' . $label . '. Please review and sign.',
             'link' => '/tenant?tab=inspection',
-        ]);
-    }
-
-    /**
-     * Notify the manager that the tenant signed a contract.
-     */
-    protected function notifyManagerOfSign(Lease $lease, string $contractType): void
-    {
-        $managerId = $this->findManagerIdForLease($lease);
-        if (!$managerId) return;
-
-        $user = \Illuminate\Support\Facades\Auth::user();
-        $label = $contractType === 'move-out' ? 'move-out contract' : 'contract';
-
-        Notification::create([
-            'user_id' => $managerId,
-            'type' => 'contract_signed',
-            'title' => 'Contract Signed by Tenant',
-            'message' => $user->first_name . ' ' . $user->last_name . ' has read and signed the ' . $label . '.',
-            'link' => '/manager/tenant',
         ]);
     }
 

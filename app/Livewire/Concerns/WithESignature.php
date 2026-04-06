@@ -34,11 +34,13 @@ trait WithESignature
     /**
      * Save a signature to a lease for a given contract type and role.
      *
-     * @param Lease  $lease        The lease to update
+     * Signing order: owner (1st) → manager/witness (2nd) → tenant (3rd)
+     *
+     * @param Lease  $lease         The lease to update
      * @param string $signatureData Base64 encoded signature image
-     * @param string $role         'tenant' or 'owner'
-     * @param string $type         'movein' or 'moveout'
-     * @return array{signature: string, signedAt: string} The saved signature path and formatted date
+     * @param string $role          'owner', 'manager', or 'tenant'
+     * @param string $type          'movein' or 'moveout'
+     * @return array{signature: string, signedAt: string, agreed: bool}
      */
     protected function saveLeaseSignature(
         Lease $lease,
@@ -47,12 +49,29 @@ trait WithESignature
         string $type = 'movein'
     ): array {
         $dbPrefix = $type === 'moveout' ? 'moveout_' : '';
-        $sigField = $dbPrefix . ($role === 'tenant' ? 'tenant_signature' : 'owner_signature');
-        $dateField = $dbPrefix . ($role === 'tenant' ? 'tenant_signed_at' : 'owner_signed_at');
-        $ipField = $dbPrefix . ($role === 'tenant' ? 'tenant_signed_ip' : 'owner_signed_ip');
+
+        // Map role to DB field names
+        $sigField = $dbPrefix . match ($role) {
+            'tenant' => 'tenant_signature',
+            'manager' => 'manager_signature',
+            default => 'owner_signature',
+        };
+        $dateField = $dbPrefix . match ($role) {
+            'tenant' => 'tenant_signed_at',
+            'manager' => 'manager_signed_at',
+            default => 'owner_signed_at',
+        };
+        $ipField = $dbPrefix . match ($role) {
+            'tenant' => 'tenant_signed_ip',
+            'manager' => 'manager_signed_ip',
+            default => 'owner_signed_ip',
+        };
+
         $agreedField = $dbPrefix . 'contract_agreed';
-        $tenantSigField = $dbPrefix . 'tenant_signature';
         $ownerSigField = $dbPrefix . 'owner_signature';
+        $managerSigField = $dbPrefix . 'manager_signature';
+        $tenantSigField = $dbPrefix . 'tenant_signature';
+        $statusField = $type === 'moveout' ? 'moveout_contract_status' : 'contract_status';
 
         $filename = $this->processAndStoreSignature(
             $signatureData,
@@ -61,8 +80,11 @@ trait WithESignature
         );
 
         // Use a transaction with row lock to prevent race condition
-        // when both parties sign simultaneously
-        $agreed = DB::transaction(function () use ($lease, $filename, $sigField, $dateField, $ipField, $agreedField, $tenantSigField, $ownerSigField, $role, $type) {
+        $agreed = DB::transaction(function () use (
+            $lease, $filename, $sigField, $dateField, $ipField,
+            $agreedField, $ownerSigField, $managerSigField, $tenantSigField,
+            $statusField, $role, $type
+        ) {
             $locked = Lease::where('lease_id', $lease->lease_id)->lockForUpdate()->first();
 
             $locked->update([
@@ -73,41 +95,29 @@ trait WithESignature
 
             $locked->refresh();
 
-            // Check if both signatures exist for this contract type
-            $bothSigned = $locked->$tenantSigField && $locked->$ownerSigField;
+            // Check if all three signatures exist
+            $allSigned = $locked->$ownerSigField && $locked->$managerSigField && $locked->$tenantSigField;
 
-            // Auto-transition contract status (move-in contracts only)
-            if ($type === 'movein') {
-                if ($bothSigned) {
-                    $locked->update([
-                        $agreedField => true,
-                        'contract_status' => 'executed',
-                    ]);
+            // Auto-transition contract status based on signing order:
+            // owner (1st) → manager (2nd) → tenant (3rd)
+            if ($allSigned) {
+                $locked->update([
+                    $agreedField => true,
+                    $statusField => 'executed',
+                ]);
+            } elseif ($locked->$statusField !== 'executed') {
+                if ($role === 'owner') {
+                    // Owner signed → waiting for manager witness
+                    $locked->update([$statusField => 'pending_manager']);
+                } elseif ($role === 'manager') {
+                    // Manager signed → waiting for tenant
+                    $locked->update([$statusField => 'pending_tenant']);
                 } elseif ($role === 'tenant') {
-                    // Tenant signed first → waiting for owner
-                    if ($locked->contract_status !== 'executed') {
-                        $locked->update(['contract_status' => 'pending_owner']);
-                    }
-                } elseif ($role === 'owner') {
-                    // Owner signed first → waiting for tenant
-                    if ($locked->contract_status !== 'executed') {
-                        $locked->update(['contract_status' => 'pending_tenant']);
-                    }
-                }
-            } else {
-                // Move-out contract: track status + set agreed
-                if ($bothSigned) {
-                    $locked->update([
-                        $agreedField => true,
-                        'moveout_contract_status' => 'executed',
-                    ]);
-                } elseif ($role === 'tenant') {
-                    if ($locked->moveout_contract_status !== 'executed') {
-                        $locked->update(['moveout_contract_status' => 'pending_owner']);
-                    }
-                } elseif ($role === 'owner') {
-                    if ($locked->moveout_contract_status !== 'executed') {
-                        $locked->update(['moveout_contract_status' => 'pending_tenant']);
+                    // Tenant signed but others missing (shouldn't normally happen with enforced order)
+                    if (!$locked->$ownerSigField) {
+                        $locked->update([$statusField => 'pending_owner']);
+                    } elseif (!$locked->$managerSigField) {
+                        $locked->update([$statusField => 'pending_manager']);
                     }
                 }
             }
@@ -120,17 +130,17 @@ trait WithESignature
                     'contract_type' => $type,
                     'role' => $role,
                     'ip' => request()->ip(),
-                    'both_signed' => $bothSigned,
+                    'all_signed' => $allSigned,
                 ],
             ]);
 
-            if ($bothSigned) {
+            if ($allSigned) {
                 ContractAuditLog::log($locked->lease_id, "{$type}_contract_executed", [
                     'metadata' => ['contract_type' => $type],
                 ]);
             }
 
-            return $bothSigned;
+            return $allSigned;
         });
 
         $lease->refresh();
