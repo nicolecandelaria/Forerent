@@ -22,9 +22,11 @@ trait WithESignature
         $imageData = base64_decode($imageData);
 
         $filename = "signatures/{$filenamePrefix}_" . time() . '.png';
-        Storage::disk('public')->put($filename, $imageData);
+        Storage::disk('local')->put($filename, $imageData);
 
         if ($oldSignaturePath) {
+            // Clean up from both disks during migration period
+            Storage::disk('local')->delete($oldSignaturePath);
             Storage::disk('public')->delete($oldSignaturePath);
         }
 
@@ -122,7 +124,20 @@ trait WithESignature
                 }
             }
 
-            // Audit log
+            // Build contract content hash for tamper-proof audit trail (RA 8792 compliance)
+            $contractDataForHash = json_encode([
+                'lease_id' => $locked->lease_id,
+                'tenant_id' => $locked->tenant_id,
+                'bed_id' => $locked->bed_id,
+                'contract_rate' => $locked->contract_rate,
+                'security_deposit' => $locked->security_deposit,
+                'start_date' => $locked->start_date?->format('Y-m-d'),
+                'end_date' => $locked->end_date?->format('Y-m-d'),
+                'term' => $locked->term,
+            ]);
+            $contentHash = hash('sha256', $contractDataForHash);
+
+            // Audit log with full device fingerprint
             ContractAuditLog::log($locked->lease_id, "{$type}_signature_{$role}", [
                 'field_changed' => $sigField,
                 'new_value' => $filename,
@@ -130,6 +145,8 @@ trait WithESignature
                     'contract_type' => $type,
                     'role' => $role,
                     'ip' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'content_hash' => $contentHash,
                     'all_signed' => $allSigned,
                 ],
             ]);

@@ -98,6 +98,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/property', [PropertyController::class, 'index'])->name('properties.index');
     Route::get('/properties/create', [PropertyController::class, 'create'])->name('properties.create');
+    Route::get('/secure/file/{path}', [\App\Http\Controllers\SecureFileController::class, 'serve'])
+        ->where('path', '.*')
+        ->name('secure.file');
 });
 
 Route::get('/revenue', function () {

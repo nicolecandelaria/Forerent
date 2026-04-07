@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Faker\Generator;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Bed;
 use App\Models\Lease;
@@ -94,6 +95,9 @@ class LeaseSeeder extends Seeder
 
             $shortTermPremium = $term < 6 ? 500 : 0;
 
+            $signedAt = $startDate->copy()->subDays($this->faker->numberBetween(1, 7));
+            $sigId = uniqid();
+
             Lease::factory()->create([
                 'tenant_id'             => $tenantId,
                 'bed_id'                => $bed->bed_id,
@@ -112,6 +116,17 @@ class LeaseSeeder extends Seeder
                 'late_payment_penalty'  => 1,
                 'reservation_fee_paid'  => 0,
                 'early_termination_fee' => 0,
+                'contract_status'       => 'executed',
+                'contract_agreed'       => true,
+                'tenant_signed_at'      => $signedAt,
+                'owner_signed_at'       => $signedAt,
+                'manager_signed_at'     => $signedAt,
+                'tenant_signed_ip'      => '127.0.0.1',
+                'owner_signed_ip'       => '127.0.0.1',
+                'manager_signed_ip'     => '127.0.0.1',
+                'owner_signature'       => $this->generateSignatureImage($sigId, 'owner'),
+                'manager_signature'     => $this->generateSignatureImage($sigId, 'manager'),
+                'tenant_signature'      => $this->generateSignatureImage($sigId, 'tenant'),
             ]);
 
             if ($isExpired) {
@@ -120,5 +135,32 @@ class LeaseSeeder extends Seeder
                 break;
             }
         }
+    }
+
+    private function generateSignatureImage(string $id, string $role): string
+    {
+        // Build a random scribble path for the SVG
+        $x = $this->faker->numberBetween(10, 40);
+        $y = $this->faker->numberBetween(40, 80);
+        $path = "M{$x},{$y}";
+        $points = $this->faker->numberBetween(4, 7);
+        for ($i = 0; $i < $points; $i++) {
+            $cx = $x + $this->faker->numberBetween(10, 30);
+            $cy = $this->faker->numberBetween(20, 110);
+            $x = $x + $this->faker->numberBetween(25, 50);
+            $y = $this->faker->numberBetween(20, 110);
+            $path .= " Q{$cx},{$cy} {$x},{$y}";
+        }
+
+        $svg = <<<SVG
+        <svg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150">
+            <path d="{$path}" fill="none" stroke="#141450" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        SVG;
+
+        $filename = "signatures/{$id}_{$role}.svg";
+        Storage::disk('public')->put($filename, $svg);
+
+        return $filename;
     }
 }

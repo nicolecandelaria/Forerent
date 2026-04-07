@@ -245,6 +245,9 @@
 
                             @php
                                 $allDocs = [
+                                    ['field' => 'titleTct', 'label' => 'Title / TCT', 'category' => 'title_tct', 'group' => 'owner'],
+                                    ['field' => 'taxDeclaration', 'label' => 'Tax Declaration', 'category' => 'tax_declaration', 'group' => 'owner'],
+                                    ['field' => 'transferCertificate', 'label' => 'Transfer Certificate / Deed of Sale', 'category' => 'transfer_certificate', 'group' => 'owner'],
                                     ['field' => 'businessPermit', 'label' => 'Business Permit', 'category' => 'business_permit', 'group' => 'owner'],
                                     ['field' => 'bir2303', 'label' => 'BIR 2303', 'category' => 'bir_2303', 'group' => 'owner'],
                                     ['field' => 'inspectionReport', 'label' => 'Inspection Report', 'category' => 'inspection_report', 'group' => 'owner'],

@@ -55,6 +55,10 @@ class Lease extends Model
         'moveout_contract_agreed',
         'moveout_contract_status',
         'moveout_signed_contract_path',
+        'deposit_interest_amount',
+        'deposit_refund_deadline',
+        'deposit_refund_completed_at',
+        'deposit_refund_reference',
     ];
 
     protected $casts = [
@@ -82,6 +86,9 @@ class Lease extends Model
         'moveout_contract_agreed' => 'boolean',
         'deposit_refund_amount' => 'decimal:2',
         'deposit_deductions' => 'array',
+        'deposit_interest_amount' => 'decimal:2',
+        'deposit_refund_deadline' => 'date',
+        'deposit_refund_completed_at' => 'datetime',
     ];
 
     public function tenant()
@@ -125,11 +132,37 @@ class Lease extends Model
     }
 
     /**
+     * Auto-compute deposit interest based on BSP prevailing savings rate.
+     * RA 9653 IRR Section 7b requires interest on security deposits.
+     *
+     * @return float computed interest amount
+     */
+    public function computeDepositInterest(): float
+    {
+        $deposit = (float) $this->security_deposit;
+        if ($deposit <= 0) return 0;
+
+        $startDate = $this->move_in ?? $this->start_date;
+        $endDate = $this->move_out ?? now();
+        if (!$startDate) return 0;
+
+        // BSP prevailing savings deposit rate (~1.25% per annum as of 2024-2025)
+        $annualRate = 0.0125;
+        $daysHeld = $startDate->diffInDays($endDate);
+        $interest = $deposit * ($annualRate / 365) * $daysHeld;
+
+        return round($interest, 2);
+    }
+
+    /**
      * Calculate the deposit refund at move-out.
+     *
+     * Uses only UNPAID billing amounts for deductions (not all billing items)
+     * to prevent double-counting charges that the tenant already paid.
      *
      * @param \Carbon\Carbon|null $originalEndDate Pass the original end_date if it was
      *        overwritten before calling this (e.g. confirmMoveOut sets end_date=today first).
-     * @return array{refund_amount: float, deductions: array, deposit: float, total_deductions: float}
+     * @return array{refund_amount: float, deductions: array, deposit: float, total_deductions: float, interest_earned: float}
      */
     public function calculateDepositRefund(?\Carbon\Carbon $originalEndDate = null): array
     {
@@ -137,31 +170,49 @@ class Lease extends Model
         $endDate = $originalEndDate ?? $this->end_date;
         $deductions = [];
 
-        // 1. Unpaid bills
-        $unpaidBills = $this->billings()
+        // 1. Unpaid bills — only from UNPAID/OVERDUE billings to prevent double-counting
+        //    with charges the tenant already paid directly
+        $unpaidBillings = $this->billings()
             ->whereIn('status', ['Unpaid', 'Overdue'])
-            ->sum('to_pay');
-        if ($unpaidBills > 0) {
-            $deductions[] = ['label' => 'Unpaid Bills', 'amount' => $unpaidBills];
+            ->with('items')
+            ->get();
+
+        $unpaidRent = 0;
+        $lateFees = 0;
+        $violationFines = 0;
+        $otherUnpaid = 0;
+
+        foreach ($unpaidBillings as $billing) {
+            foreach ($billing->items as $item) {
+                match ($item->charge_type) {
+                    'advance', 'rent', 'electricity', 'water' => $unpaidRent += (float) $item->amount,
+                    'late_fee' => $lateFees += (float) $item->amount,
+                    'violation_fee' => $violationFines += (float) $item->amount,
+                    default => $otherUnpaid += (float) $item->amount,
+                };
+            }
         }
 
-        // 2. Late fees (from billing items)
-        $lateFees = \App\Models\BillingItem::whereHas('billing', fn($q) => $q->where('lease_id', $this->lease_id))
-            ->where('charge_type', 'late_fee')
-            ->sum('amount');
+        if ($unpaidRent > 0) {
+            $deductions[] = ['label' => 'Unpaid Bills (Rent & Utilities)', 'amount' => $unpaidRent];
+        }
         if ($lateFees > 0) {
             $deductions[] = ['label' => 'Late Payment Fees', 'amount' => $lateFees];
         }
-
-        // 2b. Violation fines (shown as separate line item for transparency)
-        $violationFines = \App\Models\BillingItem::whereHas('billing', fn($q) => $q->where('lease_id', $this->lease_id))
-            ->where('charge_type', 'violation_fee')
-            ->sum('amount');
         if ($violationFines > 0) {
             $deductions[] = ['label' => 'Violation Fines', 'amount' => $violationFines];
         }
+        if ($otherUnpaid > 0) {
+            $deductions[] = ['label' => 'Other Unpaid Charges', 'amount' => $otherUnpaid];
+        }
 
-        // 3. Damage costs — use actual repair_cost entered by manager
+        // 2. Advance rent credit — deduct from unpaid balance
+        $advanceCredit = (float) ($this->advance_amount ?? 0);
+        if ($advanceCredit > 0 && ($unpaidRent + $lateFees + $violationFines + $otherUnpaid) > 0) {
+            $deductions[] = ['label' => 'Advance Rent Credit (applied)', 'amount' => -$advanceCredit];
+        }
+
+        // 3. Damage costs — improved detection: flag damage even without move-in record
         $moveInItems = $this->moveInInspections()->where('type', 'checklist')->get()->keyBy('item_name');
         $moveOutItems = $this->moveOutInspections()->where('type', 'checklist')->get()->keyBy('item_name');
         $damagedItems = [];
@@ -169,7 +220,14 @@ class Lease extends Model
 
         foreach ($moveOutItems as $name => $outItem) {
             $inItem = $moveInItems->get($name);
-            if ($inItem && $inItem->condition !== $outItem->condition && $outItem->condition !== 'good') {
+            $outCond = $outItem->condition;
+            $inCond = $inItem?->condition;
+
+            // Damage if: condition worsened, OR move-out is damaged/poor/missing even without move-in record
+            $conditionWorsened = $inCond && $inCond !== $outCond && $outCond !== 'good';
+            $noMoveInButDamaged = !$inCond && in_array($outCond, ['damaged', 'poor', 'missing']);
+
+            if ($conditionWorsened || $noMoveInButDamaged) {
                 $damagedItems[] = $name;
                 $damageCost += (float) ($outItem->repair_cost ?? 0);
             }
@@ -189,21 +247,27 @@ class Lease extends Model
             $deductions[] = ['label' => 'Unreturned Items', 'amount' => $replacementCost, 'items' => $unreturnedItems];
         }
 
-        // 5. Early termination (if moved out before original end_date)
-        // Security deposit is forfeited if tenant terminates early
-        if ($this->move_out && $endDate && $this->move_out->lt($endDate)) {
-            $earlyFee = (float) ($this->early_termination_fee ?? $deposit);
-            $deductions[] = ['label' => 'Early Termination Fee', 'amount' => $earlyFee];
+        // 5. Early termination — deposit forfeited in full (no additional fee per contract Section 7)
+        $isEarlyTermination = $this->move_out && $endDate && $this->move_out->lt($endDate);
+        if ($isEarlyTermination) {
+            $deductions[] = ['label' => 'Early Termination — Deposit Forfeiture', 'amount' => $deposit];
         }
 
         $totalDeductions = collect($deductions)->sum('amount');
-        $refund = max(0, $deposit - $totalDeductions);
+
+        // Auto-compute deposit interest (RA 9653 IRR Section 7b)
+        $interest = (float) ($this->deposit_interest_amount ?? $this->computeDepositInterest());
+
+        $refund = $isEarlyTermination
+            ? 0  // Full forfeiture — no refund regardless of interest
+            : max(0, $deposit - $totalDeductions + $interest);
 
         return [
             'refund_amount' => round($refund, 2),
             'deductions' => $deductions,
             'deposit' => $deposit,
-            'total_deductions' => round($totalDeductions, 2),
+            'total_deductions' => round(max(0, $totalDeductions), 2),
+            'interest_earned' => round($interest, 2),
         ];
     }
 }

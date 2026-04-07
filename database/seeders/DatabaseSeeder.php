@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Ensure Marcus Manager manages the unit where Tricia Tenant lives
+        // and reset her active lease to draft so the move-in contract can be tested
         $marcus = \App\Models\User::where('first_name', 'Marcus')->where('role', 'manager')->first();
         $tricia = \App\Models\User::where('first_name', 'Tricia')->where('role', 'tenant')->first();
         if ($marcus && $tricia) {
@@ -43,6 +44,26 @@ class DatabaseSeeder extends Seeder
                 if ($bed) {
                     \App\Models\Unit::where('unit_id', $bed->unit_id)->update(['manager_id' => $marcus->user_id]);
                 }
+
+                // Reset contract to draft for testing the move-in contract flow
+                $lease->update([
+                    'contract_status' => 'draft',
+                    'contract_agreed' => false,
+                    'tenant_signature' => null,
+                    'tenant_signed_at' => null,
+                    'tenant_signed_ip' => null,
+                    'owner_signature' => null,
+                    'owner_signed_at' => null,
+                    'owner_signed_ip' => null,
+                    'manager_signature' => null,
+                    'manager_signed_at' => null,
+                    'manager_signed_ip' => null,
+                    'signed_contract_path' => null,
+                ]);
+
+                // Clear any seeded move-in inspections so the flow starts fresh
+                $lease->moveInInspections()->delete();
+                $lease->auditLogs()->delete();
             }
         }
 

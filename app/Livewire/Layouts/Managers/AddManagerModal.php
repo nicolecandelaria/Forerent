@@ -4,6 +4,7 @@ namespace App\Livewire\Layouts\Managers;
 
 use App\Livewire\Concerns\WithNotifications;
 use App\Livewire\Forms\AddUserForm;
+use App\Models\Notification as NotificationModel;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
@@ -212,7 +213,6 @@ class AddManagerModal extends Component
                 if ($originalManager->email !== $manager->email)           $changedFields[] = 'email';
                 if ($this->selectedFloor && $originalFloor != $this->selectedFloor) $changedFields[] = 'floor assignment';
                 if ($this->profilePicture && !is_string($this->profilePicture))     $changedFields[] = 'profile picture';
-
                 $changeMessage = !empty($changedFields)
                     ? ucfirst(implode(', ', $changedFields)) . ' updated for ' . $manager->first_name . '.'
                     : $manager->first_name . ' has been updated.';
@@ -237,6 +237,17 @@ class AddManagerModal extends Component
                 }
 
                 $changeMessage = $manager->first_name . ' added successfully as a manager!';
+
+                // Notify manager to upload valid ID
+                if (!$manager->government_id_type || !$manager->government_id_number || !$manager->government_id_image) {
+                    NotificationModel::create([
+                        'user_id' => $manager->user_id,
+                        'type'    => 'valid_id_required',
+                        'title'   => 'Valid ID Required',
+                        'message' => 'Please upload your valid government ID in Settings to complete your profile.',
+                        'link'    => '/settings',
+                    ]);
+                }
             }
 
             // Handle profile picture upload

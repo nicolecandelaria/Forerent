@@ -75,6 +75,10 @@ class TenantDetail extends Component
     public $moveOutInitiated = false;
     public $moveOutPrerequisites = [];
 
+    // Deposit refund tracking
+    public $depositInterestAmount = '';
+    public $depositRefundReference = '';
+
     // Violations
     public $violations = [];
     public $violationCounts = ['total' => 0, 'issued' => 0, 'acknowledged' => 0, 'resolved' => 0];
@@ -549,12 +553,35 @@ class TenantDetail extends Component
         $lease = Lease::find($this->currentLeaseId);
         if (!$lease || $lease->move_out_initiated_at) return;
 
+        // Validate required fields for move-out initiation
+        $moveOutErrors = [];
+        if (empty(trim($this->forwardingAddress ?? ''))) {
+            $moveOutErrors['forwardingAddress'] = 'Forwarding address is required for deposit refund correspondence.';
+        }
+        if (empty($this->reasonForVacating)) {
+            $moveOutErrors['reasonForVacating'] = 'Reason for vacating is required.';
+        }
+        if (empty($this->depositRefundMethod)) {
+            $moveOutErrors['depositRefundMethod'] = 'Refund method is required.';
+        }
+        if (empty(trim($this->depositRefundAccount ?? ''))) {
+            $moveOutErrors['depositRefundAccount'] = 'Account name or number is required for refund processing.';
+        }
+
+        if (!empty($moveOutErrors)) {
+            foreach ($moveOutErrors as $key => $message) {
+                $this->addError($key, $message);
+            }
+            $this->dispatch('notify', type: 'error', title: 'Missing Information', description: 'Please fill in all required move-out details.');
+            return;
+        }
+
         $lease->update([
             'move_out_initiated_at' => now(),
-            'forwarding_address' => $this->forwardingAddress ?: null,
-            'reason_for_vacating' => $this->reasonForVacating ?: null,
-            'deposit_refund_method' => $this->depositRefundMethod ?: null,
-            'deposit_refund_account' => $this->depositRefundAccount ?: null,
+            'forwarding_address' => $this->forwardingAddress,
+            'reason_for_vacating' => $this->reasonForVacating,
+            'deposit_refund_method' => $this->depositRefundMethod,
+            'deposit_refund_account' => $this->depositRefundAccount,
         ]);
 
         ContractAuditLog::log($lease->lease_id, 'move_out_initiated', [
@@ -645,12 +672,27 @@ class TenantDetail extends Component
             && $lease->moveout_tenant_signature
             && $lease->moveout_contract_agreed;
 
+        // 30-day notice enforcement for early termination (Contract Section 7)
+        $isEarlyTermination = $lease
+            && $lease->move_out_initiated_at
+            && $lease->end_date
+            && \Carbon\Carbon::parse($lease->move_out_initiated_at)->lt($lease->end_date);
+
+        $noticePeriodMet = true;
+        $noticeLabel = '30-day notice period (N/A — normal end of lease)';
+        if ($isEarlyTermination) {
+            $daysSinceNotice = \Carbon\Carbon::parse($lease->move_out_initiated_at)->diffInDays(\Carbon\Carbon::today());
+            $noticePeriodMet = $daysSinceNotice >= 30;
+            $noticeLabel = "30-day notice period elapsed ({$daysSinceNotice}/30 days)";
+        }
+
         $this->moveOutPrerequisites = [
             ['label' => 'All bills settled', 'done' => $unpaidCount === 0],
             ['label' => 'Move-out inspection completed', 'done' => $inspectionDone],
             ['label' => 'Items returned recorded', 'done' => $itemsReturnedDone],
             ['label' => 'All repair/replacement costs confirmed (no TBD)', 'done' => $costsConfirmed],
             ['label' => 'Move-out contract signed by both parties', 'done' => $contractSigned],
+            ['label' => $noticeLabel, 'done' => $noticePeriodMet],
         ];
     }
 
@@ -701,11 +743,16 @@ class TenantDetail extends Component
                     'end_date' => $today,
                 ]);
 
+                // Auto-compute deposit interest (RA 9653 IRR §7b)
+                $computedInterest = $lease->computeDepositInterest();
+                $lease->update(['deposit_interest_amount' => $computedInterest]);
+
                 // Auto-calculate deposit refund with original end_date
                 $refundData = $lease->calculateDepositRefund($originalEndDate);
                 $lease->update([
                     'deposit_refund_amount' => $refundData['refund_amount'],
                     'deposit_deductions' => $refundData['deductions'],
+                    'deposit_refund_deadline' => $today->copy()->addDays(30),
                 ]);
 
                 ContractAuditLog::log($lease->lease_id, 'move_out_completed', [
@@ -739,6 +786,48 @@ class TenantDetail extends Component
             title: 'Tenant Moved Out',
             description: 'Lease marked as expired, deposit refund calculated, and bed status updated.'
         );
+    }
+
+    public function markRefundCompleted(): void
+    {
+        if (!$this->currentLeaseId) return;
+
+        $lease = Lease::find($this->currentLeaseId);
+        if (!$lease || $lease->status !== 'Expired' || $lease->deposit_refund_completed_at) return;
+
+        $lease->update([
+            'deposit_refund_completed_at' => now(),
+            'deposit_refund_reference' => $this->depositRefundReference ?: null,
+        ]);
+
+        ContractAuditLog::log($lease->lease_id, 'deposit_refund_completed', [
+            'metadata' => [
+                'refund_amount' => $lease->deposit_refund_amount,
+                'reference' => $this->depositRefundReference,
+            ],
+        ]);
+
+        // Notify tenant
+        if ($lease->tenant_id) {
+            $amount = number_format((float) $lease->deposit_refund_amount, 2);
+            Notification::create([
+                'user_id' => $lease->tenant_id,
+                'type' => 'deposit_refund_completed',
+                'title' => 'Deposit Refund Processed',
+                'message' => "Your deposit refund of PHP {$amount} has been processed." .
+                    ($this->depositRefundReference ? " Reference: {$this->depositRefundReference}" : ''),
+                'link' => '/tenant?tab=inspection',
+            ]);
+        }
+
+        $this->dispatch('notify',
+            type: 'success',
+            title: 'Refund Marked Complete',
+            description: 'Tenant has been notified that the deposit refund has been processed.'
+        );
+
+        $this->depositRefundReference = '';
+        $this->loadTenantData($this->currentTenantId);
     }
 
     public function openMoveInContract(): void
@@ -931,31 +1020,64 @@ class TenantDetail extends Component
         ]);
     }
 
+    /**
+     * Resolve a file path from private (local) disk, falling back to public disk
+     * for backward compatibility with existing files.
+     */
+    private function resolveSecureFilePath(?string $relativePath): ?string
+    {
+        if (!$relativePath) return null;
+        if (Storage::disk('local')->exists($relativePath)) {
+            return Storage::disk('local')->path($relativePath);
+        }
+        if (Storage::disk('public')->exists($relativePath)) {
+            return Storage::disk('public')->path($relativePath);
+        }
+        return null;
+    }
+
     private function generateSignedPdf(Lease $lease): void
     {
         $lease->load(['tenant', 'bed.unit.property']);
 
-        // Verify all three signature files exist
-        if (!$lease->tenant_signature || !Storage::disk('public')->exists($lease->tenant_signature)) {
+        // Verify all three signature files exist (check both private and public disks)
+        $tenantSigPath  = $this->resolveSecureFilePath($lease->tenant_signature);
+        $ownerSigPath   = $this->resolveSecureFilePath($lease->owner_signature);
+        $managerSigPath = $this->resolveSecureFilePath($lease->manager_signature);
+
+        if (!$tenantSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Tenant signature file is missing. Cannot generate signed contract PDF.');
             return;
         }
-        if (!$lease->owner_signature || !Storage::disk('public')->exists($lease->owner_signature)) {
+        if (!$ownerSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Owner signature file is missing. Cannot generate signed contract PDF.');
             return;
         }
-        if (!$lease->manager_signature || !Storage::disk('public')->exists($lease->manager_signature)) {
+        if (!$managerSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Manager witness signature file is missing. Cannot generate signed contract PDF.');
             return;
         }
 
-        $tenantSigPath  = Storage::disk('public')->path($lease->tenant_signature);
-        $ownerSigPath   = Storage::disk('public')->path($lease->owner_signature);
-        $managerSigPath = Storage::disk('public')->path($lease->manager_signature);
-
         // Get manager name
         $managerId = $this->findManagerIdForLease($lease);
         $manager = $managerId ? User::find($managerId) : null;
+
+        // Prepare additional data for PDF parity with web contract
+        $property = $lease->bed?->unit?->property;
+        $contractSettings = $property?->contract_settings ?? [];
+        $dueDay = $this->currentTenant['move_in_details']['monthly_due_date'] ?? null;
+        $dueSfx = match ((int) $dueDay) { 1, 21, 31 => 'st', 2, 22 => 'nd', 3, 23 => 'rd', default => 'th' };
+
+        // Base64-encode government ID image for PDF appendix (check private then public)
+        $govIdImage = $lease->tenant?->government_id_image;
+        $govIdBase64 = null;
+        if ($govIdImage) {
+            if (Storage::disk('local')->exists($govIdImage)) {
+                $govIdBase64 = 'data:image/png;base64,' . base64_encode(Storage::disk('local')->get($govIdImage));
+            } elseif (Storage::disk('public')->exists($govIdImage)) {
+                $govIdBase64 = 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($govIdImage));
+            }
+        }
 
         $data = [
             'tenant'                 => $this->currentTenant,
@@ -968,6 +1090,15 @@ class TenantDetail extends Component
             'ownerSignedAt'          => $lease->owner_signed_at->format('M d, Y'),
             'managerSignedAt'        => $lease->manager_signed_at->format('M d, Y'),
             'managerName'            => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
+            'contractSettings'       => $contractSettings,
+            'inspectionChecklist'    => $this->inspectionChecklist ?? [],
+            'itemsReceived'          => $this->itemsReceived ?? [],
+            'rate'                   => (float) ($this->currentTenant['move_in_details']['monthly_rate'] ?? 0),
+            'deposit'                => (float) ($this->currentTenant['move_in_details']['security_deposit'] ?? 0),
+            'premium'                => (float) ($this->currentTenant['move_in_details']['short_term_premium'] ?? 0),
+            'dueDay'                 => $dueDay,
+            'dueSfx'                 => $dueSfx,
+            'govIdBase64'            => $govIdBase64,
         ];
 
         $pdf = Pdf::loadView('pdf.move-in-contract', $data)
@@ -1060,23 +1191,23 @@ class TenantDetail extends Component
     {
         $lease->load(['tenant', 'bed.unit.property', 'moveInInspections', 'moveOutInspections']);
 
-        // Verify all three signature files exist
-        if (!$lease->moveout_tenant_signature || !Storage::disk('public')->exists($lease->moveout_tenant_signature)) {
+        // Verify all three signature files exist (check both private and public disks)
+        $tenantSigPath  = $this->resolveSecureFilePath($lease->moveout_tenant_signature);
+        $ownerSigPath   = $this->resolveSecureFilePath($lease->moveout_owner_signature);
+        $managerSigPath = $this->resolveSecureFilePath($lease->moveout_manager_signature);
+
+        if (!$tenantSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Tenant signature file is missing. Cannot generate signed move-out PDF.');
             return;
         }
-        if (!$lease->moveout_owner_signature || !Storage::disk('public')->exists($lease->moveout_owner_signature)) {
+        if (!$ownerSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Owner signature file is missing. Cannot generate signed move-out PDF.');
             return;
         }
-        if (!$lease->moveout_manager_signature || !Storage::disk('public')->exists($lease->moveout_manager_signature)) {
+        if (!$managerSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Manager witness signature file is missing. Cannot generate signed move-out PDF.');
             return;
         }
-
-        $tenantSigPath  = Storage::disk('public')->path($lease->moveout_tenant_signature);
-        $ownerSigPath   = Storage::disk('public')->path($lease->moveout_owner_signature);
-        $managerSigPath = Storage::disk('public')->path($lease->moveout_manager_signature);
 
         // Build move-in checklist for comparison
         $moveInChecklist = $lease->moveInInspections

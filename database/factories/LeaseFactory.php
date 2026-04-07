@@ -43,7 +43,7 @@ class LeaseFactory extends Factory
             'monthly_due_date'      => $this->faker->randomElement([1, 5, 15]),
             'late_payment_penalty'  => 1,
             'short_term_premium'    => $isShortTerm ? 500.00 : 0.00,
-            'reservation_fee_paid'  => $this->faker->randomElement([0, 500, 1000, 1500]),
+            'reservation_fee_paid'  => 0,
             'early_termination_fee' => $this->faker->randomElement([1000, 2000, 3000, 5000]),
 
             'created_at'       => now(),

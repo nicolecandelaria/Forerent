@@ -173,11 +173,45 @@
             </div>
         </div>
 
-        {{-- Valid ID Section (Tenant only) --}}
-        @if(auth()->user()->role === 'tenant')
+        {{-- Valid ID Section --}}
             <div class="mb-4 mt-8 flex items-center gap-3">
                 <h4 class="text-xl font-bold leading-tight text-[#0C0B50] md:text-xl">Valid ID</h4>
                 <div class="h-px flex-1 bg-gray-200"></div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 mb-6">
+                <div>
+                    <label for="government_id_type" class="mb-1.5 block text-sm font-semibold text-gray-700">ID Type</label>
+                    <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                        <select
+                            id="government_id_type"
+                            wire:model.live="governmentIdType"
+                            class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                        >
+                            <option value="">Select ID Type</option>
+                            <option value="Passport">Passport</option>
+                            <option value="Driver's License">Driver's License</option>
+                            <option value="UMID">UMID</option>
+                            <option value="National ID">National ID</option>
+                            <option value="Postal ID">Postal ID</option>
+                        </select>
+                    </div>
+                    @error('governmentIdType') <p class="ml-1 mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="government_id_number" class="mb-1.5 block text-sm font-semibold text-gray-700">ID Number</label>
+                    <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                        <input
+                            type="text"
+                            id="government_id_number"
+                            wire:model.live="governmentIdNumber"
+                            placeholder="Enter ID number"
+                            class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
+                        >
+                    </div>
+                    @error('governmentIdNumber') <p class="ml-1 mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
+                </div>
             </div>
 
             <div x-data="{ uploading: false, progress: 0 }"
@@ -226,7 +260,6 @@
 
                 @error('governmentIdImage') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
-        @endif
 
         <div class="mt-8 flex items-center justify-end">
             <button

@@ -39,6 +39,7 @@ class UserFactory extends Factory
             'permanent_address'              => fake()->address(),
             'government_id_type'             => fake()->randomElement($idTypes),
             'government_id_number'           => strtoupper(Str::random(3)) . '-' . fake()->numerify('########'),
+            'government_id_image'            => 'government-ids/sample-id-' . strtolower($firstName) . '.jpg',
             'company_school'                 => fake()->company(),
             'position_course'                => fake()->jobTitle(),
             'emergency_contact_name'         => fake()->name(),

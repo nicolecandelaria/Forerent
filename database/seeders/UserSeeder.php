@@ -21,6 +21,9 @@ class UserSeeder extends Seeder
             'email' => 'tenant@example.com',
             'role' => 'tenant',
             'password' => Hash::make('password'),
+            'government_id_type' => 'National ID',
+            'government_id_number' => 'PSN-20241234567',
+            'government_id_image' => 'government-ids/sample-id-tricia.jpg',
         ]);
 
         User::factory()->create([
@@ -29,6 +32,9 @@ class UserSeeder extends Seeder
             'email' => 'tenant2@example.com',
             'role' => 'tenant',
             'password' => Hash::make('password'),
+            'government_id_type' => 'Passport',
+            'government_id_number' => 'P-987654321',
+            'government_id_image' => 'government-ids/sample-id-tanya.jpg',
         ]);
 
         User::factory()->create([
@@ -37,6 +43,9 @@ class UserSeeder extends Seeder
             'email' => 'manager@example.com',
             'role' => 'manager',
             'password' => Hash::make('password'),
+            'government_id_type' => "Driver's License",
+            'government_id_number' => 'N01-12-345678',
+            'government_id_image' => 'government-ids/sample-id-marcus.jpg',
         ]);
 
         User::factory()->create([
@@ -45,6 +54,9 @@ class UserSeeder extends Seeder
             'email' => 'manager2@example.com',
             'role' => 'manager',
             'password' => Hash::make('password'),
+            'government_id_type' => 'UMID',
+            'government_id_number' => 'CRN-0012-3456789',
+            'government_id_image' => 'government-ids/sample-id-mia.jpg',
         ]);
 
         User::factory()->create([
@@ -54,6 +66,9 @@ class UserSeeder extends Seeder
             'role' => 'landlord',
             'password' => Hash::make('password'),
             'company_school' => 'ABC COMPANY',
+            'government_id_type' => 'Passport',
+            'government_id_number' => 'EB-1234567',
+            'government_id_image' => 'government-ids/sample-id-liam.jpg',
         ]);
 
 

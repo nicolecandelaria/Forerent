@@ -831,6 +831,7 @@
             title="Move-Out Clearance & Deposit Settlement"
             wireCloseMethod="toggleMoveOutContract"
             contractId="move-out-contract-tenant"
+            :hasSignatures="(bool) ($moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature)"
         >
             @include('partials.move-out-contract-body', [
                 't' => $t,
@@ -863,7 +864,7 @@
                         Sign Move-Out Contract
                     </button>
                 @endif
-                <button @click="$el.closest('.fixed').style.display='none'; $wire.toggleMoveOutContract()" class="px-5 py-2.5 text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl">Close</button>
+                <button @click="{{ ($moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature) ? "\$el.closest('.fixed').style.display='none'; \$wire.toggleMoveOutContract()" : 'showLeaveConfirm = true' }}" class="px-5 py-2.5 text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl">Close</button>
             </x-slot:footer>
         </x-inspection.contract-viewer-modal>
     @endif
@@ -884,6 +885,7 @@
             title="Move-In Contract"
             wireCloseMethod="toggleContract"
             contractId="move-in-contract-tenant"
+            :hasSignatures="(bool) ($ownerSignature || $managerSignature || $tenantSignature)"
         >
             @include('partials.move-in-contract-body', [
                 't' => $t,
@@ -912,7 +914,7 @@
                         Read & Sign Contract
                     </button>
                 @endif
-                <button @click="$el.closest('.fixed').style.display='none'; $wire.toggleContract()" class="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-xl text-sm">Close</button>
+                <button @click="{{ ($ownerSignature || $managerSignature || $tenantSignature) ? "\$el.closest('.fixed').style.display='none'; \$wire.toggleContract()" : 'showLeaveConfirm = true' }}" class="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-xl text-sm">Close</button>
             </x-slot:footer>
         </x-inspection.contract-viewer-modal>
     @endif

@@ -157,6 +157,10 @@ Artisan::command('billings:apply-late-fees {--dry-run : Show what would change w
         $dailyPenalty = round(($penaltyRate / 100) * (float) $lease->contract_rate, 2);
         $totalLateFee = round($dailyPenalty * $daysLate, 2);
 
+        // Cap at 25% of monthly rent (Civil Code Article 1229 — equitable reduction)
+        $maxPenalty = round((float) $lease->contract_rate * 0.25, 2);
+        $totalLateFee = min($totalLateFee, $maxPenalty);
+
         $description = "Late Payment Fee ({$daysLate} day(s) × ₱" . number_format($dailyPenalty, 2) . "/day)";
 
         $this->line("  Billing #{$billing->billing_id}: {$daysLate} day(s) late → ₱" . number_format($totalLateFee, 2));
@@ -247,13 +251,17 @@ Artisan::command('leases:handle-expiration {--dry-run : Show what would change w
             $this->line("  Warning ({$days}d): Lease #{$lease->lease_id} — {$lease->tenant->first_name} {$lease->tenant->last_name}");
 
             if (!$dryRun) {
+                $rate = number_format((float) $lease->contract_rate, 2);
+                $message = $lease->auto_renew
+                    ? "Your lease ends on " . $lease->end_date->format('M d, Y') . ". It will automatically renew at the current rate of PHP {$rate}/month. A new contract will be generated for signing."
+                    : "Your lease ends on " . $lease->end_date->format('M d, Y') . " at a rate of PHP {$rate}/month. Contact management if you wish to renew.";
+
                 \App\Models\Notification::create([
                     'user_id' => $lease->tenant_id,
                     'type' => 'lease_expiring',
                     'title' => "Lease Expiring in {$days} Days",
-                    'message' => "Your lease ends on " . $lease->end_date->format('M d, Y') . ". " .
-                        ($lease->auto_renew ? 'Your lease is set to auto-renew.' : 'Please contact management if you wish to renew.'),
-                    'link' => '/tenant',
+                    'message' => $message,
+                    'link' => '/tenant?tab=inspection',
                 ]);
                 $warned++;
             }
@@ -279,8 +287,13 @@ Artisan::command('leases:handle-expiration {--dry-run : Show what would change w
                 'contract_agreed' => false,
                 'tenant_signature' => null,
                 'owner_signature' => null,
+                'manager_signature' => null,
                 'tenant_signed_at' => null,
                 'owner_signed_at' => null,
+                'manager_signed_at' => null,
+                'tenant_signed_ip' => null,
+                'owner_signed_ip' => null,
+                'manager_signed_ip' => null,
                 'signed_contract_path' => null,
             ]);
 
@@ -806,6 +819,282 @@ Artisan::command('test:tricia-move-out', function () {
     return 0;
 })->purpose('Test: Simulate Tricia\'s full move-out flow');
 
+/*
+|--------------------------------------------------------------------------
+| deposits:send-refund-reminders
+|--------------------------------------------------------------------------
+| Sends reminders to owners/managers when a deposit refund deadline is
+| approaching (7, 3, 0 days before). RA 9653 IRR Section 7 — deposit must
+| be returned within reasonable time (contract specifies 30 days).
+*/
+Artisan::command('deposits:send-refund-reminders', function () {
+    $today = Carbon::today();
+    $sent = 0;
+
+    // Find expired leases with pending refunds
+    $leases = \App\Models\Lease::where('status', 'Expired')
+        ->where('deposit_refund_amount', '>', 0)
+        ->whereNotNull('deposit_refund_deadline')
+        ->whereNull('deposit_refund_completed_at')
+        ->with(['tenant', 'bed.unit.property'])
+        ->get();
+
+    foreach ($leases as $lease) {
+        if (!$lease->tenant) continue;
+
+        $deadline = Carbon::parse($lease->deposit_refund_deadline);
+        $daysRemaining = $today->diffInDays($deadline, false); // negative = overdue
+
+        // Send at 7 days before, 3 days before, on the day, and if overdue
+        if (!in_array($daysRemaining, [7, 3, 0]) && $daysRemaining >= 0) {
+            continue;
+        }
+
+        $tenantName = $lease->tenant->first_name . ' ' . $lease->tenant->last_name;
+        $amount = number_format((float) $lease->deposit_refund_amount, 2);
+
+        if ($daysRemaining < 0) {
+            $title = 'Deposit Refund OVERDUE';
+            $message = "Deposit refund of PHP {$amount} for {$tenantName} was due on " . $deadline->format('M d, Y') . ". Please process immediately.";
+        } elseif ($daysRemaining === 0) {
+            $title = 'Deposit Refund Due TODAY';
+            $message = "Deposit refund of PHP {$amount} for {$tenantName} is due today. Please process the refund.";
+        } else {
+            $title = "Deposit Refund Due in {$daysRemaining} Days";
+            $message = "Deposit refund of PHP {$amount} for {$tenantName} is due by " . $deadline->format('M d, Y') . ". Please prepare the refund.";
+        }
+
+        // Notify owner
+        $ownerId = $lease->bed?->unit?->property?->owner_id;
+        if ($ownerId) {
+            \App\Models\Notification::create([
+                'user_id' => $ownerId,
+                'type' => 'deposit_refund_reminder',
+                'title' => $title,
+                'message' => $message,
+                'link' => '/owner/property',
+            ]);
+            $sent++;
+        }
+
+        // Notify manager
+        $managerId = $lease->bed?->unit?->manager_id;
+        if ($managerId) {
+            \App\Models\Notification::create([
+                'user_id' => $managerId,
+                'type' => 'deposit_refund_reminder',
+                'title' => $title,
+                'message' => $message,
+                'link' => '/manager/tenant',
+            ]);
+            $sent++;
+        }
+
+        $this->line("  Lease #{$lease->lease_id}: {$tenantName} — {$title}");
+    }
+
+    $this->info("Deposit refund reminders sent: {$sent}");
+})->purpose('Send deposit refund deadline reminders to owners/managers');
+
+/*
+|--------------------------------------------------------------------------
+| leases:check-nonpayment
+|--------------------------------------------------------------------------
+| Runs daily. Enforces RA 9653 Section 9(a) — non-payment escalation:
+|   1 month overdue  → Warning notification (demand to pay)
+|   2 months overdue → Final warning notification
+|   3 months overdue → Violation (lease_termination) + move-out initiated
+|
+| "Consecutive months overdue" = number of distinct billings with status
+| Overdue whose due_date is at least 30 days in the past, counted per lease.
+*/
+Artisan::command('leases:check-nonpayment {--dry-run : Show what would change without writing data}', function () {
+    $dryRun = (bool) $this->option('dry-run');
+    $today = Carbon::today();
+
+    $this->info('Checking for non-payment escalation (RA 9653)...');
+    if ($dryRun) {
+        $this->comment('Dry run mode enabled. No data will be written.');
+    }
+
+    $warned = 0;
+    $finalWarned = 0;
+    $terminated = 0;
+
+    // Get all active leases that have overdue billings
+    $leases = \App\Models\Lease::where('status', 'Active')
+        ->whereNull('move_out_initiated_at')
+        ->whereNull('move_out')
+        ->whereHas('billings', function ($q) {
+            $q->where('status', 'Overdue');
+        })
+        ->with('tenant')
+        ->get();
+
+    foreach ($leases as $lease) {
+        if (!$lease->tenant) continue;
+
+        // Count how many distinct billings are overdue for 30+ days
+        $overdueCount = $lease->billings()
+            ->where('status', 'Overdue')
+            ->where('due_date', '<=', $today->copy()->subDays(30))
+            ->count();
+
+        if ($overdueCount < 1) continue;
+
+        $tenantName = $lease->tenant->first_name . ' ' . $lease->tenant->last_name;
+
+        // Get manager ID for notifications
+        $managerId = \Illuminate\Support\Facades\DB::table('beds')
+            ->join('units', 'beds.unit_id', '=', 'units.unit_id')
+            ->where('beds.bed_id', $lease->bed_id)
+            ->value('units.manager_id');
+
+        if ($overdueCount >= 3) {
+            // 3+ months overdue → Lease termination (RA 9653 Section 9a)
+            $this->line("  TERMINATE: Lease #{$lease->lease_id} — {$tenantName} ({$overdueCount} months overdue)");
+
+            if (!$dryRun) {
+                // Check if a non-payment termination violation already exists
+                $existingTermination = \App\Models\Violation::where('lease_id', $lease->lease_id)
+                    ->where('category', 'Non-Payment of Rent')
+                    ->where('penalty_type', 'lease_termination')
+                    ->whereNull('deleted_at')
+                    ->exists();
+
+                if (!$existingTermination) {
+                    $existingViolations = \App\Models\Violation::where('lease_id', $lease->lease_id)
+                        ->whereNull('deleted_at')
+                        ->count();
+
+                    \App\Models\Violation::create([
+                        'lease_id' => $lease->lease_id,
+                        'reported_by' => $managerId,
+                        'violation_number' => 'NP-' . $lease->lease_id . '-' . now()->format('Ymd'),
+                        'offense_number' => $existingViolations + 1,
+                        'category' => 'Non-Payment of Rent',
+                        'description' => "Tenant has {$overdueCount} months of unpaid rent. Lease termination initiated per RA 9653 Section 9(a).",
+                        'severity' => 'serious',
+                        'penalty_type' => 'lease_termination',
+                        'status' => 'Issued',
+                        'violation_date' => $today,
+                        'issued_at' => now(),
+                    ]);
+
+                    // Initiate move-out
+                    $lease->update([
+                        'move_out_initiated_at' => $today,
+                    ]);
+
+                    \App\Models\ContractAuditLog::log($lease->lease_id, 'nonpayment_lease_termination', [
+                        'metadata' => [
+                            'overdue_months' => $overdueCount,
+                            'legal_basis' => 'RA 9653 Section 9(a)',
+                        ],
+                    ]);
+
+                    \App\Models\Notification::create([
+                        'user_id' => $lease->tenant_id,
+                        'type' => 'nonpayment_termination',
+                        'title' => 'Lease Termination — Non-Payment of Rent',
+                        'message' => "Your lease has been terminated due to {$overdueCount} months of unpaid rent per RA 9653 Section 9(a). The move-out process has been initiated. Please settle your outstanding balance and coordinate with management.",
+                        'link' => '/tenant?tab=inspection',
+                    ]);
+
+                    if ($managerId) {
+                        \App\Models\Notification::create([
+                            'user_id' => $managerId,
+                            'type' => 'nonpayment_termination',
+                            'title' => 'Lease Terminated — Non-Payment',
+                            'message' => "Lease #{$lease->lease_id} ({$tenantName}) has been terminated due to {$overdueCount} months of non-payment. Move-out process initiated. Legal basis: RA 9653 Section 9(a).",
+                            'link' => '/manager/tenant',
+                        ]);
+                    }
+
+                    $terminated++;
+                }
+            }
+        } elseif ($overdueCount === 2) {
+            // 2 months overdue → Final warning
+            $alreadyNotified = \App\Models\Notification::where('user_id', $lease->tenant_id)
+                ->where('type', 'nonpayment_final_warning')
+                ->where('created_at', '>=', $today->copy()->subDays(30))
+                ->exists();
+
+            if (!$alreadyNotified) {
+                $this->line("  FINAL WARNING: Lease #{$lease->lease_id} — {$tenantName} ({$overdueCount} months overdue)");
+
+                if (!$dryRun) {
+                    \App\Models\Notification::create([
+                        'user_id' => $lease->tenant_id,
+                        'type' => 'nonpayment_final_warning',
+                        'title' => 'Final Warning — Non-Payment of Rent',
+                        'message' => "You have {$overdueCount} months of unpaid rent. Per RA 9653, failure to pay within the next billing period may result in lease termination. Please settle your balance immediately.",
+                        'link' => '/tenant?tab=inspection',
+                    ]);
+
+                    if ($managerId) {
+                        \App\Models\Notification::create([
+                            'user_id' => $managerId,
+                            'type' => 'nonpayment_final_warning',
+                            'title' => 'Tenant Final Warning — Non-Payment',
+                            'message' => "Lease #{$lease->lease_id} ({$tenantName}) has {$overdueCount} months unpaid. Final warning sent. Lease termination will trigger next month if unresolved.",
+                            'link' => '/manager/tenant',
+                        ]);
+                    }
+
+                    $finalWarned++;
+                }
+            }
+        } else {
+            // 1 month overdue → First warning (demand to pay)
+            $alreadyNotified = \App\Models\Notification::where('user_id', $lease->tenant_id)
+                ->where('type', 'nonpayment_warning')
+                ->where('created_at', '>=', $today->copy()->subDays(30))
+                ->exists();
+
+            if (!$alreadyNotified) {
+                $this->line("  WARNING: Lease #{$lease->lease_id} — {$tenantName} ({$overdueCount} month overdue)");
+
+                if (!$dryRun) {
+                    \App\Models\Notification::create([
+                        'user_id' => $lease->tenant_id,
+                        'type' => 'nonpayment_warning',
+                        'title' => 'Notice — Overdue Rent Payment',
+                        'message' => 'You have an overdue rent payment exceeding 30 days. Please settle your balance to avoid further penalties. Continued non-payment may lead to lease termination per RA 9653.',
+                        'link' => '/tenant?tab=inspection',
+                    ]);
+
+                    if ($managerId) {
+                        \App\Models\Notification::create([
+                            'user_id' => $managerId,
+                            'type' => 'nonpayment_warning',
+                            'title' => 'Tenant Overdue Notice Sent',
+                            'message' => "Lease #{$lease->lease_id} ({$tenantName}) has 1 month of unpaid rent. First warning notice sent.",
+                            'link' => '/manager/tenant',
+                        ]);
+                    }
+
+                    $warned++;
+                }
+            }
+        }
+    }
+
+    $this->newLine();
+    $this->line("First warnings sent: {$warned}");
+    $this->line("Final warnings sent: {$finalWarned}");
+    $this->line("Leases terminated: {$terminated}");
+
+    if ($dryRun) {
+        $this->comment('Run without --dry-run to apply changes.');
+    } else {
+        $this->info('Non-payment check completed.');
+    }
+})->purpose('Escalate non-payment per RA 9653: warn at 1-2 months, terminate at 3 months');
+
 // Schedule: run daily at midnight
 Schedule::command('billings:apply-late-fees')->daily();
 Schedule::command('leases:handle-expiration')->daily();
+Schedule::command('leases:check-nonpayment')->daily();
+Schedule::command('deposits:send-refund-reminders')->daily();

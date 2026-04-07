@@ -1,9 +1,14 @@
 <div>
     @if($showModal && $contractData)
+        @php
+            $hasAnySignature = $ownerSignature || $managerSignature || $tenantSignature
+                || $moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature;
+        @endphp
         {{-- Backdrop --}}
         <div
+            x-data="{ showLeaveConfirm: false }"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            wire:click.self="closeModal"
+            @click.self="{{ $hasAnySignature ? '$wire.closeModal()' : 'showLeaveConfirm = true' }}"
         >
             {{-- Modal Container --}}
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-4 overflow-hidden">
@@ -46,7 +51,7 @@
                         </div>
 
                         {{-- Close Button --}}
-                        <button wire:click="closeModal" class="text-white/80 hover:text-white transition-colors">
+                        <button @click="{{ $hasAnySignature ? '$wire.closeModal()' : 'showLeaveConfirm = true' }}" class="text-white/80 hover:text-white transition-colors">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -128,13 +133,15 @@
                         @endif
                     </p>
                     <button
-                        wire:click="closeModal"
+                        @click="{{ $hasAnySignature ? '$wire.closeModal()' : 'showLeaveConfirm = true' }}"
                         class="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         Close
                     </button>
                 </div>
             </div>
+
+            <x-contract-leave-confirm closeAction="$wire.closeModal()" />
         </div>
 
         {{-- Owner Signature Pad Modals --}}

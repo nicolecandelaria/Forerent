@@ -131,7 +131,10 @@
       "Read(//e/xampp/php/**)",
       "Bash(ls \"e:/laragon/bin/php/\"*/php.exe)",
       "Read(//d/xampp/php/**)",
-      "Bash(D:/xampp/php/php.exe artisan tinker '--execute=:*)"
+      "Bash(D:/xampp/php/php.exe artisan tinker '--execute=:*)",
+      "Bash(ls database/migrations/*spa*)",
+      "Bash(ls database/migrations/*power*)",
+      "Bash(find e:\\\\reigne\\\\Citispace-Forerent -type f \\\\\\( -name \"*.php\" -o -name \"*.blade.php\" \\\\\\) -exec grep -l \"spa_document\\\\|spa_original_name\\\\|spaDocument\\\\|Special Power of Attorney\" {} \\\\;)"
     ],
     "additionalDirectories": [
       "\\tmp"

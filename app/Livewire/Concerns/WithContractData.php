@@ -43,6 +43,8 @@ trait WithContractData
                 'contact'          => $owner?->contact,
                 'email'            => $owner?->email,
                 'representative'   => $owner ? ($owner->first_name . ' ' . $owner->last_name) : '—',
+                'government_id_type'   => $owner?->government_id_type,
+                'government_id_number' => $owner?->government_id_number,
             ],
             'manager_info' => [
                 'name' => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
@@ -83,12 +85,11 @@ trait WithContractData
                 'move_in_date'          => $lease?->move_in?->format('Y-m-d'),
                 'monthly_rate'          => $lease?->contract_rate,
                 'security_deposit'      => $lease?->security_deposit,
+                'advance_amount'        => $lease?->advance_amount,
                 'payment_status'        => $billing?->status ?? 'No billing',
                 'monthly_due_date'      => $lease?->monthly_due_date,
                 'late_payment_penalty'  => $lease?->late_payment_penalty,
-                'short_term_premium'    => $lease?->short_term_premium > 0
-                    ? $lease->short_term_premium
-                    : (($lease?->term && (int) $lease->term < 6) ? 500 : 0),
+                'short_term_premium'    => $lease?->short_term_premium ?? 0,
                 'reservation_fee_paid'  => $lease?->reservation_fee_paid,
                 'early_termination_fee' => $lease?->early_termination_fee,
             ],
@@ -115,6 +116,7 @@ trait WithContractData
             'deposit_refund' => [
                 'amount' => $lease?->deposit_refund_amount,
                 'deductions' => $lease?->deposit_deductions,
+                'interest_earned' => $lease?->deposit_interest_amount,
             ],
             'outstanding_balances' => $this->buildOutstandingBalances($lease),
         ];
@@ -169,43 +171,42 @@ trait WithContractData
             ->with('items')
             ->get();
 
-        $unpaidRent = 0;
-        $unpaidElectricity = 0;
-        $unpaidWater = 0;
-        $lateFees = 0;
-        $violationFines = 0;
-        $otherCharges = 0;
+        $grouped = [
+            'rent'          => ['charge' => 'Unpaid Monthly Rent',       'amount' => 0, 'periods' => []],
+            'electricity'   => ['charge' => 'Unpaid Electricity Share',  'amount' => 0, 'periods' => []],
+            'water'         => ['charge' => 'Unpaid Water Share',        'amount' => 0, 'periods' => []],
+            'late_fee'      => ['charge' => 'Late Payment Fees',         'amount' => 0, 'periods' => []],
+            'violation_fee' => ['charge' => 'Violation Fines',           'amount' => 0, 'periods' => []],
+            'other'         => ['charge' => 'Other Charges',             'amount' => 0, 'periods' => []],
+        ];
 
         foreach ($unpaidBillings as $billing) {
+            $billingPeriod = $billing->billing_date?->format('M Y') ?? '';
+
             foreach ($billing->items as $item) {
-                match ($item->charge_type) {
-                    'advance', 'rent' => $unpaidRent += (float) $item->amount,
-                    'electricity' => $unpaidElectricity += (float) $item->amount,
-                    'water' => $unpaidWater += (float) $item->amount,
-                    'late_fee' => $lateFees += (float) $item->amount,
-                    'violation_fee' => $violationFines += (float) $item->amount,
-                    default => $otherCharges += (float) $item->amount,
+                $key = match ($item->charge_type) {
+                    'advance', 'rent' => 'rent',
+                    'electricity' => 'electricity',
+                    'water' => 'water',
+                    'late_fee' => 'late_fee',
+                    'violation_fee' => 'violation_fee',
+                    default => 'other',
                 };
+                $grouped[$key]['amount'] += (float) $item->amount;
+                if ($billingPeriod && !in_array($billingPeriod, $grouped[$key]['periods'])) {
+                    $grouped[$key]['periods'][] = $billingPeriod;
+                }
             }
         }
 
-        if ($unpaidRent > 0) {
-            $balances[] = ['charge' => 'Unpaid Monthly Rent', 'period' => '', 'amount' => $unpaidRent];
-        }
-        if ($unpaidElectricity > 0) {
-            $balances[] = ['charge' => 'Unpaid Electricity Share', 'period' => '', 'amount' => $unpaidElectricity];
-        }
-        if ($unpaidWater > 0) {
-            $balances[] = ['charge' => 'Unpaid Water Share', 'period' => '', 'amount' => $unpaidWater];
-        }
-        if ($lateFees > 0) {
-            $balances[] = ['charge' => 'Late Payment Fees', 'period' => '', 'amount' => $lateFees];
-        }
-        if ($violationFines > 0) {
-            $balances[] = ['charge' => 'Violation Fines', 'period' => '', 'amount' => $violationFines];
-        }
-        if ($otherCharges > 0) {
-            $balances[] = ['charge' => 'Other Charges', 'period' => '', 'amount' => $otherCharges];
+        foreach ($grouped as $group) {
+            if ($group['amount'] > 0) {
+                $balances[] = [
+                    'charge' => $group['charge'],
+                    'period' => implode(', ', $group['periods']) ?: '—',
+                    'amount' => $group['amount'],
+                ];
+            }
         }
 
         return $balances;

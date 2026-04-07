@@ -43,6 +43,9 @@ class AddPropertyModal extends Component
     public $inspectionReport = null;
     public $barangayClearance = null;
     public $occupancyPermit = null;
+    public $titleTct = null;
+    public $taxDeclaration = null;
+    public $transferCertificate = null;
 
     /** Existing documents for edit mode */
     public $existingPhotos = [];
@@ -67,13 +70,16 @@ class AddPropertyModal extends Component
         $hasExistingPhotos = count($this->existingPhotos) > 0;
         $photoRule = $hasExistingPhotos ? 'nullable' : 'required';
 
-        $documentFields = ['businessPermit', 'bir2303', 'inspectionReport', 'barangayClearance', 'occupancyPermit'];
+        $documentFields = ['businessPermit', 'bir2303', 'inspectionReport', 'barangayClearance', 'occupancyPermit', 'titleTct', 'taxDeclaration', 'transferCertificate'];
         $categoryMap = [
             'businessPermit' => 'business_permit',
             'bir2303' => 'bir_2303',
             'inspectionReport' => 'inspection_report',
             'barangayClearance' => 'barangay_clearance',
             'occupancyPermit' => 'occupancy_permit',
+            'titleTct' => 'title_tct',
+            'taxDeclaration' => 'tax_declaration',
+            'transferCertificate' => 'transfer_certificate',
         ];
 
         $rules = [
@@ -119,6 +125,15 @@ class AddPropertyModal extends Component
             'occupancyPermit.required' => 'Occupancy Permit is required.',
             'occupancyPermit.mimes' => 'Only PDF, JPG, PNG files are allowed.',
             'occupancyPermit.max' => 'File must be under 10MB.',
+            'titleTct.required' => 'Title / TCT is required.',
+            'titleTct.mimes' => 'Only PDF, JPG, PNG files are allowed.',
+            'titleTct.max' => 'File must be under 10MB.',
+            'taxDeclaration.required' => 'Tax Declaration is required.',
+            'taxDeclaration.mimes' => 'Only PDF, JPG, PNG files are allowed.',
+            'taxDeclaration.max' => 'File must be under 10MB.',
+            'transferCertificate.required' => 'Transfer Certificate is required.',
+            'transferCertificate.mimes' => 'Only PDF, JPG, PNG files are allowed.',
+            'transferCertificate.max' => 'File must be under 10MB.',
         ];
     }
 
@@ -166,6 +181,9 @@ class AddPropertyModal extends Component
     public function updatedInspectionReport(): void { $this->resetValidation('inspectionReport'); }
     public function updatedBarangayClearance(): void { $this->resetValidation('barangayClearance'); }
     public function updatedOccupancyPermit(): void { $this->resetValidation('occupancyPermit'); }
+    public function updatedTitleTct(): void { $this->resetValidation('titleTct'); }
+    public function updatedTaxDeclaration(): void { $this->resetValidation('taxDeclaration'); }
+    public function updatedTransferCertificate(): void { $this->resetValidation('transferCertificate'); }
 
     public function updatedNewPhotos(): void
     {
@@ -306,6 +324,9 @@ class AddPropertyModal extends Component
             'inspectionReport' => ['category' => 'inspection_report', 'visibility' => 'owner_manager'],
             'barangayClearance' => ['category' => 'barangay_clearance', 'visibility' => 'owner_manager'],
             'occupancyPermit' => ['category' => 'occupancy_permit', 'visibility' => 'all'],
+            'titleTct' => ['category' => 'title_tct', 'visibility' => 'owner_manager'],
+            'taxDeclaration' => ['category' => 'tax_declaration', 'visibility' => 'owner_manager'],
+            'transferCertificate' => ['category' => 'transfer_certificate', 'visibility' => 'owner_manager'],
         ];
 
         foreach ($documentFields as $field => $meta) {
@@ -347,6 +368,9 @@ class AddPropertyModal extends Component
             'inspectionReport',
             'barangayClearance',
             'occupancyPermit',
+            'titleTct',
+            'taxDeclaration',
+            'transferCertificate',
             'existingPhotos',
             'existingDocuments',
             'removedDocumentIds',

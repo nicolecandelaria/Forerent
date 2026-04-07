@@ -101,6 +101,11 @@
                             <p class="text-xs text-blue-600 mt-3">
                                 &#8369; {{ number_format((float)$totalAmount, 2) }} &divide; {{ $tenantCount }} tenants = &#8369; {{ number_format($perTenantAmount, 2) }} each
                             </p>
+                            @if($hasProration)
+                                <p class="text-[11px] text-amber-600 mt-1 font-medium">
+                                    * Mid-month move-in detected — shares will be prorated by days occupied.
+                                </p>
+                            @endif
                         </div>
                     @elseif($selectedUnit && $tenantCount === 0)
                         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
