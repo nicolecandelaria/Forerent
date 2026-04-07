@@ -1,4 +1,4 @@
-<div class="bg-white rounded-lg shadow-md p-6">
+<div class="bg-white rounded-lg shadow-md p-6" wire:init="loadForecast">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Revenue Forecast</h2>
 
@@ -27,7 +27,7 @@
                 @foreach(range(now()->year, now()->year + 2) as $year)
                     <button
                         type="button"
-                        wire:click="$set('forecastYear', {{ $year }})"
+                        wire:click="updateYear({{ $year }})"
                         @click="open = false"
                         class="w-full text-left px-4 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer text-sm transition-colors {{ $forecastYear == $year ? 'bg-[#2B66F5] text-white' : 'text-gray-600' }}"
                     >
@@ -49,6 +49,11 @@
             <strong>Notice:</strong> {{ $warning }}
         </div>
     @endif
+
+    <script type="application/json" id="revenueForecastPayload">{!! json_encode([
+        'forecastYear' => $forecastYear,
+        'monthlyForecasts' => $monthlyForecasts,
+    ]) !!}</script>
 
     @if(!empty($monthlyForecasts))
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
@@ -113,208 +118,6 @@
             </div>
         </div>
 
-        <!-- Chart.js/ApexCharts Script -->
-        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <script>
-            document.addEventListener('livewire:navigated', () => { renderRevenueChart(); });
-            document.addEventListener('DOMContentLoaded', () => { renderRevenueChart(); });
-
-            function renderRevenueChart() {
-                const monthlyForecasts = @json($monthlyForecasts);
-
-                if (!monthlyForecasts || monthlyForecasts.length === 0) return;
-
-                const categories = monthlyForecasts.map(f => f.month_name);
-                const series = [
-                    {
-                        type: 'line',
-                        name: 'Actual Earnings',
-                        data: monthlyForecasts.map(f => Number(f.actual_revenue || 0))
-                    },
-                    {
-                        type: 'line',
-                        name: 'Forecasted Revenue',
-                        data: monthlyForecasts.map(f => Number(f.forecasted_revenue || 0))
-                    }
-                ];
-
-                const options = {
-                    chart: {
-                        type: 'line',
-                        height: 400,
-                        toolbar: {
-                            show: false,
-                            tools: {
-                                download: true,
-                                selection: true,
-                                zoom: true,
-                                zoomin: true,
-                                zoomout: true,
-                                pan: true,
-                                reset: true
-                            }
-                        },
-                        animations: {
-                            enabled: true,
-                            speed: 800,
-                            animateGradually: {
-                                enabled: true,
-                                delay: 150
-                            }
-                        }
-                    },
-                    stroke: {
-                        curve: 'straight',
-                        width: [4, 4],
-                        lineCap: 'round',
-                        dashArray: [0, 0]
-                    },
-                    markers: {
-                        size: 4,
-                        strokeWidth: 0,
-                        hover: {
-                            size: 6
-                        }
-                    },
-                    dataLabels: {
-                        enabled: false
-                    },
-                    xaxis: {
-                        categories: categories,
-                        labels: {
-                            style: {
-                                fontSize: '12px',
-                                colors: '#6B7280'
-                            }
-                        }
-                    },
-                    yaxis: {
-                        title: {
-                            text: 'Revenue (₱)',
-                            style: {
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                color: '#070642'
-                            }
-                        },
-                        labels: {
-                            formatter: function (val) {
-                                return '₱' + (val / 1000).toFixed(0) + 'K';
-                            },
-                            style: {
-                                colors: '#6B7280'
-                            }
-                        }
-                    },
-                    colors: ['#2B66F5', '#F5652B'],
-                    legend: {
-                        labels: {
-                            colors: '#070642'
-                        }
-                    },
-                    tooltip: {
-                        theme: 'light',
-                        shared: true,
-                        intersect: false,
-                        style: {
-                            fontSize: '12px'
-                        },
-                        y: {
-                            formatter: function (val) {
-                                return '₱' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                        }
-                    },
-                    grid: {
-                        borderColor: '#E5E7EB',
-                        strokeDashArray: 3,
-                        show: true
-                    },
-                    states: {
-                        hover: {
-                            filter: {
-                                type: 'none'
-                            }
-                        },
-                        active: {
-                            filter: {
-                                type: 'none'
-                            }
-                        }
-                    },
-                    theme: {
-                        monochrome: {
-                            enabled: false
-                        }
-                    }
-                };
-
-                // Destroy existing chart if it exists
-                if (window.revenueChartInstance) {
-                    window.revenueChartInstance.destroy();
-                }
-
-                // Create new chart
-                window.revenueChartInstance = new ApexCharts(
-                    document.getElementById('revenueChart'),
-                    {
-                        series,
-                        ...options
-                    }
-                );
-
-                window.revenueChartInstance.render();
-            }
-
-            // Download Chart Function
-            function downloadChart(format) {
-                if (!window.revenueChartInstance) return;
-
-                if (format === 'svg') {
-                    // Download as SVG
-                    const svg = document.querySelector('#revenueChart svg');
-                    if (svg) {
-                        const svgData = new XMLSerializer().serializeToString(svg);
-                        const link = document.createElement('a');
-                        link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
-                        link.download = `revenue-forecast-${@json($forecastYear)}.svg`;
-                        link.click();
-                    }
-                } else if (format === 'png') {
-                    // Download as PNG using html2canvas
-                    const element = document.getElementById('revenueChart');
-                    if (element) {
-                        html2canvas(element, {
-                            scale: 2,
-                            useCORS: true,
-                            logging: false
-                        }).then(canvas => {
-                            const link = document.createElement('a');
-                            link.href = canvas.toDataURL('image/png');
-                            link.download = `revenue-forecast-${@json($forecastYear)}.png`;
-                            link.click();
-                        });
-                    }
-                }
-            }
-
-            // CSV Download Function
-            function downloadCSV() {
-                const monthlyForecasts = @json($monthlyForecasts);
-                if (!monthlyForecasts || monthlyForecasts.length === 0) return;
-
-                let csv = 'Month,Actual Earnings,Forecasted Revenue\n';
-                monthlyForecasts.forEach(f => {
-                    csv += `"${f.month_name}",${f.actual_revenue || 0},${f.forecasted_revenue}\n`;
-                });
-
-                const link = document.createElement('a');
-                link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-                link.download = `revenue-forecast-${@json($forecastYear)}.csv`;
-                link.click();
-            }
-        </script>
     @else
         <div class="text-center py-16 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
             <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -324,4 +127,241 @@
             <p class="mt-1 text-sm text-gray-500">Generating revenue predictions...</p>
         </div>
     @endif
+
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        function getRevenueForecastPayload() {
+            const payloadNode = document.getElementById('revenueForecastPayload');
+
+            if (!payloadNode) {
+                return { forecastYear: new Date().getFullYear(), monthlyForecasts: [] };
+            }
+
+            try {
+                return JSON.parse(payloadNode.textContent || '{}');
+            } catch (error) {
+                return { forecastYear: new Date().getFullYear(), monthlyForecasts: [] };
+            }
+        }
+
+        function renderRevenueChart() {
+            const chartElement = document.getElementById('revenueChart');
+            const payload = getRevenueForecastPayload();
+            const monthlyForecasts = Array.isArray(payload.monthlyForecasts) ? payload.monthlyForecasts : [];
+
+            if (!chartElement || monthlyForecasts.length === 0) {
+                if (window.revenueChartInstance) {
+                    window.revenueChartInstance.destroy();
+                    window.revenueChartInstance = null;
+                }
+
+                return;
+            }
+
+            const categories = monthlyForecasts.map(f => f.month_name);
+            const series = [
+                {
+                    type: 'line',
+                    name: 'Actual Earnings',
+                    data: monthlyForecasts.map(f => Number(f.actual_revenue || 0))
+                },
+                {
+                    type: 'line',
+                    name: 'Forecasted Revenue',
+                    data: monthlyForecasts.map(f => Number(f.forecasted_revenue || 0))
+                }
+            ];
+
+            const options = {
+                chart: {
+                    type: 'line',
+                    height: 400,
+                    toolbar: {
+                        show: false,
+                        tools: {
+                            download: true,
+                            selection: true,
+                            zoom: true,
+                            zoomin: true,
+                            zoomout: true,
+                            pan: true,
+                            reset: true
+                        }
+                    },
+                    animations: {
+                        enabled: true,
+                        speed: 800,
+                        animateGradually: {
+                            enabled: true,
+                            delay: 150
+                        }
+                    }
+                },
+                stroke: {
+                    curve: 'straight',
+                    width: [4, 4],
+                    lineCap: 'round',
+                    dashArray: [0, 0]
+                },
+                markers: {
+                    size: 4,
+                    strokeWidth: 0,
+                    hover: {
+                        size: 6
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                xaxis: {
+                    categories: categories,
+                    labels: {
+                        style: {
+                            fontSize: '12px',
+                            colors: '#6B7280'
+                        }
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Revenue (₱)',
+                        style: {
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: '#070642'
+                        }
+                    },
+                    labels: {
+                        formatter: function (val) {
+                            return '₱' + (val / 1000).toFixed(0) + 'K';
+                        },
+                        style: {
+                            colors: '#6B7280'
+                        }
+                    }
+                },
+                colors: ['#2B66F5', '#F5652B'],
+                legend: {
+                    labels: {
+                        colors: '#070642'
+                    }
+                },
+                tooltip: {
+                    theme: 'light',
+                    shared: true,
+                    intersect: false,
+                    style: {
+                        fontSize: '12px'
+                    },
+                    y: {
+                        formatter: function (val) {
+                            return '₱' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        }
+                    }
+                },
+                grid: {
+                    borderColor: '#E5E7EB',
+                    strokeDashArray: 3,
+                    show: true
+                },
+                states: {
+                    hover: {
+                        filter: {
+                            type: 'none'
+                        }
+                    },
+                    active: {
+                        filter: {
+                            type: 'none'
+                        }
+                    }
+                },
+                theme: {
+                    monochrome: {
+                        enabled: false
+                    }
+                }
+            };
+
+            if (window.revenueChartInstance) {
+                window.revenueChartInstance.destroy();
+            }
+
+            window.revenueChartInstance = new ApexCharts(chartElement, {
+                series,
+                ...options
+            });
+
+            window.revenueChartInstance.render();
+        }
+
+        function getForecastYear() {
+            const payload = getRevenueForecastPayload();
+            return Number(payload.forecastYear || new Date().getFullYear());
+        }
+
+        function downloadChart(format) {
+            if (!window.revenueChartInstance) return;
+
+            const forecastYear = getForecastYear();
+
+            if (format === 'svg') {
+                const svg = document.querySelector('#revenueChart svg');
+                if (svg) {
+                    const svgData = new XMLSerializer().serializeToString(svg);
+                    const link = document.createElement('a');
+                    link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+                    link.download = `revenue-forecast-${forecastYear}.svg`;
+                    link.click();
+                }
+            } else if (format === 'png') {
+                const element = document.getElementById('revenueChart');
+                if (element) {
+                    html2canvas(element, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false
+                    }).then(canvas => {
+                        const link = document.createElement('a');
+                        link.href = canvas.toDataURL('image/png');
+                        link.download = `revenue-forecast-${forecastYear}.png`;
+                        link.click();
+                    });
+                }
+            }
+        }
+
+        function downloadCSV() {
+            const payload = getRevenueForecastPayload();
+            const monthlyForecasts = Array.isArray(payload.monthlyForecasts) ? payload.monthlyForecasts : [];
+            const forecastYear = getForecastYear();
+
+            if (monthlyForecasts.length === 0) return;
+
+            let csv = 'Month,Actual Earnings,Forecasted Revenue\n';
+            monthlyForecasts.forEach(f => {
+                csv += `"${f.month_name}",${f.actual_revenue || 0},${f.forecasted_revenue}\n`;
+            });
+
+            const link = document.createElement('a');
+            link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+            link.download = `revenue-forecast-${forecastYear}.csv`;
+            link.click();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(renderRevenueChart, 0);
+        });
+
+        document.addEventListener('livewire:navigated', () => {
+            setTimeout(renderRevenueChart, 0);
+        });
+
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('revenue-forecast-updated', () => {
+                setTimeout(renderRevenueChart, 0);
+            });
+        });
+    </script>
 </div>

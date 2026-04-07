@@ -173,8 +173,9 @@ class Dashboard extends Component
         $summaryMonth = $this->resolveRentSummaryMonth();
         $this->rentSummaryPeriodLabel = $summaryMonth->format('F Y');
 
-        // Collected rent is based on the selected summary month.
-        $this->totalRentCollected = Transaction::where('transaction_type', 'Credit')
+        // Keep this rent-specific for the rent collection donut.
+        $this->totalRentCollected = Transaction::query()
+            ->creditInflows()
             ->where('category', 'Rent Payment')
             ->whereYear('transaction_date', $summaryMonth->year)
             ->whereMonth('transaction_date', $summaryMonth->month)
@@ -189,9 +190,12 @@ class Dashboard extends Component
             ->whereMonth('billing_date', $summaryMonth->month)
             ->sum('to_pay');
 
-        // Total Income should show amount actually collected (same as collected rent)
-        // additional uncollected rent is only used for the "target"/total figure.
-        $this->totalIncome = $this->totalRentCollected;
+        // Total income/revenue uses all credit inflows for the selected month.
+        $this->totalIncome = Transaction::query()
+            ->creditInflows()
+            ->whereYear('transaction_date', $summaryMonth->year)
+            ->whereMonth('transaction_date', $summaryMonth->month)
+            ->sum('amount');
 
         // If you still have real transaction data available, you could override
         // the above by uncommenting the following block:
@@ -206,11 +210,11 @@ class Dashboard extends Component
         }
         */
 
-        // Revenue Current is simply what has already been collected
-        $this->revenueCurrent = $this->totalRentCollected;
+        // Revenue current reflects realized inflows this month.
+        $this->revenueCurrent = $this->totalIncome;
 
-        // Revenue Target should reflect the grand total (collected + uncollected)
-        $this->revenueTarget = $this->totalRentCollected + $this->totalUncollectedRent;
+        // Revenue target combines realized inflows and outstanding rent billings.
+        $this->revenueTarget = $this->totalIncome + $this->totalUncollectedRent;
 
         // Calculate Total Expenses (maintenance costs for current month)
         $this->expensesCurrent = MaintenanceLog::sum('cost');
@@ -266,17 +270,29 @@ class Dashboard extends Component
         $this->monthlyExpenses = array_fill(0, 12, 0);
         $this->monthlyRentCollected = array_fill(0, 12, 0);
 
-        // Get monthly revenue from credit transactions.
-        $monthlyBillings = Transaction::where('transaction_type', 'Credit')
+        // Monthly revenue trend uses all credit inflows.
+        $monthlyInflows = Transaction::query()
+            ->creditInflows()
+            ->whereYear('transaction_date', $year)
+            ->selectRaw("{$transactionMonthExpr} as month, SUM(amount) as total")
+            ->groupBy('month')
+            ->get();
+
+        foreach ($monthlyInflows as $inflow) {
+            $this->monthlyRevenue[$inflow->month - 1] = $inflow->total;
+        }
+
+        // Keep rent-collected series rent-specific for rent-focused components.
+        $monthlyRentCollected = Transaction::query()
+            ->creditInflows()
             ->where('category', 'Rent Payment')
             ->whereYear('transaction_date', $year)
             ->selectRaw("{$transactionMonthExpr} as month, SUM(amount) as total")
             ->groupBy('month')
             ->get();
 
-        foreach ($monthlyBillings as $billing) {
-            $this->monthlyRevenue[$billing->month - 1] = $billing->total;
-            $this->monthlyRentCollected[$billing->month - 1] = $billing->total;
+        foreach ($monthlyRentCollected as $rent) {
+            $this->monthlyRentCollected[$rent->month - 1] = $rent->total;
         }
 
         // Keep revenue as per-month totals (no cumulative carry-over).

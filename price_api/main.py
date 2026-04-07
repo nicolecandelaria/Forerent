@@ -1,12 +1,15 @@
 import joblib
 import pandas as pd
 import numpy as np
+import hashlib
+import time
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import io
 import logging
+from collections import OrderedDict
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.cluster import AgglomerativeClustering
@@ -32,6 +35,10 @@ maintenance_model = None
 maintenance_scaler = None
 maintenance_cluster_labels = None
 maintenance_feature_columns = None
+
+# Revenue forecast training artifact cache
+revenue_training_cache = OrderedDict()
+REVENUE_TRAINING_CACHE_MAX_ENTRIES = 8
 
 # --- 1. Load Price Prediction Model ---
 @app.on_event("startup")
@@ -355,6 +362,9 @@ def create_features(df):
     if date_col is None:
         raise KeyError("No date column found in the data. Available columns: " + str(list(df.columns)))
 
+    # Preserve chronology so lag features are strictly time-ordered.
+    df = df.sort_values(date_col).reset_index(drop=True)
+
     # Month and quarter from the date column
     df['month'] = df[date_col].dt.month
     df['quarter'] = df[date_col].dt.quarter
@@ -363,7 +373,7 @@ def create_features(df):
     df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
     df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
 
-    # Lag features with proper handling of missing values
+    # Lag features
     df['revenue_lag1'] = df['monthly_net_revenue'].shift(1)
     df['revenue_lag2'] = df['monthly_net_revenue'].shift(2)
     df['revenue_lag3'] = df['monthly_net_revenue'].shift(3)
@@ -372,10 +382,10 @@ def create_features(df):
     df['revenue_rolling_mean_3'] = df['monthly_net_revenue'].rolling(window=3, min_periods=1).mean()
     df['revenue_rolling_std_3'] = df['monthly_net_revenue'].rolling(window=3, min_periods=1).std().fillna(0)
 
-    # Fill NaN values from lag features
-    df['revenue_lag1'] = df['revenue_lag1'].fillna(method='bfill').fillna(method='ffill')
-    df['revenue_lag2'] = df['revenue_lag2'].fillna(method='bfill').fillna(method='ffill')
-    df['revenue_lag3'] = df['revenue_lag3'].fillna(method='bfill').fillna(method='ffill')
+    # Forward-only fill avoids future leakage from backward fill.
+    default_lag_value = float(df['monthly_net_revenue'].iloc[0]) if not df.empty else 0.0
+    for lag_col in ['revenue_lag1', 'revenue_lag2', 'revenue_lag3']:
+        df[lag_col] = df[lag_col].ffill().fillna(default_lag_value)
 
     # Placeholder transaction count if not in CSV
     if 'transaction_count' not in df.columns:
@@ -475,54 +485,11 @@ def load_and_preprocess_data(csv_data: str):
     
     return monthly_data
 
-def train_forecast_model(X, y, cluster_range=(2, 6)):
-    """
-    Train forecasting model with automatic cluster selection - IMPROVED
-    """
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Find best cluster count
-    best_score = -1
-    best_n = cluster_range[0]
-    best_labels = None
-
-    for n_clusters in range(cluster_range[0], cluster_range[1] + 1):
-        try:
-            # Use ward linkage for better cluster separation
-            clustering = AgglomerativeClustering(
-                n_clusters=n_clusters,
-                linkage='ward'  # Better for time series
-            )
-            labels = clustering.fit_predict(X_scaled)
-            
-            # Only calculate silhouette if we have at least 2 clusters
-            if len(np.unique(labels)) > 1:
-                score = silhouette_score(X_scaled, labels)
-                logger.info(f"Testing {n_clusters} clusters: silhouette={score:.4f}, unique_clusters={len(np.unique(labels))}")
-                
-                if score > best_score:
-                    best_score = score
-                    best_n = n_clusters
-                    best_labels = labels
-        except Exception as e:
-            logger.warning(f"Clustering failed for {n_clusters} clusters: {e}")
-            continue
-
-    logger.info(f"✓ Selected {best_n} clusters with silhouette score: {best_score:.4f}")
-
-    # Use the best clustering
-    final_clustering = AgglomerativeClustering(n_clusters=best_n, linkage='ward')
-    cluster_labels = final_clustering.fit_predict(X_scaled)
-    
-    # Log cluster distribution
-    unique, counts = np.unique(cluster_labels, return_counts=True)
-    logger.info(f"Cluster distribution: {dict(zip(unique, counts))}")
-
-    # Train one linear regression model per cluster
+def build_cluster_models(X, y, labels, n_clusters):
     cluster_models = {}
-    for cluster_id in range(best_n):
-        cluster_indices = cluster_labels == cluster_id
+
+    for cluster_id in range(n_clusters):
+        cluster_indices = labels == cluster_id
         X_cluster = X.iloc[cluster_indices]
         y_cluster = y.iloc[cluster_indices]
 
@@ -530,19 +497,127 @@ def train_forecast_model(X, y, cluster_range=(2, 6)):
             model = LinearRegression()
             model.fit(X_cluster, y_cluster)
             cluster_models[cluster_id] = model
-            
-            logger.info(f"Cluster {cluster_id}: {len(X_cluster)} samples, "
-                       f"avg=₱{y_cluster.mean():,.2f}, "
-                       f"std=₱{y_cluster.std():,.2f}, "
-                       f"min=₱{y_cluster.min():,.2f}, "
-                       f"max=₱{y_cluster.max():,.2f}")
+
+    return cluster_models
+
+
+def predict_walk_forward_point(X_train, y_train, scaler, cluster_labels, cluster_models, X_point):
+    from sklearn.neighbors import NearestNeighbors
+
+    if len(X_train) == 0:
+        return float(y_train.mean()) if len(y_train) else 0.0
+
+    X_train_scaled = scaler.transform(X_train)
+    X_point_scaled = scaler.transform(X_point)
+
+    n_neighbors = min(3, len(X_train))
+    nn = NearestNeighbors(n_neighbors=n_neighbors)
+    nn.fit(X_train_scaled)
+
+    _, indices = nn.kneighbors(X_point_scaled)
+    neighbor_clusters = cluster_labels[indices[0]]
+    predicted_cluster = int(np.bincount(neighbor_clusters).argmax())
+
+    model = cluster_models.get(predicted_cluster)
+
+    if model is None and cluster_models:
+        model = next(iter(cluster_models.values()))
+
+    if model is None:
+        return float(y_train.mean()) if len(y_train) else 0.0
+
+    return float(model.predict(X_point)[0])
+
+
+def evaluate_cluster_count_walk_forward(X, y, n_clusters):
+    if len(X) < max(8, n_clusters + 2):
+        return float('inf')
+
+    split_start = max(6, n_clusters + 1)
+    abs_errors = []
+
+    for split_idx in range(split_start, len(X)):
+        X_train = X.iloc[:split_idx]
+        y_train = y.iloc[:split_idx]
+        X_val = X.iloc[[split_idx]]
+        y_val = float(y.iloc[split_idx])
+
+        if len(X_train) <= n_clusters:
+            continue
+
+        try:
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+
+            clustering = AgglomerativeClustering(
+                n_clusters=n_clusters,
+                linkage='ward'
+            )
+            train_labels = clustering.fit_predict(X_train_scaled)
+
+            cluster_models = build_cluster_models(X_train, y_train, train_labels, n_clusters)
+            y_pred = predict_walk_forward_point(X_train, y_train, scaler, train_labels, cluster_models, X_val)
+            abs_errors.append(abs(y_pred - y_val))
+        except Exception:
+            continue
+
+    if not abs_errors:
+        return float('inf')
+
+    return float(np.mean(abs_errors))
+
+
+def train_forecast_model(X, y, cluster_range=(2, 6)):
+    """
+    Train forecasting model and select cluster count by walk-forward MAE.
+    """
+    best_n = cluster_range[0]
+    best_mae = float('inf')
+
+    for n_clusters in range(cluster_range[0], cluster_range[1] + 1):
+        mae = evaluate_cluster_count_walk_forward(X, y, n_clusters)
+        logger.info(f"Testing {n_clusters} clusters: walk_forward_mae={mae:.2f}")
+
+        if np.isfinite(mae) and mae < best_mae:
+            best_mae = mae
+            best_n = n_clusters
+
+    if not np.isfinite(best_mae):
+        logger.warning("Walk-forward MAE selection produced no valid folds, defaulting to minimum cluster count")
+    else:
+        logger.info(f"✓ Selected {best_n} clusters with walk-forward MAE: {best_mae:.2f}")
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    final_clustering = AgglomerativeClustering(n_clusters=best_n, linkage='ward')
+    cluster_labels = final_clustering.fit_predict(X_scaled)
+
+    unique, counts = np.unique(cluster_labels, return_counts=True)
+    logger.info(f"Cluster distribution: {dict(zip(unique, counts))}")
+
+    cluster_models = build_cluster_models(X, y, cluster_labels, best_n)
+
+    for cluster_id in range(best_n):
+        cluster_indices = cluster_labels == cluster_id
+        X_cluster = X.iloc[cluster_indices]
+        y_cluster = y.iloc[cluster_indices]
+
+        if len(X_cluster) >= 2:
+            logger.info(
+                f"Cluster {cluster_id}: {len(X_cluster)} samples, "
+                f"avg=₱{y_cluster.mean():,.2f}, "
+                f"std=₱{y_cluster.std():,.2f}, "
+                f"min=₱{y_cluster.min():,.2f}, "
+                f"max=₱{y_cluster.max():,.2f}"
+            )
 
     return {
         "models": cluster_models,
         "scaler": scaler,
         "cluster_labels": cluster_labels,
         "best_n_clusters": best_n,
-        "X_scaled": X_scaled  # Keep this for better cluster assignment
+        "X_scaled": X_scaled
     }
 
 def forecast_all_months(cluster_models, scaler, cluster_labels, monthly_data, target_year, feature_columns):
@@ -634,22 +709,23 @@ def forecast_all_months(cluster_models, scaler, cluster_labels, monthly_data, ta
         
         # Get model and predict
         model = cluster_models.get(predicted_cluster)
-        
+        raw_prediction = float(expected_revenue)
+
         if model is None and cluster_models:
             model = list(cluster_models.values())[0]
-        
+
         if model is None:
             forecast_revenue = expected_revenue
         else:
             # Make prediction
-            raw_prediction = model.predict(current_df)[0]
-            
+            raw_prediction = float(model.predict(current_df)[0])
+
             # Apply soft bounds based on historical patterns for this month
             # Allow deviation but pull towards historical average
             weight_history = 0.3  # 30% weight to historical pattern
             weight_model = 0.7    # 70% weight to model prediction
-            
-            forecast_revenue = (weight_model * raw_prediction + 
+
+            forecast_revenue = (weight_model * raw_prediction +
                               weight_history * expected_revenue)
         
         # Apply reasonable global bounds
@@ -680,30 +756,56 @@ def forecast_all_months(cluster_models, scaler, cluster_labels, monthly_data, ta
 
     return forecasts
 
+
+def build_revenue_training_cache_key(monthly_data_clean: pd.DataFrame) -> str:
+    """Build a stable cache key from monthly training aggregates."""
+    fingerprint_source = monthly_data_clean[
+        ['year', 'month', 'monthly_net_revenue', 'transaction_count']
+    ].to_csv(index=False)
+
+    return hashlib.sha1(fingerprint_source.encode('utf-8')).hexdigest()
+
+
+def get_cached_revenue_training(cache_key: str):
+    trained = revenue_training_cache.get(cache_key)
+    if trained is not None:
+        revenue_training_cache.move_to_end(cache_key)
+
+    return trained
+
+
+def set_cached_revenue_training(cache_key: str, trained: Dict[str, Any]):
+    revenue_training_cache[cache_key] = trained
+    revenue_training_cache.move_to_end(cache_key)
+
+    while len(revenue_training_cache) > REVENUE_TRAINING_CACHE_MAX_ENTRIES:
+        revenue_training_cache.popitem(last=False)
+
 def generate_revenue_forecast(csv_data: str, target_year: int):
     """Main function to generate revenue forecast"""
     try:
+        request_start = time.perf_counter()
         monthly_data = load_and_preprocess_data(csv_data)
         
         logger.info(f"Monthly data loaded: {len(monthly_data)} records")
         logger.info(f"Date range: {monthly_data['date_column'].min()} to {monthly_data['date_column'].max()}")
 
-        # Filter to only COMPLETE historical months (not current/future incomplete months)
+        # Filter to prior-year months only (exclude all months in the current year)
         current_date = datetime.now()
-        cutoff_date = datetime(current_date.year, current_date.month, 1)
+        cutoff_date = datetime(current_date.year, 1, 1)
         monthly_data = monthly_data[monthly_data['date_column'] < cutoff_date].copy()
         
-        logger.info(f"After filtering incomplete months: {len(monthly_data)} complete historical months")
+        logger.info(f"After filtering prior-year historical months: {len(monthly_data)} records")
 
-        if len(monthly_data) < 4:  # Reduced minimum requirement
-            raise Exception(f"Insufficient historical data for forecasting. Need at least 4 months, got {len(monthly_data)}")
+        if len(monthly_data) < 12:
+            raise Exception(f"Insufficient historical data for forecasting. Need at least 12 complete months outside the current year, got {len(monthly_data)}")
 
         monthly_data_clean = create_features(monthly_data)
         
         logger.info(f"After feature engineering: {len(monthly_data_clean)} records")
 
-        if len(monthly_data_clean) < 3:
-            raise Exception("Not enough data after feature engineering.")
+        if len(monthly_data_clean) < 12:
+            raise Exception(f"Not enough data after feature engineering. Need at least 12 monthly points, got {len(monthly_data_clean)}")
 
         feature_columns = [
             'month', 'quarter', 'month_sin', 'month_cos',
@@ -717,7 +819,19 @@ def generate_revenue_forecast(csv_data: str, target_year: int):
 
         logger.info(f"Training data - X: {X.shape}, y: {y.shape}")
 
-        trained = train_forecast_model(X, y, cluster_range=(2, min(6, len(X)-1)))
+        training_cache_key = build_revenue_training_cache_key(monthly_data_clean)
+        trained = get_cached_revenue_training(training_cache_key)
+
+        if trained is None:
+            train_start = time.perf_counter()
+            trained = train_forecast_model(X, y, cluster_range=(2, min(6, len(X)-1)))
+            set_cached_revenue_training(training_cache_key, trained)
+            logger.info(
+                f"Revenue training cache miss: key={training_cache_key[:12]}..., train_time={time.perf_counter() - train_start:.3f}s"
+            )
+        else:
+            logger.info(f"Revenue training cache hit: key={training_cache_key[:12]}...")
+
         cluster_models = trained["models"]
         scaler = trained["scaler"]
         cluster_labels = trained["cluster_labels"]
@@ -735,6 +849,8 @@ def generate_revenue_forecast(csv_data: str, target_year: int):
             total_remaining = sum(item['forecasted_revenue'] for item in remaining_forecasts)
         else:
             total_remaining = total_annual
+
+        logger.info(f"Revenue forecast request completed in {time.perf_counter() - request_start:.3f}s")
 
         return {
             'success': True,

@@ -20,6 +20,7 @@ class RevenueForecast extends Component
     public $warning = null;
     public $isFallback = false;
     public $dataPointsUsed = 0;
+    public $forecastLoaded = false;
 
     protected $revenueForecastService;
 
@@ -31,6 +32,15 @@ class RevenueForecast extends Component
     public function mount()
     {
         $this->forecastYear = Carbon::now()->year;
+    }
+
+    public function loadForecast()
+    {
+        if ($this->forecastLoaded) {
+            return;
+        }
+
+        $this->forecastLoaded = true;
         $this->generateForecast();
     }
 
@@ -38,6 +48,11 @@ class RevenueForecast extends Component
     public function updateYear($year)
     {
         $this->forecastYear = $year;
+
+        if (!$this->forecastLoaded) {
+            $this->forecastLoaded = true;
+        }
+
         $this->generateForecast();
     }
 
@@ -71,9 +86,10 @@ class RevenueForecast extends Component
             
         } catch (\Exception $e) {
             $this->error = $e->getMessage();
+        } finally {
+            $this->loading = false;
+            $this->dispatch('revenue-forecast-updated');
         }
-
-        $this->loading = false;
     }
 
     private function enrichForecastWithActualEarnings($forecasts)
@@ -86,8 +102,8 @@ class RevenueForecast extends Component
                 $startDate = Carbon::create($this->forecastYear, $monthNumber, 1)->startOfMonth();
                 $endDate = $startDate->copy()->endOfMonth();
                 
-                $actualRevenue = Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
-                    ->where('category', 'Rent Payment')
+                $actualRevenue = Transaction::query()
+                    ->creditInflows()
                     ->whereBetween('transaction_date', [$startDate, $endDate])
                     ->sum('amount');
                 

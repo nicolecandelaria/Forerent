@@ -79,7 +79,7 @@
 
                 {{-- Left Column: Prediction Details --}}
                 <div class="space-y-4">
-                    <h2 class="text-2xl font-bold">AI Price Prediction</h2>
+                    <h2 class="text-2xl font-bold">Rental Price Suggestion</h2>
 
                     <div class="flex flex-col md:flex-row md:items-center gap-4">
                         <div>
@@ -100,7 +100,7 @@
                     </div>
 
                     <p class="text-sm opacity-80 pt-2">
-                        Based on location, capacity, and amenities
+                        Based on living area, capacity, and amenities
                     </p>
                 </div>
 
