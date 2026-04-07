@@ -28,11 +28,19 @@ class AddUserForm extends Form
             'phoneNumber' => [
                 'required',
                 function ($attribute, $value, $fail) use ($cleanedPhone) {
-                    if (strlen($cleanedPhone) !== 10) {
-                        $fail('Phone number must be exactly 10 digits.');
+                    if (strlen($cleanedPhone) !== 9) {
+                        $fail('Phone number must be exactly 9 digits.');
                     }
                 },
-                Rule::unique('users', 'contact')->ignore($this->userId, 'user_id')
+                function ($attribute, $value, $fail) use ($cleanedPhone) {
+                    $fullNumber = '9' . $cleanedPhone;
+                    $exists = \App\Models\User::where('contact', $fullNumber)
+                        ->when($this->userId, fn($q) => $q->where('user_id', '!=', $this->userId))
+                        ->exists();
+                    if ($exists) {
+                        $fail('This phone number is already registered.');
+                    }
+                },
             ],
             'email' => [
                 'required',
@@ -68,7 +76,7 @@ class AddUserForm extends Form
         $this->userId = $user->user_id;
         $this->firstName = $user->first_name;
         $this->lastName = $user->last_name;
-        $this->phoneNumber = $user->contact;
+        $this->phoneNumber = $user->contact ? substr($user->contact, 1) : '';
         $this->email = $user->email;
     }
 
@@ -76,8 +84,8 @@ class AddUserForm extends Form
     {
         $this->validate();
 
-        // Clean phone number - keep only digits
-        $cleanedPhone = preg_replace('/[^0-9]/', '', $this->phoneNumber);
+        // Clean phone number - keep only digits, prepend 9
+        $cleanedPhone = '9' . preg_replace('/[^0-9]/', '', $this->phoneNumber);
 
         return User::create([
             'first_name' => $this->firstName,
@@ -94,8 +102,8 @@ class AddUserForm extends Form
     {
         $this->validate();
 
-        // Clean phone number - keep only digits
-        $cleanedPhone = preg_replace('/[^0-9]/', '', $this->phoneNumber);
+        // Clean phone number - keep only digits, prepend 9
+        $cleanedPhone = '9' . preg_replace('/[^0-9]/', '', $this->phoneNumber);
 
         $user->update([
             'first_name' => $this->firstName,

@@ -28,6 +28,16 @@
         method="POST"
         action="{{ route('settings.profile.update') }}"
         enctype="multipart/form-data"
+        x-data="{
+            editing: false,
+            uploading: false,
+            progress: 0,
+        }"
+        x-on:livewire-upload-start="uploading = true; progress = 0"
+        x-on:livewire-upload-finish="uploading = false; progress = 100"
+        x-on:livewire-upload-cancel="uploading = false"
+        x-on:livewire-upload-error="uploading = false"
+        x-on:livewire-upload-progress="progress = $event.detail.progress"
     >
         @csrf
 
@@ -43,15 +53,15 @@
             </div>
         @endif
 
-        {{-- Profile Picture --}}
+        {{-- Profile Picture + Edit Toggle --}}
         <div class="mb-8 flex items-start gap-6">
-              <div class="shrink-0"
-                 x-data="{ uploading: false, progress: 0, error: false }"
-                 x-on:livewire-upload-start="uploading = true; progress = 0; error = false; console.log('Upload started')"
-                 x-on:livewire-upload-finish="uploading = false; progress = 100; console.log('Upload finished')"
-                 x-on:livewire-upload-cancel="uploading = false; console.log('Upload cancelled')"
-                 x-on:livewire-upload-error="uploading = false; error = true; console.log('Upload error', $event)"
-                 x-on:livewire-upload-progress="progress = $event.detail.progress; console.log('Progress', progress)"
+            <div class="shrink-0"
+                 x-data="{ pfpUploading: false, pfpProgress: 0, pfpError: false }"
+                 x-on:livewire-upload-start="pfpUploading = true; pfpProgress = 0; pfpError = false"
+                 x-on:livewire-upload-finish="pfpUploading = false; pfpProgress = 100"
+                 x-on:livewire-upload-cancel="pfpUploading = false"
+                 x-on:livewire-upload-error="pfpUploading = false; pfpError = true"
+                 x-on:livewire-upload-progress="pfpProgress = $event.detail.progress"
             >
                 <label class="cursor-pointer group relative block w-24 h-24">
                     @if ($profilePicture)
@@ -64,45 +74,61 @@
                         </div>
                     @endif
                     {{-- Progress overlay with percentage --}}
-                    <div x-show="uploading" x-cloak class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
-                        <span class="text-white text-xs font-bold" x-text="progress + '%'"></span>
+                    <div x-show="pfpUploading" x-cloak class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                        <span class="text-white text-xs font-bold" x-text="pfpProgress + '%'"></span>
                     </div>
                     {{-- Camera icon (bottom-right) --}}
-                    <div class="absolute bottom-0 right-0 bg-white rounded-full p-1 border shadow">
+                    <div x-show="editing" x-cloak class="absolute bottom-0 right-0 bg-white rounded-full p-1 border shadow">
                         <svg class="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     </div>
-                          <input type="file" wire:model="profilePicture" name="profilePicture" class="hidden" accept="image/*"
-                           @change="console.log('File selected:', $event.target.files[0]?.name)">
+                    <input x-show="editing" type="file" wire:model="profilePicture" name="profilePicture" class="hidden" accept="image/*">
                 </label>
                 {{-- Error message --}}
-                <div x-show="error" x-cloak class="mt-2 w-24">
+                <div x-show="pfpError" x-cloak class="mt-2 w-24">
                     <p class="text-[11px] text-red-500 font-medium text-center">Upload failed!</p>
                 </div>
                 {{-- Progress bar below avatar --}}
-                <div x-show="uploading" x-cloak class="mt-2 w-24">
+                <div x-show="pfpUploading" x-cloak class="mt-2 w-24">
                     <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-[#2360E8] rounded-full transition-all duration-200" :style="'width: ' + progress + '%'"></div>
+                        <div class="h-full bg-[#2360E8] rounded-full transition-all duration-200" :style="'width: ' + pfpProgress + '%'"></div>
                     </div>
                     <p class="text-[11px] text-[#2360E8] mt-0.5 font-medium text-center">Uploading...</p>
                 </div>
             </div>
-            <div class="pt-2">
-                <h3 class="text-xl font-bold leading-tight text-[#0C0B50]">Profile Picture</h3>
-                <p class="mt-1 text-sm text-gray-500">This will be displayed on your profile</p>
+            <div class="flex-1 pt-2">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold leading-tight text-[#0C0B50]">Profile Picture</h3>
+                        <p class="mt-1 text-sm text-gray-500">This will be displayed on your profile</p>
+                    </div>
+                    {{-- Edit / Close toggle button --}}
+                    <button type="button" @click="editing = !editing; if (editing) { $wire.clearAllFields(); }" class="flex h-9 w-9 items-center justify-center rounded-full text-[#2360E8] transition-colors duration-200 hover:bg-blue-100" :class="editing ? 'bg-red-50 !text-red-500 hover:!bg-red-100' : ''">
+                        {{-- Edit icon --}}
+                        <svg x-show="!editing" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                        </svg>
+                        {{-- X icon --}}
+                        <svg x-show="editing" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
                 @error('profilePicture') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
         </div>
 
+        {{-- First Name / Last Name --}}
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
                 <label for="first_name" class="mb-1.5 block text-sm font-semibold text-gray-700">First Name</label>
-                <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                <div x-show="!editing" class="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 shadow-sm">
+                    <span class="w-full text-sm text-gray-700">{{ $firstName ?: 'Not set' }}</span>
+                </div>
+                <div x-show="editing" x-cloak class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
                     <input
                         type="text"
                         id="first_name"
-                        name="firstName"
                         wire:model.live="firstName"
-                        value="{{ $fallbackFirstName }}"
                         placeholder="Enter first name"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -112,13 +138,14 @@
 
             <div>
                 <label for="last_name" class="mb-1.5 block text-sm font-semibold text-gray-700">Last Name</label>
-                <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                <div x-show="!editing" class="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 shadow-sm">
+                    <span class="w-full text-sm text-gray-700">{{ $lastName ?: 'Not set' }}</span>
+                </div>
+                <div x-show="editing" x-cloak class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
                     <input
                         type="text"
                         id="last_name"
-                        name="lastName"
                         wire:model.live="lastName"
-                        value="{{ $fallbackLastName }}"
                         placeholder="Enter last name"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -127,6 +154,7 @@
             </div>
         </div>
 
+        {{-- Contact Information --}}
         <div class="mb-4 mt-8 flex items-center gap-3">
             <h4 class="text-xl font-bold leading-tight text-[#0C0B50] md:text-xl">Contact Information</h4>
             <div class="h-px flex-1 bg-gray-200"></div>
@@ -135,20 +163,20 @@
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
                 <label for="phone_number" class="mb-1.5 block text-sm font-semibold text-gray-700">Phone Number</label>
-                <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                    <span class="inline-flex h-full items-center whitespace-nowrap border-r border-gray-200 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        PH +63
-                    </span>
+                <div x-show="!editing" class="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+                    <span class="inline-flex h-full items-center whitespace-nowrap border-r border-gray-200 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">PH +63 9</span>
+                    <span class="w-full px-3 text-sm text-gray-700">{{ $phoneNumber ?: 'Not set' }}</span>
+                </div>
+                <div x-show="editing" x-cloak class="flex h-12 items-center rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <span class="inline-flex h-full items-center whitespace-nowrap border-r border-gray-200 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">PH +63 9</span>
                     <input
                         type="tel"
                         id="phone_number"
-                        name="phoneNumber"
                         wire:model.live="phoneNumber"
-                        value="{{ $fallbackPhone }}"
                         inputmode="numeric"
-                        maxlength="10"
-                        pattern="[0-9]{10}"
-                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)"
+                        maxlength="9"
+                        pattern="[0-9]{9}"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,9)"
                         placeholder="Enter phone number"
                         class="w-full border-0 bg-transparent px-3 text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -158,13 +186,14 @@
 
             <div>
                 <label for="email" class="mb-1.5 block text-sm font-semibold text-gray-700">Email Address</label>
-                <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                <div x-show="!editing" class="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 shadow-sm">
+                    <span class="w-full text-sm text-gray-700">{{ $email ?: 'Not set' }}</span>
+                </div>
+                <div x-show="editing" x-cloak class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
                     <input
                         type="email"
                         id="email"
-                        name="email"
                         wire:model.live="email"
-                        value="{{ $fallbackEmail }}"
                         placeholder="Enter email address"
                         class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
                     >
@@ -174,95 +203,99 @@
         </div>
 
         {{-- Valid ID Section --}}
-            <div class="mb-4 mt-8 flex items-center gap-3">
-                <h4 class="text-xl font-bold leading-tight text-[#0C0B50] md:text-xl">Valid ID</h4>
-                <div class="h-px flex-1 bg-gray-200"></div>
+        <div class="mb-4 mt-8 flex items-center gap-3">
+            <h4 class="text-xl font-bold leading-tight text-[#0C0B50] md:text-xl">Valid ID</h4>
+            <div class="h-px flex-1 bg-gray-200"></div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 mb-6">
+            <div>
+                <label for="government_id_type" class="mb-1.5 block text-sm font-semibold text-gray-700">ID Type</label>
+                <div x-show="!editing" class="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 shadow-sm">
+                    <span class="w-full text-sm text-gray-700">{{ $governmentIdType ?: 'Not set' }}</span>
+                </div>
+                <div x-show="editing" x-cloak class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <select
+                        id="government_id_type"
+                        wire:model.live="governmentIdType"
+                        class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                    >
+                        <option value="">Select ID Type</option>
+                        <option value="Passport">Passport</option>
+                        <option value="Driver's License">Driver's License</option>
+                        <option value="UMID">UMID</option>
+                        <option value="National ID">National ID</option>
+                        <option value="Postal ID">Postal ID</option>
+                    </select>
+                </div>
+                @error('governmentIdType') <p class="ml-1 mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 mb-6">
-                <div>
-                    <label for="government_id_type" class="mb-1.5 block text-sm font-semibold text-gray-700">ID Type</label>
-                    <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                        <select
-                            id="government_id_type"
-                            wire:model.live="governmentIdType"
-                            class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
-                        >
-                            <option value="">Select ID Type</option>
-                            <option value="Passport" @selected($governmentIdType === 'Passport')>Passport</option>
-                            <option value="Driver's License" @selected($governmentIdType === "Driver's License")>Driver's License</option>
-                            <option value="UMID" @selected($governmentIdType === 'UMID')>UMID</option>
-                            <option value="National ID" @selected($governmentIdType === 'National ID')>National ID</option>
-                            <option value="Postal ID" @selected($governmentIdType === 'Postal ID')>Postal ID</option>
-                        </select>
-                    </div>
-                    @error('governmentIdType') <p class="ml-1 mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
+            <div>
+                <label for="government_id_number" class="mb-1.5 block text-sm font-semibold text-gray-700">ID Number</label>
+                <div x-show="!editing" class="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50 px-4 shadow-sm">
+                    <span class="w-full text-sm text-gray-700">{{ $governmentIdNumber ?: 'Not set' }}</span>
                 </div>
-
-                <div>
-                    <label for="government_id_number" class="mb-1.5 block text-sm font-semibold text-gray-700">ID Number</label>
-                    <div class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                        <input
-                            type="text"
-                            id="government_id_number"
-                            wire:model.live="governmentIdNumber"
-                            value="{{ $governmentIdNumber }}"
-                            placeholder="Enter ID number"
-                            class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
-                        >
-                    </div>
-                    @error('governmentIdNumber') <p class="ml-1 mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
+                <div x-show="editing" x-cloak class="flex h-12 items-center rounded-xl border border-gray-200 bg-white px-4 shadow-sm transition-all duration-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <input
+                        type="text"
+                        id="government_id_number"
+                        wire:model.live="governmentIdNumber"
+                        placeholder="Enter ID number"
+                        class="w-full border-0 bg-transparent text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-300 focus:border-0 focus:outline-none focus:ring-0"
+                    >
                 </div>
+                @error('governmentIdNumber') <p class="ml-1 mt-1.5 text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
+        </div>
 
-            <div x-data="{ uploading: false, progress: 0 }"
-                 x-on:livewire-upload-start="uploading = true; progress = 0"
-                 x-on:livewire-upload-finish="uploading = false; progress = 100"
-                 x-on:livewire-upload-cancel="uploading = false"
-                 x-on:livewire-upload-error="uploading = false"
-                 x-on:livewire-upload-progress="progress = $event.detail.progress"
-            >
-                @if ($governmentIdImage)
-                    <div class="relative inline-block w-full max-w-md">
-                        <img src="{{ $governmentIdImage->temporaryUrl() }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
-                        <button type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
-                    </div>
-                @elseif ($this->existingGovernmentIdImageUrl)
-                    <div class="relative inline-block w-full max-w-md">
-                        <img src="{{ $this->existingGovernmentIdImageUrl }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
-                        <button type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
-                    </div>
-                @else
-                    <label class="flex w-full max-w-md cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-8 transition-colors duration-200 hover:border-blue-400 hover:bg-blue-50/50">
-                        <svg class="mb-2 h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-                        </svg>
-                        <span class="text-sm font-semibold text-gray-600">Upload your Valid ID</span>
-                        <span class="mt-1 text-xs text-gray-400">Photo or scan of your government-issued ID (max 10MB)</span>
-                        <input type="file" wire:model="governmentIdImage" name="governmentIdImage" class="hidden" accept="image/*">
-                    </label>
-                @endif
+        {{-- ID Photo display --}}
+        @if ($governmentIdImage)
+            <div class="relative inline-block w-full max-w-md">
+                <img src="{{ $governmentIdImage->temporaryUrl() }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
+                <button type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
+            </div>
+        @elseif ($this->existingGovernmentIdImageUrl)
+            <div class="relative inline-block w-full max-w-md">
+                <img src="{{ $this->existingGovernmentIdImageUrl }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
+                <button x-show="editing" x-cloak type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
+            </div>
+        @else
+            <div x-show="!editing" class="w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 px-6 py-8 text-center">
+                <span class="text-sm text-gray-400">No ID photo uploaded</span>
+            </div>
+        @endif
 
-                {{-- Progress bar --}}
-                <div x-show="uploading" x-cloak class="mt-3 w-full max-w-md">
+        {{-- Upload area (edit mode) --}}
+        <div x-show="editing" x-cloak class="mt-3">
+            <label x-show="!uploading" class="flex w-full max-w-md cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-8 transition-colors duration-200 hover:border-blue-400 hover:bg-blue-50/50">
+                <svg class="mb-2 h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                </svg>
+                <span class="text-sm font-semibold text-gray-600">{{ $governmentIdImage || $this->existingGovernmentIdImageUrl ? 'Change ID photo' : 'Upload your Valid ID' }}</span>
+                <span class="mt-1 text-xs text-gray-400">Photo or scan of your government-issued ID (max 10MB)</span>
+                <input type="file" wire:model="governmentIdImage" class="hidden" accept="image/*">
+            </label>
+
+            {{-- Uploading state --}}
+            <div x-show="uploading" x-cloak class="flex w-full max-w-md flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#2360E8] bg-blue-50/50 px-6 py-8">
+                <svg class="mb-3 h-10 w-10 animate-spin text-[#2360E8]" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-sm font-semibold text-[#2360E8]">Uploading ID photo...</span>
+                <div class="mt-3 w-full max-w-xs">
                     <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                        <div class="h-full rounded-full bg-[#2360E8] transition-all duration-200" :style="'width: ' + progress + '%'"></div>
+                        <div class="h-full rounded-full bg-[#2360E8] transition-all duration-300 ease-out" :style="'width: ' + progress + '%'"></div>
                     </div>
-                    <p class="mt-0.5 text-[11px] font-medium text-[#2360E8]">Uploading... <span x-text="progress + '%'"></span></p>
+                    <p class="mt-1 text-center text-[11px] font-medium text-[#2360E8]" x-text="progress + '%'"></p>
                 </div>
-
-                @if ($governmentIdImage || $existingGovernmentIdImage)
-                    <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#2360E8] hover:text-[#070589]" x-show="!uploading">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-                        Change ID photo
-                        <input type="file" wire:model="governmentIdImage" name="governmentIdImage" class="hidden" accept="image/*">
-                    </label>
-                @endif
-
-                @error('governmentIdImage') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
+        </div>
 
-        <div class="mt-8 flex items-center justify-end">
+        @error('governmentIdImage') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+
+        <div x-show="editing" x-cloak class="mt-8 flex items-center justify-end">
             <button
                 type="submit"
                 wire:loading.attr="disabled"

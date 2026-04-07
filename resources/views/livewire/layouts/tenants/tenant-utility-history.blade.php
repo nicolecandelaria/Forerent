@@ -1,3 +1,11 @@
+<style>
+    @media (max-width: 767px) {
+        .tenant-utility-desktop-table { display: none !important; }
+    }
+    @media (min-width: 768px) {
+        .tenant-utility-mobile-cards { display: none !important; }
+    }
+</style>
 <div class="font-sans">
     <x-ui.card-with-tabs
          :tabs="['all' => 'All', 'electricity' => 'Electricity', 'water' => 'Water']"
@@ -39,8 +47,8 @@
             </x-dropdown>
         </x-slot:filters>
 
-        {{-- TABLE SLOT --}}
-        <x-ui.table>
+        {{-- DESKTOP TABLE --}}
+        <x-ui.table wrapperClass="tenant-utility-desktop-table">
             <x-slot:head>
                 <x-ui.th>Type</x-ui.th>
                 <x-ui.th>Period</x-ui.th>
@@ -158,6 +166,90 @@
                 @endforelse
             </x-slot:body>
         </x-ui.table>
+
+        {{-- MOBILE CARDS --}}
+        <div class="tenant-utility-mobile-cards space-y-3">
+            @forelse ($items as $item)
+                @php
+                    $billing = $item->billing;
+                    $isElectricity = $item->charge_type === 'electricity_share';
+                    $isExpanded = $expandedRow === $item->billing_item_id;
+                @endphp
+
+                <div
+                    wire:key="utility-mobile-{{ $item->billing_item_id }}"
+                    wire:click="toggleRow({{ $item->billing_item_id }})"
+                    class="rounded-xl border cursor-pointer transition-colors
+                        {{ $isExpanded
+                            ? ($isElectricity ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200')
+                            : 'bg-gray-50 border-gray-100' }}"
+                >
+                    {{-- Card Header --}}
+                    <div class="flex items-center justify-between p-3.5">
+                        <div class="flex items-center gap-2.5">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $isElectricity ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-700' }}">
+                                {{ $isElectricity ? 'Electricity' : 'Water' }}
+                            </span>
+                            <span class="text-sm font-medium text-gray-900">
+                                {{ $billing ? \Carbon\Carbon::parse($billing->billing_date)->format('F Y') : '—' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-extrabold text-blue-900">&#8369; {{ number_format($item->amount, 2) }}</span>
+                            <svg class="w-4 h-4 transition-transform duration-200 {{ $isExpanded ? 'rotate-180' : '' }} {{ $isElectricity ? 'text-orange-400' : 'text-blue-400' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    {{-- Expanded Breakdown --}}
+                    @if($isExpanded)
+                        <div class="px-3.5 pb-3.5">
+                            <div class="rounded-xl bg-white shadow-sm border {{ $isElectricity ? 'border-orange-200' : 'border-blue-200' }} p-3 relative">
+                                <div class="absolute left-0 top-3 bottom-3 w-1 rounded-full {{ $isElectricity ? 'bg-orange-400' : 'bg-blue-400' }}"></div>
+                                <div class="pl-3">
+                                    <p class="text-xs font-bold {{ $isElectricity ? 'text-orange-700' : 'text-blue-700' }} mb-2">
+                                        {{ $isElectricity ? 'Electricity' : 'Water' }} Breakdown
+                                    </p>
+                                    @if($expandedBill)
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div class="rounded-lg p-2 bg-gray-50">
+                                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Total Bill</p>
+                                                <p class="text-xs font-extrabold text-gray-900">&#8369; {{ number_format($expandedBill->total_amount, 2) }}</p>
+                                            </div>
+                                            <div class="rounded-lg p-2 bg-gray-50">
+                                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Split</p>
+                                                <p class="text-xs font-extrabold text-gray-900">{{ $expandedBill->tenant_count }} {{ $expandedBill->tenant_count === 1 ? 'tenant' : 'tenants' }}</p>
+                                            </div>
+                                            <div class="rounded-lg p-2 {{ $isElectricity ? 'bg-orange-50 ring-1 ring-orange-200' : 'bg-blue-50 ring-1 ring-blue-200' }}">
+                                                <p class="text-[10px] font-semibold {{ $isElectricity ? 'text-orange-500' : 'text-blue-500' }} uppercase mb-0.5">Your Share</p>
+                                                <p class="text-xs font-extrabold {{ $isElectricity ? 'text-orange-700' : 'text-blue-700' }}">&#8369; {{ number_format($expandedBill->per_tenant_amount, 2) }}</p>
+                                            </div>
+                                        </div>
+                                        <p class="text-[10px] text-gray-400 mt-2 font-medium">
+                                            &#8369;{{ number_format($expandedBill->total_amount, 2) }} &divide; {{ $expandedBill->tenant_count }} = <span class="{{ $isElectricity ? 'text-orange-600' : 'text-blue-600' }} font-bold">&#8369;{{ number_format($expandedBill->per_tenant_amount, 2) }}/tenant</span>
+                                        </p>
+                                    @else
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div class="rounded-lg p-2 bg-gray-50">
+                                                <p class="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Description</p>
+                                                <p class="text-xs font-bold text-gray-900">{{ $item->description }}</p>
+                                            </div>
+                                            <div class="rounded-lg p-2 {{ $isElectricity ? 'bg-orange-50 ring-1 ring-orange-200' : 'bg-blue-50 ring-1 ring-blue-200' }}">
+                                                <p class="text-[10px] font-semibold {{ $isElectricity ? 'text-orange-500' : 'text-blue-500' }} uppercase mb-0.5">Your Share</p>
+                                                <p class="text-xs font-extrabold {{ $isElectricity ? 'text-orange-700' : 'text-blue-700' }}">&#8369; {{ number_format($item->amount, 2) }}</p>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @empty
+                <div class="text-center py-12 text-gray-500 text-sm">No utility charges found.</div>
+            @endforelse
+        </div>
 
         <x-slot:footer>
             {{ $items->links('livewire.layouts.components.paginate-blue') }}

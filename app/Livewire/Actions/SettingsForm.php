@@ -160,9 +160,14 @@ class SettingsForm extends Component
             return '';
         }
 
-        // Keep the local mobile part shown next to +63 in the UI.
+        // Strip country code if present, then strip leading 9 (shown as prefix in UI).
         if (strlen($digits) > 10) {
-            return substr($digits, -10);
+            $digits = substr($digits, -10);
+        }
+
+        // Remove leading 9 since it's already displayed as a prefix in the input field
+        if (strlen($digits) === 10 && str_starts_with($digits, '9')) {
+            return substr($digits, 1);
         }
 
         return $digits;
@@ -190,11 +195,16 @@ class SettingsForm extends Component
 
         $normalized = $this->normalizeStoragePath($path);
 
-        if (!Storage::disk('public')->exists($normalized)) {
-            return null;
+        if (Storage::disk('public')->exists($normalized)) {
+            return Storage::url($normalized);
         }
 
-        return Storage::url($normalized);
+        // Fallback: check if file exists directly in public/storage
+        if (file_exists(public_path('storage/' . $normalized))) {
+            return asset('storage/' . $normalized);
+        }
+
+        return null;
     }
 
     private function normalizeStoragePath(string $path): string
@@ -216,6 +226,17 @@ class SettingsForm extends Component
     {
         $this->profilePicture = null;
         $this->existingProfileImg = null;
+        $this->recomputePendingChanges();
+    }
+
+    public function clearAllFields(): void
+    {
+        $this->firstName = '';
+        $this->lastName = '';
+        $this->phoneNumber = '';
+        $this->email = '';
+        $this->governmentIdType = '';
+        $this->governmentIdNumber = '';
         $this->recomputePendingChanges();
     }
 
@@ -282,7 +303,19 @@ class SettingsForm extends Component
             $this->validate([
                 'firstName' => 'nullable|string|max:255',
                 'lastName' => 'nullable|string|max:255',
-                'phoneNumber' => ['required', 'digits:10', Rule::unique('users', 'contact')->ignore($user->user_id, 'user_id')],
+                'phoneNumber' => [
+                    'required',
+                    'digits:9',
+                    function ($attribute, $value, $fail) use ($user) {
+                        $fullNumber = '9' . preg_replace('/\D/', '', $value);
+                        $exists = \App\Models\User::where('contact', $fullNumber)
+                            ->where('user_id', '!=', $user->user_id)
+                            ->exists();
+                        if ($exists) {
+                            $fail('This phone number is already registered.');
+                        }
+                    },
+                ],
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->user_id, 'user_id')],
                 'profilePicture' => 'nullable|image|max:10240',
                 'governmentIdImage' => 'nullable|image|max:10240',
@@ -294,7 +327,7 @@ class SettingsForm extends Component
                 'first_name' => $this->firstName,
                 'last_name' => $this->lastName,
                 'email' => $this->email,
-                'contact' => $this->phoneNumber,
+                'contact' => '9' . $this->phoneNumber,
                 'government_id_type' => $this->governmentIdType ?: null,
                 'government_id_number' => $this->governmentIdNumber ?: null,
             ];
@@ -305,7 +338,17 @@ class SettingsForm extends Component
                 if ($user->profile_img && $this->existingProfileImg !== $user->profile_img) {
                     $this->deleteStoredImage($user->profile_img);
                 }
-                $updateData['profile_img'] = $this->profilePicture->store('profile-photos', 'public');
+                $storedPath = $this->profilePicture->store('profile-photos', 'public');
+                $updateData['profile_img'] = $storedPath;
+
+                // Sync to public/storage if it's not a symlink
+                $publicDir = public_path('storage/' . dirname($storedPath));
+                if (!is_link(public_path('storage')) && !is_dir($publicDir)) {
+                    mkdir($publicDir, 0755, true);
+                }
+                if (!is_link(public_path('storage'))) {
+                    copy(storage_path('app/public/' . $storedPath), public_path('storage/' . $storedPath));
+                }
             } elseif ($this->existingProfileImg === null && $user->profile_img) {
                 // Only delete if user explicitly removed the image
                 $this->deleteStoredImage($user->profile_img);
@@ -318,7 +361,17 @@ class SettingsForm extends Component
                 if ($user->government_id_image && $this->existingGovernmentIdImage !== $user->government_id_image) {
                     $this->deleteStoredImage($user->government_id_image);
                 }
-                $updateData['government_id_image'] = $this->governmentIdImage->store('government-ids', 'public');
+                $storedPath = $this->governmentIdImage->store('government-ids', 'public');
+                $updateData['government_id_image'] = $storedPath;
+
+                // Sync to public/storage if it's not a symlink
+                $publicDir = public_path('storage/' . dirname($storedPath));
+                if (!is_link(public_path('storage')) && !is_dir($publicDir)) {
+                    mkdir($publicDir, 0755, true);
+                }
+                if (!is_link(public_path('storage'))) {
+                    copy(storage_path('app/public/' . $storedPath), public_path('storage/' . $storedPath));
+                }
             } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
                 // Only delete if user explicitly removed the image
                 $this->deleteStoredImage($user->government_id_image);

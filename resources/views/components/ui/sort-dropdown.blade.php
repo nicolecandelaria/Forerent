@@ -4,13 +4,13 @@
     $labelText = 'Sort: ' . ucfirst($current);
 @endphp
 
-<div x-data="{ open: false }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative w-full sm:w-auto">
+<div x-data="{ open: false }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative flex-shrink-0">
     {{-- Trigger Button --}}
     <flux:tooltip :content="'Change the display order of items'" position="bottom">
         <button
             @click="open = !open"
             type="button"
-            class="w-full sm:w-auto flex items-center justify-between gap-2 bg-white text-gray-800 border border-gray-200 rounded-lg px-4 py-2 font-opensans font-medium text-sm shadow-sm transition-all hover:bg-gray-50 focus:ring-2 focus:ring-blue-300 outline-none"
+            class="w-auto flex items-center justify-between gap-1.5 sm:gap-2 bg-white text-gray-800 border border-gray-200 rounded-lg px-2.5 sm:px-4 py-2 font-opensans font-medium text-xs sm:text-sm shadow-sm transition-all hover:bg-gray-50 focus:ring-2 focus:ring-blue-300 outline-none whitespace-nowrap"
             aria-haspopup="true"
             :aria-expanded="open"
         >
@@ -36,7 +36,7 @@
         x-show="open"
         x-transition.origin.top.right
         style="display: none;"
-        class="absolute right-0 z-30 w-full sm:w-40 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
+        class="absolute right-0 z-30 w-36 sm:w-40 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
     >
         <x-dropdown-item wire:click="$set('{{ $model }}','newest')" :active="$current === 'newest'">
             Newest

@@ -6,6 +6,7 @@ use App\Models\User;
 use Faker\Generator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class UserSeeder extends Seeder
 {
@@ -14,6 +15,10 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $this->faker = app(Generator::class);
+
+        // Ensure government-ids directory exists and generate placeholder images
+        Storage::disk('public')->makeDirectory('government-ids');
+        $this->generatePlaceholderIds();
 
         User::factory()->create([
             'first_name' => 'Tricia',
@@ -85,5 +90,36 @@ class UserSeeder extends Seeder
                 'role' => 'manager',
                 'password' => Hash::make('password'),
             ]);
+    }
+
+    /**
+     * Generate placeholder government ID images for seeded users.
+     */
+    private function generatePlaceholderIds(): void
+    {
+        $names = [
+            'tricia', 'tanya', 'marcus', 'mia', 'liam',
+        ];
+
+        foreach ($names as $name) {
+            $path = 'government-ids/sample-id-' . $name . '.jpg';
+
+            if (!Storage::disk('public')->exists($path)) {
+                // Create a simple placeholder image
+                $img = imagecreatetruecolor(400, 250);
+                $bg = imagecolorallocate($img, 240, 240, 240);
+                $textColor = imagecolorallocate($img, 80, 80, 80);
+                imagefilledrectangle($img, 0, 0, 399, 249, $bg);
+                imagestring($img, 5, 120, 100, 'Government ID', $textColor);
+                imagestring($img, 4, 140, 130, ucfirst($name), $textColor);
+
+                ob_start();
+                imagejpeg($img, null, 90);
+                $imageData = ob_get_clean();
+                imagedestroy($img);
+
+                Storage::disk('public')->put($path, $imageData);
+            }
+        }
     }
 }

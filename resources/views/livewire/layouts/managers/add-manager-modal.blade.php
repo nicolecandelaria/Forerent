@@ -150,15 +150,16 @@
                                             wire:model.defer="userForm.phoneNumber"
                                             type="tel"
                                             id="phone-{{ $modalId }}"
-                                            class="block pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] pr-2.5 pl-16"
-                                            placeholder="9876543210"
-                                            maxlength="10"
+                                            class="block pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] pr-2.5 pl-20"
+                                            placeholder="876543210"
+                                            maxlength="9"
                                             inputmode="numeric"
                                             pattern="[0-9]*"
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                                         />
 
                                         <div class="absolute top-4 left-0 px-3 flex items-center space-x-2 pointer-events-none">
-                                            <span class="text-sm text-gray-500">+63</span>
+                                            <span class="text-sm text-gray-500">+63 9</span>
                                             <span class="border-l border-gray-300 h-5"></span>
                                         </div>
 

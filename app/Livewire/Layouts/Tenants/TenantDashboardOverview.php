@@ -1044,6 +1044,8 @@ class TenantDashboardOverview extends Component
 
     public function downloadSignedContract()
     {
+        set_time_limit(120);
+
         if (!$this->lease) return;
 
         // If a pre-generated signed PDF exists, download it directly
@@ -1106,13 +1108,20 @@ class TenantDashboardOverview extends Component
             ->setPaper('a4')
             ->setOption('isRemoteEnabled', true);
 
+        // Cache the generated PDF for future downloads
+        $cachePath = 'contracts/move-in-' . $this->lease->lease_id . '.pdf';
+        Storage::disk('public')->put($cachePath, $pdf->output());
+        $this->lease->update(['signed_contract_path' => $cachePath]);
+
         $filename = 'Move-In-Contract_' . Auth::user()->first_name . '-' . Auth::user()->last_name . '_Unit-' . ($this->lease->bed->unit->unit_number ?? 'N-A') . '.pdf';
 
-        return response()->streamDownload(fn () => print($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
+        return Storage::disk('public')->download($cachePath, $filename);
     }
 
     public function downloadMoveOutSignedContract()
     {
+        set_time_limit(120);
+
         if (!$this->lease) return;
 
         // If a pre-generated signed PDF exists, download it directly
@@ -1157,9 +1166,14 @@ class TenantDashboardOverview extends Component
             ->setPaper('a4')
             ->setOption('isRemoteEnabled', true);
 
+        // Cache the generated PDF for future downloads
+        $cachePath = 'contracts/move-out-' . $this->lease->lease_id . '.pdf';
+        Storage::disk('public')->put($cachePath, $pdf->output());
+        $this->lease->update(['moveout_signed_contract_path' => $cachePath]);
+
         $filename = 'Move-Out-Contract_' . Auth::user()->first_name . '-' . Auth::user()->last_name . '_Unit-' . ($this->lease->bed->unit->unit_number ?? 'N-A') . '.pdf';
 
-        return response()->streamDownload(fn () => print($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
+        return Storage::disk('public')->download($cachePath, $filename);
     }
 
     public function render()
