@@ -94,26 +94,40 @@ class RevenueForecast extends Component
 
     private function enrichForecastWithActualEarnings($forecasts)
     {
+        if (empty($forecasts)) {
+            return $forecasts;
+        }
+
+        $monthExpr = $this->transactionMonthExpression();
+        $actualByMonth = Transaction::query()
+            ->creditInflows()
+            ->whereYear('transaction_date', $this->forecastYear)
+            ->selectRaw("{$monthExpr} as month, SUM(amount) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
+
         foreach ($forecasts as &$monthForecast) {
             $monthNumber = $monthForecast['month'] ?? null;
-            
+
             if ($monthNumber) {
-                // Get actual revenue for this month
-                $startDate = Carbon::create($this->forecastYear, $monthNumber, 1)->startOfMonth();
-                $endDate = $startDate->copy()->endOfMonth();
-                
-                $actualRevenue = Transaction::query()
-                    ->creditInflows()
-                    ->whereBetween('transaction_date', [$startDate, $endDate])
-                    ->sum('amount');
-                
-                $monthForecast['actual_revenue'] = $actualRevenue ?? 0;
+                $monthForecast['actual_revenue'] = (float) ($actualByMonth[$monthNumber] ?? 0);
             } else {
                 $monthForecast['actual_revenue'] = 0;
             }
         }
-        
+
         return $forecasts;
+    }
+
+    private function transactionMonthExpression(): string
+    {
+        $driver = Transaction::query()->getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return 'EXTRACT(MONTH FROM transaction_date)::int';
+        }
+
+        return 'MONTH(transaction_date)';
     }
 
     public function render()

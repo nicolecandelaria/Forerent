@@ -134,193 +134,6 @@
             </div>
         </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <script>
-            function renderRevenueChart() {
-                if (typeof Chart === 'undefined') {
-                    setTimeout(renderRevenueChart, 100);
-                    return;
-                }
-
-                const ctx = document.getElementById('revenueChart');
-                if (!ctx) return;
-
-                if (window.revenueChartInstance) {
-                    window.revenueChartInstance.destroy();
-                }
-
-                const monthlyForecasts = @json($monthlyForecasts);
-                if (!monthlyForecasts || monthlyForecasts.length === 0) return;
-
-                const categories = monthlyForecasts.map(f => f.month_name);
-                const actualData = monthlyForecasts.map(f => Number(f.actual_revenue || 0));
-                const forecastData = monthlyForecasts.map(f => Number(f.forecasted_revenue || 0));
-
-                const chartCtx = ctx.getContext('2d');
-
-                // Actual earnings gradient fill (light blue)
-                const actualGradient = chartCtx.createLinearGradient(0, 0, 0, ctx.parentElement.offsetHeight || 320);
-                actualGradient.addColorStop(0, 'rgba(140, 197, 255, 0.25)');
-                actualGradient.addColorStop(0.6, 'rgba(140, 197, 255, 0.05)');
-                actualGradient.addColorStop(1, 'rgba(140, 197, 255, 0)');
-
-                // Forecast gradient fill (dark navy)
-                const forecastGradient = chartCtx.createLinearGradient(0, 0, 0, ctx.parentElement.offsetHeight || 320);
-                forecastGradient.addColorStop(0, 'rgba(30, 27, 75, 0.2)');
-                forecastGradient.addColorStop(0.6, 'rgba(30, 27, 75, 0.03)');
-                forecastGradient.addColorStop(1, 'rgba(30, 27, 75, 0)');
-
-                window.revenueChartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: categories,
-                        datasets: [
-                            {
-                                label: 'Actual Earnings',
-                                data: actualData,
-                                borderColor: '#8CC5FF',
-                                backgroundColor: actualGradient,
-                                borderWidth: 2.5,
-                                pointBackgroundColor: '#8CC5FF',
-                                pointBorderColor: '#FFFFFF',
-                                pointBorderWidth: 2,
-                                pointRadius: 0,
-                                pointHoverRadius: 6,
-                                pointHoverBackgroundColor: '#8CC5FF',
-                                pointHoverBorderColor: '#FFFFFF',
-                                pointHoverBorderWidth: 3,
-                                tension: 0.4,
-                                fill: true
-                            },
-                            {
-                                label: 'Forecasted Revenue',
-                                data: forecastData,
-                                borderColor: '#1E1B4B',
-                                backgroundColor: forecastGradient,
-                                borderWidth: 2.5,
-                                pointBackgroundColor: '#1E1B4B',
-                                pointBorderColor: '#FFFFFF',
-                                pointBorderWidth: 2,
-                                pointRadius: 0,
-                                pointHoverRadius: 6,
-                                pointHoverBackgroundColor: '#1E1B4B',
-                                pointHoverBorderColor: '#FFFFFF',
-                                pointHoverBorderWidth: 3,
-                                tension: 0.4,
-                                fill: true
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: '#1E1B4B',
-                                titleColor: '#FFFFFF',
-                                bodyColor: '#FFFFFF',
-                                titleFont: { size: 11, weight: '400' },
-                                bodyFont: { size: 13, weight: '600' },
-                                padding: { top: 8, bottom: 8, left: 14, right: 14 },
-                                cornerRadius: 8,
-                                displayColors: false,
-                                caretSize: 6,
-                                callbacks: {
-                                    title: function(tooltipItems) {
-                                        return tooltipItems[0].label;
-                                    },
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) label += ': ';
-                                        label += '₱' + new Intl.NumberFormat('en-PH').format(context.parsed.y);
-                                        return label;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                border: { display: false },
-                                grid: { color: 'rgba(0, 0, 0, 0.04)', drawBorder: false },
-                                ticks: {
-                                    color: '#9CA3AF',
-                                    font: { size: 12 },
-                                    padding: 8,
-                                    callback: function(value) {
-                                        if (value >= 1000000) return '₱' + (value / 1000000).toFixed(1) + 'M';
-                                        return '₱' + (value / 1000).toFixed(0) + 'k';
-                                    }
-                                }
-                            },
-                            x: {
-                                border: { display: false },
-                                grid: { display: false },
-                                ticks: { color: '#9CA3AF', font: { size: 12 }, padding: 8 }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Download Chart Function
-            function downloadForecastChart(format) {
-                const canvas = document.getElementById('revenueChart');
-                if (!canvas) return;
-
-                if (format === 'svg') {
-                    // For Chart.js canvas, export as PNG instead (canvas doesn't produce SVG)
-                    const link = document.createElement('a');
-                    link.href = canvas.toDataURL('image/png', 1.0);
-                    link.download = 'revenue-forecast-{{ $forecastYear }}.png';
-                    link.click();
-                } else if (format === 'png') {
-                    const element = canvas.parentElement;
-                    if (element && typeof html2canvas !== 'undefined') {
-                        html2canvas(element, {
-                            scale: 2,
-                            useCORS: true,
-                            logging: false
-                        }).then(c => {
-                            const link = document.createElement('a');
-                            link.href = c.toDataURL('image/png');
-                            link.download = 'revenue-forecast-{{ $forecastYear }}.png';
-                            link.click();
-                        });
-                    } else {
-                        const link = document.createElement('a');
-                        link.href = canvas.toDataURL('image/png', 1.0);
-                        link.download = 'revenue-forecast-{{ $forecastYear }}.png';
-                        link.click();
-                    }
-                }
-            }
-
-            // CSV Download Function
-            function downloadForecastCSV() {
-                const monthlyForecasts = @json($monthlyForecasts);
-                if (!monthlyForecasts || monthlyForecasts.length === 0) return;
-
-                let csv = 'Month,Actual Earnings,Forecasted Revenue\n';
-                monthlyForecasts.forEach(f => {
-                    csv += '"' + f.month_name + '",' + (f.actual_revenue || 0) + ',' + f.forecasted_revenue + '\n';
-                });
-
-                const link = document.createElement('a');
-                link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-                link.download = 'revenue-forecast-{{ $forecastYear }}.csv';
-                link.click();
-            }
-
-            document.addEventListener('DOMContentLoaded', renderRevenueChart);
-            document.addEventListener('livewire:navigated', renderRevenueChart);
-        </script>
     @else
         <div class="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
             <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -331,7 +144,7 @@
         </div>
     @endif
 
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         function getRevenueForecastPayload() {
@@ -349,6 +162,11 @@
         }
 
         function renderRevenueChart() {
+            if (typeof Chart === 'undefined') {
+                setTimeout(renderRevenueChart, 100);
+                return;
+            }
+
             const chartElement = document.getElementById('revenueChart');
             const payload = getRevenueForecastPayload();
             const monthlyForecasts = Array.isArray(payload.monthlyForecasts) ? payload.monthlyForecasts : [];
@@ -363,140 +181,120 @@
             }
 
             const categories = monthlyForecasts.map(f => f.month_name);
-            const series = [
-                {
-                    type: 'line',
-                    name: 'Actual Earnings',
-                    data: monthlyForecasts.map(f => Number(f.actual_revenue || 0))
-                },
-                {
-                    type: 'line',
-                    name: 'Forecasted Revenue',
-                    data: monthlyForecasts.map(f => Number(f.forecasted_revenue || 0))
-                }
-            ];
+            const actualData = monthlyForecasts.map(f => Number(f.actual_revenue || 0));
+            const forecastData = monthlyForecasts.map(f => Number(f.forecasted_revenue || 0));
+            const chartCtx = chartElement.getContext('2d');
 
-            const options = {
-                chart: {
-                    type: 'line',
-                    height: 400,
-                    toolbar: {
-                        show: false,
-                        tools: {
-                            download: true,
-                            selection: true,
-                            zoom: true,
-                            zoomin: true,
-                            zoomout: true,
-                            pan: true,
-                            reset: true
-                        }
-                    },
-                    animations: {
-                        enabled: true,
-                        speed: 800,
-                        animateGradually: {
-                            enabled: true,
-                            delay: 150
-                        }
-                    }
-                },
-                stroke: {
-                    curve: 'straight',
-                    width: [4, 4],
-                    lineCap: 'round',
-                    dashArray: [0, 0]
-                },
-                markers: {
-                    size: 4,
-                    strokeWidth: 0,
-                    hover: {
-                        size: 6
-                    }
-                },
-                dataLabels: {
-                    enabled: false
-                },
-                xaxis: {
-                    categories: categories,
-                    labels: {
-                        style: {
-                            fontSize: '12px',
-                            colors: '#6B7280'
-                        }
-                    }
-                },
-                yaxis: {
-                    title: {
-                        text: 'Revenue (₱)',
-                        style: {
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            color: '#070642'
-                        }
-                    },
-                    labels: {
-                        formatter: function (val) {
-                            return '₱' + (val / 1000).toFixed(0) + 'K';
-                        },
-                        style: {
-                            colors: '#6B7280'
-                        }
-                    }
-                },
-                colors: ['#2B66F5', '#F5652B'],
-                legend: {
-                    labels: {
-                        colors: '#070642'
-                    }
-                },
-                tooltip: {
-                    theme: 'light',
-                    shared: true,
-                    intersect: false,
-                    style: {
-                        fontSize: '12px'
-                    },
-                    y: {
-                        formatter: function (val) {
-                            return '₱' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                        }
-                    }
-                },
-                grid: {
-                    borderColor: '#E5E7EB',
-                    strokeDashArray: 3,
-                    show: true
-                },
-                states: {
-                    hover: {
-                        filter: {
-                            type: 'none'
-                        }
-                    },
-                    active: {
-                        filter: {
-                            type: 'none'
-                        }
-                    }
-                },
-                theme: {
-                    monochrome: {
-                        enabled: false
-                    }
-                }
-            };
+            const actualGradient = chartCtx.createLinearGradient(0, 0, 0, chartElement.parentElement.offsetHeight || 320);
+            actualGradient.addColorStop(0, 'rgba(140, 197, 255, 0.25)');
+            actualGradient.addColorStop(0.6, 'rgba(140, 197, 255, 0.05)');
+            actualGradient.addColorStop(1, 'rgba(140, 197, 255, 0)');
+
+            const forecastGradient = chartCtx.createLinearGradient(0, 0, 0, chartElement.parentElement.offsetHeight || 320);
+            forecastGradient.addColorStop(0, 'rgba(30, 27, 75, 0.2)');
+            forecastGradient.addColorStop(0.6, 'rgba(30, 27, 75, 0.03)');
+            forecastGradient.addColorStop(1, 'rgba(30, 27, 75, 0)');
 
             if (window.revenueChartInstance) {
                 window.revenueChartInstance.destroy();
             }
 
-            window.revenueChartInstance = new ApexCharts(chartElement, {
-                series,
-                ...options
+            window.revenueChartInstance = new Chart(chartElement, {
+                type: 'line',
+                data: {
+                    labels: categories,
+                    datasets: [
+                        {
+                            label: 'Actual Earnings',
+                            data: actualData,
+                            borderColor: '#8CC5FF',
+                            backgroundColor: actualGradient,
+                            borderWidth: 2.5,
+                            pointBackgroundColor: '#8CC5FF',
+                            pointBorderColor: '#FFFFFF',
+                            pointBorderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: '#8CC5FF',
+                            pointHoverBorderColor: '#FFFFFF',
+                            pointHoverBorderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Forecasted Revenue',
+                            data: forecastData,
+                            borderColor: '#1E1B4B',
+                            backgroundColor: forecastGradient,
+                            borderWidth: 2.5,
+                            pointBackgroundColor: '#1E1B4B',
+                            pointBorderColor: '#FFFFFF',
+                            pointBorderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: '#1E1B4B',
+                            pointHoverBorderColor: '#FFFFFF',
+                            pointHoverBorderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1E1B4B',
+                            titleColor: '#FFFFFF',
+                            bodyColor: '#FFFFFF',
+                            titleFont: { size: 11, weight: '400' },
+                            bodyFont: { size: 13, weight: '600' },
+                            padding: { top: 8, bottom: 8, left: 14, right: 14 },
+                            cornerRadius: 8,
+                            displayColors: false,
+                            caretSize: 6,
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    return tooltipItems[0].label;
+                                },
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    label += '₱' + new Intl.NumberFormat('en-PH').format(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            border: { display: false },
+                            grid: { color: 'rgba(0, 0, 0, 0.04)', drawBorder: false },
+                            ticks: {
+                                color: '#9CA3AF',
+                                font: { size: 12 },
+                                padding: 8,
+                                callback: function(value) {
+                                    if (value >= 1000000) return '₱' + (value / 1000000).toFixed(1) + 'M';
+                                    return '₱' + (value / 1000).toFixed(0) + 'k';
+                                }
+                            }
+                        },
+                        x: {
+                            border: { display: false },
+                            grid: { display: false },
+                            ticks: { color: '#9CA3AF', font: { size: 12 }, padding: 8 }
+                        }
+                    }
+                }
             });
-
-            window.revenueChartInstance.render();
         }
 
         function getForecastYear() {
@@ -504,22 +302,19 @@
             return Number(payload.forecastYear || new Date().getFullYear());
         }
 
-        function downloadChart(format) {
-            if (!window.revenueChartInstance) return;
-
+        function downloadForecastChart(format) {
             const forecastYear = getForecastYear();
+            const canvas = document.getElementById('revenueChart');
+
+            if (!canvas) return;
 
             if (format === 'svg') {
-                const svg = document.querySelector('#revenueChart svg');
-                if (svg) {
-                    const svgData = new XMLSerializer().serializeToString(svg);
-                    const link = document.createElement('a');
-                    link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
-                    link.download = `revenue-forecast-${forecastYear}.svg`;
-                    link.click();
-                }
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.download = `revenue-forecast-${forecastYear}.png`;
+                link.click();
             } else if (format === 'png') {
-                const element = document.getElementById('revenueChart');
+                const element = canvas.parentElement;
                 if (element) {
                     html2canvas(element, {
                         scale: 2,
@@ -535,7 +330,7 @@
             }
         }
 
-        function downloadCSV() {
+        function downloadForecastCSV() {
             const payload = getRevenueForecastPayload();
             const monthlyForecasts = Array.isArray(payload.monthlyForecasts) ? payload.monthlyForecasts : [];
             const forecastYear = getForecastYear();
@@ -553,18 +348,19 @@
             link.click();
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(renderRevenueChart, 0);
-        });
+        const scheduleRevenueChartRender = () => setTimeout(renderRevenueChart, 0);
 
-        document.addEventListener('livewire:navigated', () => {
-            setTimeout(renderRevenueChart, 0);
-        });
+        if (!window.__revenueForecastListenersBound) {
+            window.__revenueForecastListenersBound = true;
 
-        document.addEventListener('livewire:init', () => {
-            Livewire.on('revenue-forecast-updated', () => {
-                setTimeout(renderRevenueChart, 0);
+            document.addEventListener('DOMContentLoaded', scheduleRevenueChartRender);
+            document.addEventListener('livewire:navigated', scheduleRevenueChartRender);
+
+            document.addEventListener('livewire:init', () => {
+                Livewire.on('revenue-forecast-updated', scheduleRevenueChartRender);
             });
-        });
+        }
+
+        scheduleRevenueChartRender();
     </script>
 </div>

@@ -173,6 +173,17 @@ class RevenueForecastService
             } catch (Throwable $exception) {
                 $lastException = $exception;
 
+                if ($this->isTimeoutException($exception)) {
+                    Log::warning('Revenue forecast API timeout encountered; skipping retries', [
+                        'attempt' => $attempt,
+                        'max_attempts' => $this->retryAttempts,
+                        'timeout_seconds' => $this->timeoutSeconds,
+                        'error' => $exception->getMessage(),
+                    ]);
+
+                    throw $exception;
+                }
+
                 if (!$this->shouldRetryException($exception) || $attempt === $this->retryAttempts) {
                     throw $exception;
                 }
@@ -202,6 +213,15 @@ class RevenueForecastService
     private function shouldRetryException(Throwable $exception): bool
     {
         return $exception instanceof ConnectionException || $exception instanceof RequestException;
+    }
+
+    private function isTimeoutException(Throwable $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'timed out')
+            || str_contains($message, 'timeout')
+            || str_contains($message, 'cURL error 28');
     }
 
     private function sleepWithBackoff(int $attempt): void
