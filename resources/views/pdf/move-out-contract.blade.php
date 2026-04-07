@@ -572,49 +572,29 @@
     <div class="section-heading">Section 8 — Agreement and Signatures</div>
 
     <p style="font-size:9pt; color:#222; line-height:1.55; margin-bottom:8px; text-align:justify;">
-        By signing below, both parties confirm that the move-out inspection has been conducted, all balances have been accounted for, and they voluntarily agree to the deposit settlement terms stated herein.
+        By signing below, all parties confirm that the move-out inspection has been conducted, all balances have been accounted for, and they voluntarily agree to the deposit settlement terms stated herein.
     </p>
 
     <div class="signature-section">
-        @if(!empty($tenantSignatureBase64) && !empty($ownerSignatureBase64))
+        @if(!empty($tenantSignatureBase64) && !empty($ownerSignatureBase64) && !empty($managerSignatureBase64))
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:8px 12px; margin-bottom:14px; text-align:center;">
                 <span style="font-size:8pt; color:#166534; font-weight:bold;">ELECTRONICALLY SIGNED — RA 8792 COMPLIANT</span>
             </div>
         @endif
 
+        {{-- Owner and Tenant signatures --}}
         <div class="sig-grid">
-            <div class="sig-block">
-                @if(!empty($tenantSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
-                    </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
-                    Tenant's Signature Over Printed Name
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($tenantSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
-                    @else
-                        <div class="sig-date-line"></div>
-                    @endif
-                </div>
-            </div>
             <div class="sig-block">
                 @if(!empty($ownerSignatureBase64))
                     <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Lessor Signature">
+                        <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Owner Signature">
                     </div>
                 @else
                     <div class="sig-line"></div>
                 @endif
                 <div class="sig-label">
                     <strong>{{ $tenant['lessor_info']['representative'] ?? '' }}</strong><br>
-                    Lessor / Authorized Representative<br>Signature Over Printed Name
+                    Lessor / Property Owner
                 </div>
                 <div class="sig-date-row">
                     <span>Date:</span>
@@ -625,17 +605,55 @@
                     @endif
                 </div>
             </div>
+            <div class="sig-block">
+                @if(!empty($tenantSignatureBase64))
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
+                        <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
+                    </div>
+                @else
+                    <div class="sig-line"></div>
+                @endif
+                <div class="sig-label">
+                    <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
+                    Tenant / Lessee
+                </div>
+                <div class="sig-date-row">
+                    <span>Date:</span>
+                    @if(!empty($tenantSignedAt))
+                        <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
+                    @else
+                        <div class="sig-date-line"></div>
+                    @endif
+                </div>
+            </div>
         </div>
 
+        {{-- Manager Witness signature --}}
         <p style="font-size:9pt; color:#333; margin: 16px 0 8px; font-weight:bold;">Witnessed by:</p>
         <div class="sig-grid">
             <div class="sig-block">
-                <div class="sig-line"></div>
-                <div class="sig-label">Witness 1 — Signature Over Printed Name</div>
+                @if(!empty($managerSignatureBase64))
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
+                        <img src="{{ $managerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Manager Witness Signature">
+                    </div>
+                @else
+                    <div class="sig-line"></div>
+                @endif
+                <div class="sig-label">
+                    <strong>{{ $managerName ?? 'Unit Manager' }}</strong><br>
+                    Unit Manager / Witness
+                </div>
+                <div class="sig-date-row">
+                    <span>Date:</span>
+                    @if(!empty($managerSignedAt))
+                        <span style="font-size:8.5pt; margin-left:4px;">{{ $managerSignedAt }}</span>
+                    @else
+                        <div class="sig-date-line"></div>
+                    @endif
+                </div>
             </div>
             <div class="sig-block">
-                <div class="sig-line"></div>
-                <div class="sig-label">Witness 2 — Signature Over Printed Name</div>
+                {{-- Empty witness 2 slot --}}
             </div>
         </div>
 

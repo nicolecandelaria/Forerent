@@ -3,17 +3,19 @@
     Matches the official Dorm_Move_Out_Contract.pdf template exactly.
 
     Required variables:
-    - $t                         : tenant data array
-    - $deposit                   : security deposit amount
-    - $moveOutChecklist          : array of move-out checklist items (optional)
-    - $itemsReturned             : array of returned items (optional)
-    - $inspectionChecklist       : array of move-in checklist items for comparison (optional)
-    - $moveOutTenantSignature    : move-out tenant signature path (nullable)
-    - $moveOutOwnerSignature     : move-out owner signature path (nullable)
-    - $moveOutTenantSignedAt     : formatted date string (nullable)
-    - $moveOutOwnerSignedAt      : formatted date string (nullable)
-    - $moveOutContractAgreed     : bool
-    - $signatureMode             : 'manager' (interactive sign buttons) or 'tenant' (read-only display)
+    - $t                             : tenant data array
+    - $deposit                       : security deposit amount
+    - $moveOutChecklist              : array of move-out checklist items (optional)
+    - $itemsReturned                 : array of returned items (optional)
+    - $inspectionChecklist           : array of move-in checklist items for comparison (optional)
+    - $moveOutTenantSignature        : move-out tenant signature path (nullable)
+    - $moveOutOwnerSignature         : move-out owner signature path (nullable)
+    - $moveOutManagerSignature       : move-out manager/witness signature path (nullable)
+    - $moveOutTenantSignedAt         : formatted date string (nullable)
+    - $moveOutOwnerSignedAt          : formatted date string (nullable)
+    - $moveOutManagerSignedAt        : formatted date string (nullable)
+    - $moveOutContractAgreed         : bool
+    - $signatureMode                 : 'owner', 'manager', 'tenant', or 'readonly'
 --}}
 
 @php
@@ -22,8 +24,10 @@
     $inspectionChecklist = $inspectionChecklist ?? [];
     $moveOutTenantSignature = $moveOutTenantSignature ?? null;
     $moveOutOwnerSignature = $moveOutOwnerSignature ?? null;
+    $moveOutManagerSignature = $moveOutManagerSignature ?? null;
     $moveOutTenantSignedAt = $moveOutTenantSignedAt ?? null;
     $moveOutOwnerSignedAt = $moveOutOwnerSignedAt ?? null;
+    $moveOutManagerSignedAt = $moveOutManagerSignedAt ?? null;
     $moveOutContractAgreed = $moveOutContractAgreed ?? false;
     $signatureMode = $signatureMode ?? 'tenant';
     $outstandingBalances = $outstandingBalances ?? [];
@@ -61,6 +65,7 @@
     <table class="w-full border border-gray-300 text-sm mb-4"><tbody>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 w-1/3 border-r bg-gray-50">Business / Trade Name:</td><td class="p-2">{{ $t['lessor_info']['business_name'] ?? '—' }}</td></tr>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Authorized Representative:</td><td class="p-2">{{ $t['lessor_info']['representative'] ?? '—' }}</td></tr>
+        <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Government ID:</td><td class="p-2">{{ $t['lessor_info']['government_id_type'] ?? '—' }} — {{ $t['lessor_info']['government_id_number'] ?? '—' }}</td></tr>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Contact Number:</td><td class="p-2">{{ $t['lessor_info']['contact'] ?? '—' }}</td></tr>
         <tr><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Email Address:</td><td class="p-2">{{ $t['lessor_info']['email'] ?? '—' }}</td></tr>
     </tbody></table>
@@ -70,7 +75,8 @@
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 w-1/3 border-r bg-gray-50">Full Legal Name:</td><td class="p-2">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</td></tr>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Contact Number:</td><td class="p-2">{{ $t['contact_info']['contact_number'] }}</td></tr>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Email Address:</td><td class="p-2">{{ $t['contact_info']['email'] }}</td></tr>
-        <tr><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Forwarding Address (for deposit refund / correspondence):</td><td class="p-2">{{ $t['move_out_details']['forwarding_address'] ?? '—' }}</td></tr>
+        <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Forwarding Address (for deposit refund / correspondence):</td><td class="p-2 {{ empty($t['move_out_details']['forwarding_address']) ? 'text-red-500 font-medium' : '' }}">{{ $t['move_out_details']['forwarding_address'] ?? 'Not provided — required before signing' }}</td></tr>
+        <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Emergency Contact:</td><td class="p-2">{{ $t['personal_info']['emergency_contact_name'] ?? '—' }} ({{ $t['personal_info']['emergency_contact_relationship'] ?? '' }}) — {{ $t['personal_info']['emergency_contact_number'] ?? '—' }}</td></tr>
     </tbody></table>
 </div>
 
@@ -91,7 +97,7 @@
             <td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Lease End Date:</td>
             <td class="p-2">{{ \Carbon\Carbon::parse($t['rent_details']['lease_end_date'])->format('F d, Y') }}</td>
         </tr>
-        <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Building / Unit / Room / Bed Assignment:</td><td class="p-2">{{ $t['personal_info']['property'] }} / {{ $t['personal_info']['unit'] }} / {{ $t['rent_details']['bed_number'] }}</td></tr>
+        <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Building / Unit / Floor / Bed Assignment:</td><td class="p-2">{{ $t['personal_info']['property'] }} / {{ $t['personal_info']['unit'] }} / Floor {{ $t['rent_details']['floor'] ?? '—' }} / Bed {{ $t['rent_details']['bed_number'] }}</td></tr>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 border-r bg-gray-50">Actual Move-Out Date:</td><td class="p-2">{{ ($t['move_out_details']['move_out_date'] ?? null) ? \Carbon\Carbon::parse($t['move_out_details']['move_out_date'])->format('F d, Y') : '—' }}</td></tr>
     </tbody></table>
 
@@ -128,6 +134,26 @@
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 3 — Move-Out Room Condition Inspection</h3>
     <p class="text-xs text-gray-700 mb-3">Both parties shall conduct a joint room inspection on the move-out date. The condition of each item below will be compared against the Move-In Checklist (Section 8 of the Move-In Contract) to identify damages beyond normal wear and tear.</p>
 
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+        <p class="text-[10px] font-bold text-gray-600 uppercase mb-1">Definition: Normal Wear and Tear</p>
+        <p class="text-[10px] text-gray-500 leading-relaxed mb-2">Normal wear and tear refers to the natural and gradual deterioration of the premises resulting from ordinary, everyday use. The following are considered <strong>normal</strong> and shall NOT be charged to the Lessee:</p>
+        <ul class="text-[10px] text-gray-500 list-disc pl-4 space-y-0.5">
+            <li>Minor scuffs or light marks on walls from daily contact</li>
+            <li>Slight fading of paint or wall color due to sunlight exposure</li>
+            <li>Light wear on floor surfaces from regular foot traffic</li>
+            <li>Minor loosening of door handles or cabinet hinges from regular use</li>
+            <li>Dust or dirt accumulation requiring standard cleaning</li>
+        </ul>
+        <p class="text-[10px] text-gray-500 leading-relaxed mt-2 mb-1">The following are <strong>NOT</strong> normal wear and tear and may result in deductions:</p>
+        <ul class="text-[10px] text-gray-500 list-disc pl-4 space-y-0.5">
+            <li>Holes, large cracks, or gouges in walls, floors, or ceilings</li>
+            <li>Broken windows, door locks, or fixtures</li>
+            <li>Stains, burns, or water damage from misuse or neglect</li>
+            <li>Unauthorized modifications or removal of installed items</li>
+            <li>Damage caused by pets, if pets were not permitted</li>
+        </ul>
+    </div>
+
     <table class="w-full border border-gray-300 text-xs">
         <thead><tr class="bg-[#3B5998] text-white">
             <th class="p-2 text-left">Item</th>
@@ -144,13 +170,20 @@
                     $moveOutItem = collect($moveOutChecklist)->firstWhere('item_name', $itemName);
                     $moveInCond = $moveInItem['condition'] ?? '';
                     $moveOutCond = $moveOutItem['condition'] ?? '';
-                    $damageFound = $moveInCond && $moveOutCond && $moveInCond !== $moveOutCond && $moveOutCond !== 'good';
+
+                    // Damage detection: flag if move-out condition is worse than move-in,
+                    // OR if move-out is damaged/poor/missing even when move-in was not recorded
+                    $hasBadCondition = in_array($moveOutCond, ['damaged', 'poor', 'missing', 'fair']);
+                    $conditionWorsened = $moveInCond && $moveOutCond && $moveInCond !== $moveOutCond && $moveOutCond !== 'good';
+                    $noMoveInButDamaged = !$moveInCond && in_array($moveOutCond, ['damaged', 'poor', 'missing']);
+                    $damageFound = $conditionWorsened || $noMoveInButDamaged;
+
                     $repairCost = (float) ($moveOutItem['repair_cost'] ?? 0);
                     if ($damageFound) $totalRepairCost += $repairCost;
                 @endphp
-                <tr class="border-b {{ $damageFound ? 'bg-red-50' : '' }}">
+                <tr class="border-b {{ $damageFound ? 'bg-red-50' : '' }} {{ !$moveInCond && $moveOutCond ? 'bg-yellow-50' : '' }}">
                     <td class="p-2 font-medium">{{ $itemName }}</td>
-                    <td class="p-2 text-center border-l capitalize">{{ $moveInCond ?: '' }}</td>
+                    <td class="p-2 text-center border-l capitalize {{ !$moveInCond && $moveOutCond ? 'text-amber-500 italic' : '' }}">{{ $moveInCond ?: 'Not recorded' }}</td>
                     <td class="p-2 text-center border-l capitalize {{ $damageFound ? 'text-red-600 font-bold' : '' }}">{{ $moveOutCond ?: '' }}</td>
                     <td class="p-2 text-center border-l {{ $damageFound ? 'text-red-600 font-bold' : '' }}">{{ $damageFound ? 'Yes' : ($moveOutCond ? 'No' : '') }}</td>
                     <td class="p-2 text-right border-l">{{ $damageFound && $repairCost > 0 ? '&#8369; ' . number_format($repairCost, 2) : ($damageFound ? 'TBD' : '') }}</td>
@@ -176,7 +209,9 @@
     <table class="w-full border border-gray-300 text-xs">
         <thead><tr class="bg-[#3B5998] text-white">
             <th class="p-2 text-left">Item</th>
-            <th class="p-2 text-center w-24">Returned?</th>
+            <th class="p-2 text-center w-16">Qty Issued</th>
+            <th class="p-2 text-center w-20">Qty Returned</th>
+            <th class="p-2 text-center w-16">Status</th>
             <th class="p-2 text-left">Condition</th>
             <th class="p-2 text-right w-32">Replacement Cost (PHP)</th>
         </tr></thead>
@@ -185,21 +220,43 @@
             @foreach($returnItemNames as $itemName)
                 @php
                     $returned = collect($itemsReturned)->firstWhere('item_name', $itemName);
+                    $issuedQty = (int) ($returned['quantity'] ?? 0);
+                    $returnedQty = (int) ($returned['quantity_returned'] ?? 0);
                     $isReturned = $returned && ($returned['is_returned'] ?? false);
+                    $isPartial = $isReturned && $issuedQty > 0 && $returnedQty < $issuedQty;
+                    $missingQty = $issuedQty - $returnedQty;
                     $condition = $returned['condition'] ?? '';
                     $replacementCost = (float) ($returned['replacement_cost'] ?? 0);
-                    if (!$isReturned && $returned) $totalReplacementCost += $replacementCost;
+                    // Charge for unreturned OR partial returns
+                    if ((!$isReturned || $isPartial) && $returned) $totalReplacementCost += $replacementCost;
+
+                    $statusLabel = '';
+                    $statusClass = '';
+                    if ($returned) {
+                        if (!$isReturned) {
+                            $statusLabel = '✗ Not Returned';
+                            $statusClass = 'text-red-600 font-bold';
+                        } elseif ($isPartial) {
+                            $statusLabel = "⚠ Partial ({$missingQty} missing)";
+                            $statusClass = 'text-amber-600 font-bold';
+                        } else {
+                            $statusLabel = '✓ Complete';
+                            $statusClass = 'text-green-600';
+                        }
+                    }
                 @endphp
-                <tr class="border-b">
+                <tr class="border-b {{ (!$isReturned && $returned) ? 'bg-red-50' : ($isPartial ? 'bg-amber-50' : '') }}">
                     <td class="p-2 font-medium">{{ $itemName }}</td>
-                    <td class="p-2 text-center border-l">{{ $isReturned ? '✓ Yes' : ($returned ? '✗ No' : '') }}</td>
+                    <td class="p-2 text-center border-l">{{ $issuedQty ?: '—' }}</td>
+                    <td class="p-2 text-center border-l {{ $isPartial ? 'text-amber-600 font-bold' : '' }}">{{ $returned ? $returnedQty : '' }}</td>
+                    <td class="p-2 text-center border-l {{ $statusClass }}">{{ $statusLabel }}</td>
                     <td class="p-2 border-l">{{ $condition }}</td>
-                    <td class="p-2 text-right border-l">{{ (!$isReturned && $returned && $replacementCost > 0) ? '&#8369; ' . number_format($replacementCost, 2) : ((!$isReturned && $returned) ? 'TBD' : '') }}</td>
+                    <td class="p-2 text-right border-l">{{ ((!$isReturned || $isPartial) && $returned && $replacementCost > 0) ? '&#8369; ' . number_format($replacementCost, 2) : (((!$isReturned || $isPartial) && $returned) ? 'TBD' : '') }}</td>
                 </tr>
             @endforeach
             @if($totalReplacementCost > 0)
             <tr class="bg-gray-50">
-                <td class="p-2 font-bold" colspan="3">Total Replacement Cost</td>
+                <td class="p-2 font-bold" colspan="5">Total Replacement Cost</td>
                 <td class="p-2 text-right border-l font-bold">&#8369; {{ number_format($totalReplacementCost, 2) }}</td>
             </tr>
             @endif
@@ -212,11 +269,17 @@
 ═══════════════════════════════════════════════ --}}
 <div>
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 5 — Outstanding Balances</h3>
+    <p class="text-[10px] text-gray-400 mb-2 italic">Balances as of {{ now()->format('F d, Y h:i A') }}. These amounts will be deducted from the security deposit in Section 6.</p>
+
+    @php
+        $advanceRent = (float) ($t['move_in_details']['advance_amount'] ?? 0);
+    @endphp
 
     <table class="w-full border border-gray-300 text-sm">
         <thead><tr class="bg-[#3B5998] text-white">
             <th class="p-2 text-left">Charge</th>
             <th class="p-2 text-left">Period / Description</th>
+            <th class="p-2 text-center w-28">Settlement</th>
             <th class="p-2 text-right w-36">Amount (PHP)</th>
         </tr></thead>
         <tbody>
@@ -225,15 +288,27 @@
                 @php $totalOutstanding += (float) $balance['amount']; @endphp
                 <tr class="border-b">
                     <td class="p-2">{{ $balance['charge'] }}</td>
-                    <td class="p-2">{{ $balance['period'] ?? '' }}</td>
+                    <td class="p-2">{{ $balance['period'] ?: '—' }}</td>
+                    <td class="p-2 text-center text-xs text-gray-500">Deduct from deposit</td>
                     <td class="p-2 text-right">&#8369; {{ number_format($balance['amount'], 2) }}</td>
                 </tr>
             @empty
-                <tr class="border-b"><td class="p-2 text-gray-400 text-center" colspan="3">No outstanding balances</td></tr>
+                <tr class="border-b"><td class="p-2 text-gray-400 text-center" colspan="4">No outstanding balances</td></tr>
             @endforelse
+
+            @if($advanceRent > 0)
+                <tr class="border-b bg-green-50">
+                    <td class="p-2 text-green-700">Advance Rent Credit (paid at move-in)</td>
+                    <td class="p-2 text-green-700">Applied to final month</td>
+                    <td class="p-2 text-center text-xs text-green-600">Credit</td>
+                    <td class="p-2 text-right text-green-700">(&#8369; {{ number_format($advanceRent, 2) }})</td>
+                </tr>
+                @php $totalOutstanding -= $advanceRent; @endphp
+            @endif
+
             <tr class="bg-gray-50">
-                <td class="p-2 font-bold" colspan="2">TOTAL OUTSTANDING BALANCE</td>
-                <td class="p-2 text-right font-bold">&#8369; {{ number_format($totalOutstanding, 2) }}</td>
+                <td class="p-2 font-bold" colspan="3">NET OUTSTANDING BALANCE</td>
+                <td class="p-2 text-right font-bold">&#8369; {{ number_format(max(0, $totalOutstanding), 2) }}</td>
             </tr>
         </tbody>
     </table>
@@ -249,6 +324,7 @@
     @php
         $deductions = $depositRefund['deductions'] ?? [];
         $refundAmount = $depositRefund['amount'] ?? null;
+        $interestEarned = (float) ($depositRefund['interest_earned'] ?? 0);
         $totalDeductions = collect($deductions)->sum('amount');
     @endphp
     <table class="w-full border border-gray-300 text-sm">
@@ -258,6 +334,12 @@
         </tr></thead>
         <tbody>
             <tr class="border-b"><td class="p-2 font-semibold">Original Security Deposit Held</td><td class="p-2 text-right font-semibold">&#8369; {{ number_format($deposit, 2) }}</td></tr>
+            @if($interestEarned > 0)
+                <tr class="border-b bg-green-50">
+                    <td class="p-2 text-green-700">(+) Deposit Interest Earned (RA 9653 IRR §7b)</td>
+                    <td class="p-2 text-right text-green-700 font-medium">&#8369; {{ number_format($interestEarned, 2) }}</td>
+                </tr>
+            @endif
             @forelse($deductions as $deduction)
                 <tr class="border-b">
                     <td class="p-2">(-) {{ $deduction['label'] }}</td>
@@ -282,12 +364,13 @@
                     @if($refundAmount !== null)
                         &#8369; {{ number_format($refundAmount, 2) }}
                     @else
-                        &#8369; {{ number_format(max(0, $deposit - $totalDeductions), 2) }}
+                        &#8369; {{ number_format(max(0, $deposit - $totalDeductions + $interestEarned), 2) }}
                     @endif
                 </td>
             </tr>
         </tbody>
     </table>
+    <p class="text-[10px] text-gray-400 mt-1 italic">Note: Outstanding balances from Section 5 are already included in the deductions above. They will NOT be collected separately.</p>
 
     <p class="text-xs font-bold text-gray-700 mt-4 mb-2">Refund Details:</p>
     <table class="w-full border border-gray-300 text-sm"><tbody>
@@ -332,56 +415,116 @@
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 9 — Agreement and Signatures</h3>
     <p class="text-xs text-gray-700 mb-6">By signing below, both parties confirm that the move-out inspection has been conducted, all balances have been accounted for, and they voluntarily agree to the deposit settlement terms stated herein.</p>
 
-    {{-- Signature display --}}
-    <div class="grid grid-cols-2 gap-8 mt-4">
-        {{-- Tenant Signature --}}
-        <div class="text-center">
-            @if($moveOutTenantSignature)
-                <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
-                    <img src="{{ asset('storage/' . $moveOutTenantSignature) }}" class="max-h-full max-w-full object-contain" alt="Tenant Signature">
-                </div>
-                <div class="border-b border-gray-400 mb-1"></div>
-                <p class="text-xs font-semibold text-gray-800">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
-                <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $moveOutTenantSignedAt }}</p>
-            @else
-                <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
-                    <span class="text-[11px] text-gray-400">Awaiting tenant signature</span>
-                </div>
-                <div class="border-b border-gray-400 mb-1"></div>
-                <p class="text-xs font-semibold text-gray-500">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
-                <p class="text-[11px] text-gray-400 mt-1">Tenant's Signature Over Printed Name</p>
-            @endif
-            <p class="text-xs text-gray-400 mt-2">Date: {{ $moveOutTenantSignedAt ?? '___________________' }}</p>
-        </div>
-
-        {{-- Owner/Manager Signature --}}
+    {{-- 3 Signature blocks: Owner (1st) → Manager/Witness (2nd) → Tenant (3rd) --}}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 items-end">
+        {{-- 1. Owner/Lessor Signature (signs first) --}}
         <div class="text-center">
             @if($moveOutOwnerSignature)
                 <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
-                    <img src="{{ asset('storage/' . $moveOutOwnerSignature) }}" class="max-h-full max-w-full object-contain" alt="Owner Signature">
+                    <img src="{{ route('secure.file', $moveOutOwnerSignature) }}" class="max-h-full max-w-full object-contain" alt="Owner Signature">
                 </div>
                 <div class="border-b border-gray-400 mb-1"></div>
                 <p class="text-xs font-semibold text-gray-800">{{ $t['lessor_info']['representative'] }}</p>
                 <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $moveOutOwnerSignedAt }}</p>
             @else
-                @if($signatureMode === 'manager')
-                    <button
-                        wire:click="openMoveOutSignatureModal('owner')"
-                        class="w-full border-2 border-dashed border-indigo-300 bg-indigo-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer group no-print"
-                    >
-                        <svg class="w-6 h-6 text-indigo-400 group-hover:text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
-                        <span class="text-[11px] font-semibold text-indigo-500 group-hover:text-indigo-600">Click to Sign</span>
-                    </button>
+                @if($signatureMode === 'owner')
+                    <div x-data="{ ownerReadConfirmed: false }">
+                        <label class="inline-flex items-start gap-2 mb-2 cursor-pointer px-1">
+                            <input type="checkbox" x-model="ownerReadConfirmed" class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-[10px] text-gray-600 text-left leading-tight">I have read and agree to all terms in this contract.</span>
+                        </label>
+                        <button
+                            x-show="ownerReadConfirmed"
+                            wire:click="openMoveOutSignatureModal"
+                            class="w-full border-2 border-dashed border-indigo-300 bg-indigo-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer group no-print"
+                        >
+                            <svg class="w-6 h-6 text-indigo-400 group-hover:text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                            <span class="text-[11px] font-semibold text-indigo-500 group-hover:text-indigo-600">Click to Sign</span>
+                        </button>
+                        <div x-show="!ownerReadConfirmed" class="border-2 border-dashed border-gray-200 rounded-xl h-24 mb-2 flex items-center justify-center">
+                            <span class="text-[11px] text-gray-400">Check the box above to sign</span>
+                        </div>
+                    </div>
                 @else
                     <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
-                        <span class="text-[11px] text-gray-400">Awaiting signature</span>
+                        <span class="text-[11px] text-gray-400">Awaiting owner signature</span>
                     </div>
                 @endif
                 <div class="border-b border-gray-400 mb-1"></div>
                 <p class="text-xs font-semibold text-gray-500">{{ $t['lessor_info']['representative'] }}</p>
-                <p class="text-[11px] text-gray-400 mt-1">Lessor / Authorized Representative</p>
+                <p class="text-[11px] text-gray-400 mt-1">Lessor / Property Owner</p>
             @endif
             <p class="text-xs text-gray-400 mt-2">Date: {{ $moveOutOwnerSignedAt ?? '___________________' }}</p>
+        </div>
+
+        {{-- 2. Manager/Witness Signature (signs second) --}}
+        <div class="text-center">
+            @if($moveOutManagerSignature)
+                <div class="border-2 border-amber-200 bg-amber-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
+                    <img src="{{ route('secure.file', $moveOutManagerSignature) }}" class="max-h-full max-w-full object-contain" alt="Manager Witness Signature">
+                </div>
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-800">{{ $t['manager_info']['name'] ?? 'Unit Manager' }}</p>
+                <p class="text-[11px] text-amber-600 font-medium mt-1">Witnessed: {{ $moveOutManagerSignedAt }}</p>
+            @else
+                @if($signatureMode === 'manager' && $moveOutOwnerSignature)
+                    <button
+                        wire:click="openMoveOutSignatureModal('manager')"
+                        class="w-full border-2 border-dashed border-amber-300 bg-amber-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-amber-50 hover:border-amber-400 transition-all cursor-pointer group no-print"
+                    >
+                        <svg class="w-6 h-6 text-amber-400 group-hover:text-amber-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                        <span class="text-[11px] font-semibold text-amber-500 group-hover:text-amber-600">Sign as Witness</span>
+                    </button>
+                @else
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
+                        <span class="text-[11px] text-gray-400">{{ $moveOutOwnerSignature ? 'Awaiting witness signature' : 'Waiting for owner' }}</span>
+                    </div>
+                @endif
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-500">{{ $t['manager_info']['name'] ?? 'Unit Manager' }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">Witness</p>
+            @endif
+            <p class="text-xs text-gray-400 mt-2">Date: {{ $moveOutManagerSignedAt ?? '___________________' }}</p>
+        </div>
+
+        {{-- 3. Tenant Signature (signs last) --}}
+        <div class="text-center">
+            @if($moveOutTenantSignature)
+                <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
+                    <img src="{{ route('secure.file', $moveOutTenantSignature) }}" class="max-h-full max-w-full object-contain" alt="Tenant Signature">
+                </div>
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-800">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
+                <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $moveOutTenantSignedAt }}</p>
+            @else
+                @if($signatureMode === 'tenant' && $moveOutOwnerSignature && $moveOutManagerSignature)
+                    <div x-data="{ tenantReadConfirmed: false }">
+                        <label class="inline-flex items-start gap-2 mb-2 cursor-pointer px-1">
+                            <input type="checkbox" x-model="tenantReadConfirmed" class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-[10px] text-gray-600 text-left leading-tight">I have read and agree to all terms in this contract.</span>
+                        </label>
+                        <button
+                            x-show="tenantReadConfirmed"
+                            wire:click="openMoveOutSignatureModal"
+                            class="w-full border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group no-print"
+                        >
+                            <svg class="w-6 h-6 text-blue-400 group-hover:text-blue-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                            <span class="text-[11px] font-semibold text-blue-500 group-hover:text-blue-600">Click to Sign</span>
+                        </button>
+                        <div x-show="!tenantReadConfirmed" class="border-2 border-dashed border-gray-200 rounded-xl h-24 mb-2 flex items-center justify-center">
+                            <span class="text-[11px] text-gray-400">Check the box above to sign</span>
+                        </div>
+                    </div>
+                @else
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
+                        <span class="text-[11px] text-gray-400">{{ ($moveOutOwnerSignature && $moveOutManagerSignature) ? 'Awaiting tenant signature' : 'Waiting for owner & witness' }}</span>
+                    </div>
+                @endif
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-500">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">Tenant / Lessee</p>
+            @endif
+            <p class="text-xs text-gray-400 mt-2">Date: {{ $moveOutTenantSignedAt ?? '___________________' }}</p>
         </div>
     </div>
 
@@ -389,22 +532,9 @@
     @if($moveOutContractAgreed)
         <div class="mt-6 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
             <span class="text-sm font-bold text-emerald-700">Move-Out Contract Fully Signed</span>
-            <p class="text-[11px] text-emerald-600 mt-1">Both parties have signed this agreement electronically per RA 8792.</p>
+            <p class="text-[11px] text-emerald-600 mt-1">All parties have signed this agreement electronically per RA 8792.</p>
         </div>
     @endif
-
-    {{-- Witnesses --}}
-    <p class="text-xs font-bold text-gray-700 mt-8 mb-4">Witnessed by:</p>
-    <div class="grid grid-cols-2 gap-12">
-        <div class="text-center">
-            <div class="border-b border-gray-400 pb-1 mb-1 h-12"></div>
-            <p class="text-xs text-gray-600">Witness 1 — Signature Over Printed Name</p>
-        </div>
-        <div class="text-center">
-            <div class="border-b border-gray-400 pb-1 mb-1 h-12"></div>
-            <p class="text-xs text-gray-600">Witness 2 — Signature Over Printed Name</p>
-        </div>
-    </div>
 
     <p class="text-xs text-gray-500 text-center mt-6 italic">This Agreement is executed in two (2) original copies — one for the Lessor and one for the Lessee.</p>
 </div>
@@ -418,7 +548,7 @@
     @if($t['personal_info']['government_id_image'] ?? null)
         <div class="flex flex-col items-center">
             <div class="border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-3 max-w-lg w-full">
-                <img src="{{ asset('storage/' . $t['personal_info']['government_id_image']) }}" class="w-full object-contain rounded-lg" alt="Tenant Valid ID">
+                <img src="{{ route('secure.file', $t['personal_info']['government_id_image']) }}" class="w-full object-contain rounded-lg" alt="Tenant Valid ID">
             </div>
             <div class="mt-3 text-center text-sm">
                 <p class="text-gray-600"><span class="font-semibold">ID Type:</span> {{ $t['personal_info']['government_id_type'] ?? '—' }}</p>

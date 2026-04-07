@@ -33,5 +33,6 @@ class InspectionConfig
         'Building Access Card / Fob',
         'Air Conditioning Remote',
         'Cabinet Key',
+        'Wi-Fi Credentials (to be rotated)',
     ];
 }

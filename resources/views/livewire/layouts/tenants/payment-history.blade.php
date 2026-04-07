@@ -329,6 +329,19 @@
                             </div>
 
                             <form wire:submit="submitPaymentRequest">
+                                {{-- Payment Category --}}
+                                <div class="mb-4">
+                                    <label class="text-xs font-semibold text-gray-700">Payment Category</label>
+                                    <select wire:model="selectedPaymentCategoryId"
+                                        class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">— Select Category —</option>
+                                        @foreach($paymentCategories as $cat)
+                                            <option value="{{ $cat['payment_category_id'] }}">{{ $cat['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('selectedPaymentCategoryId') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                                </div>
+
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="text-xs font-semibold text-gray-700">Reference Number</label>

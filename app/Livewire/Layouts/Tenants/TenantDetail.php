@@ -37,8 +37,10 @@ class TenantDetail extends Component
     public $signatureRole = '';
     public $tenantSignature = null;
     public $ownerSignature = null;
+    public $managerSignature = null;
     public $tenantSignedAt = null;
     public $ownerSignedAt = null;
+    public $managerSignedAt = null;
     public $contractAgreed = false;
 
     // E-signature fields (move-out)
@@ -46,8 +48,10 @@ class TenantDetail extends Component
     public $moveOutSignatureRole = '';
     public $moveOutTenantSignature = null;
     public $moveOutOwnerSignature = null;
+    public $moveOutManagerSignature = null;
     public $moveOutTenantSignedAt = null;
     public $moveOutOwnerSignedAt = null;
+    public $moveOutManagerSignedAt = null;
     public $moveOutContractAgreed = false;
 
     // Move-out form fields
@@ -70,6 +74,10 @@ class TenantDetail extends Component
     // Move-out workflow
     public $moveOutInitiated = false;
     public $moveOutPrerequisites = [];
+
+    // Deposit refund tracking
+    public $depositInterestAmount = '';
+    public $depositRefundReference = '';
 
     // Violations
     public $violations = [];
@@ -326,10 +334,60 @@ class TenantDetail extends Component
             return;
         }
 
+        // Validate: damaged items must have repair costs entered (no TBD allowed)
+        $costErrors = [];
+        foreach ($this->moveOutChecklist as $index => $item) {
+            $condition = $item['condition'] ?? '';
+            $repairCost = $item['repair_cost'] ?? null;
+            if (in_array($condition, ['damaged', 'missing']) && (empty($repairCost) || (float) $repairCost <= 0)) {
+                $costErrors["moveOutChecklist.{$index}.repair_cost"] =
+                    "Repair cost is required for \"{$item['item_name']}\" (condition: {$condition}).";
+            }
+        }
+        foreach ($this->itemsReturned as $index => $item) {
+            $isReturned = $item['is_returned'] ?? false;
+            $qtyIssued = (int) ($item['quantity'] ?? 0);
+            $qtyReturned = (int) ($item['quantity_returned'] ?? 0);
+            $isPartial = $isReturned && $qtyIssued > 0 && $qtyReturned < $qtyIssued;
+            $replacementCost = $item['replacement_cost'] ?? null;
+
+            // Require replacement cost for fully unreturned OR partially returned items
+            if ((!$isReturned || $isPartial) && (empty($replacementCost) || (float) $replacementCost <= 0)) {
+                $label = $isPartial
+                    ? "Replacement cost is required for partially returned \"{$item['item_name']}\" ({$qtyReturned}/{$qtyIssued} returned)."
+                    : "Replacement cost is required for unreturned \"{$item['item_name']}\".";
+                $costErrors["itemsReturned.{$index}.replacement_cost"] = $label;
+            }
+
+            // Validate quantity_returned doesn't exceed quantity issued
+            if ($isReturned && $qtyIssued > 0 && $qtyReturned > $qtyIssued) {
+                $costErrors["itemsReturned.{$index}.quantity_returned"] =
+                    "Quantity returned ({$qtyReturned}) cannot exceed quantity issued ({$qtyIssued}).";
+            }
+        }
+        if (!empty($costErrors)) {
+            foreach ($costErrors as $key => $message) {
+                $this->addError($key, $message);
+            }
+            $this->dispatch('scroll-to-error');
+            $this->dispatch('notify', type: 'error', title: 'Missing Costs', description: 'Please enter repair/replacement costs for all damaged or unreturned items.');
+            return;
+        }
+
         $this->upsertInspection(
             $this->currentLeaseId, MoveOutInspection::class,
             $this->moveOutChecklist, $this->itemsReturned, 'item_returned'
         );
+
+        // Mark all repair/replacement costs as confirmed
+        MoveOutInspection::where('lease_id', $this->currentLeaseId)
+            ->where(function ($q) {
+                $q->whereNotNull('repair_cost')->where('repair_cost', '>', 0)
+                  ->orWhere(function ($q2) {
+                      $q2->whereNotNull('replacement_cost')->where('replacement_cost', '>', 0);
+                  });
+            })
+            ->update(['repair_cost_confirmed' => true]);
 
         // Audit log
         ContractAuditLog::log($this->currentLeaseId, 'moveout_inspection_saved', [
@@ -341,14 +399,17 @@ class TenantDetail extends Component
 
         $lease = Lease::find($this->currentLeaseId);
 
-        // If signatures exist, reset them since inspection data changed
-        if ($lease && ($lease->moveout_tenant_signature || $lease->moveout_owner_signature)) {
+        // If any signatures exist, reset them all since inspection data changed
+        if ($lease && ($lease->moveout_tenant_signature || $lease->moveout_owner_signature || $lease->moveout_manager_signature)) {
             // Delete old signature files
             if ($lease->moveout_tenant_signature) {
                 Storage::disk('public')->delete($lease->moveout_tenant_signature);
             }
             if ($lease->moveout_owner_signature) {
                 Storage::disk('public')->delete($lease->moveout_owner_signature);
+            }
+            if ($lease->moveout_manager_signature) {
+                Storage::disk('public')->delete($lease->moveout_manager_signature);
             }
 
             $lease->update([
@@ -358,6 +419,9 @@ class TenantDetail extends Component
                 'moveout_owner_signature' => null,
                 'moveout_owner_signed_at' => null,
                 'moveout_owner_signed_ip' => null,
+                'moveout_manager_signature' => null,
+                'moveout_manager_signed_at' => null,
+                'moveout_manager_signed_ip' => null,
                 'moveout_contract_agreed' => false,
                 'moveout_contract_status' => 'draft',
                 'moveout_signed_contract_path' => null,
@@ -365,8 +429,10 @@ class TenantDetail extends Component
 
             $this->moveOutTenantSignature = null;
             $this->moveOutOwnerSignature = null;
+            $this->moveOutManagerSignature = null;
             $this->moveOutTenantSignedAt = null;
             $this->moveOutOwnerSignedAt = null;
+            $this->moveOutManagerSignedAt = null;
             $this->moveOutContractAgreed = false;
 
             ContractAuditLog::log($this->currentLeaseId, 'moveout_signatures_reset', [
@@ -374,13 +440,19 @@ class TenantDetail extends Component
             ]);
         }
 
-        // Auto-notify tenant that move-out inspection is ready
+        // Auto-notify tenant that move-out inspection is ready (with cost summary)
         if ($lease) {
+            $totalRepair = collect($this->moveOutChecklist)->sum(fn($i) => (float) ($i['repair_cost'] ?? 0));
+            $totalReplacement = collect($this->itemsReturned)->filter(fn($i) => !($i['is_returned'] ?? false))->sum(fn($i) => (float) ($i['replacement_cost'] ?? 0));
+            $costSummary = '';
+            if ($totalRepair > 0) $costSummary .= ' Repair costs: PHP ' . number_format($totalRepair, 2) . '.';
+            if ($totalReplacement > 0) $costSummary .= ' Replacement costs: PHP ' . number_format($totalReplacement, 2) . '.';
+
             Notification::create([
                 'user_id' => $lease->tenant_id,
                 'type' => 'inspection_ready',
                 'title' => 'Move-Out Inspection Ready',
-                'message' => 'Your move-out room inspection has been completed. Please review and confirm the items returned.',
+                'message' => 'Your move-out room inspection has been completed. Please review the assessed charges and confirm.' . $costSummary,
                 'link' => '/tenant?tab=inspection',
             ]);
         }
@@ -447,8 +519,10 @@ class TenantDetail extends Component
         $this->moveOutInspectionSaved = false;
         $this->moveOutTenantSignature = null;
         $this->moveOutOwnerSignature = null;
+        $this->moveOutManagerSignature = null;
         $this->moveOutTenantSignedAt = null;
         $this->moveOutOwnerSignedAt = null;
+        $this->moveOutManagerSignedAt = null;
         $this->moveOutContractAgreed = false;
         $this->moveOutInitiated = false;
         $this->moveOutPrerequisites = [];
@@ -492,12 +566,54 @@ class TenantDetail extends Component
         $lease = Lease::find($this->currentLeaseId);
         if (!$lease || $lease->move_out_initiated_at) return;
 
+        // Validate required fields for move-out initiation
+        $moveOutErrors = [];
+        if (empty(trim($this->forwardingAddress ?? ''))) {
+            $moveOutErrors['forwardingAddress'] = 'Forwarding address is required for deposit refund correspondence.';
+        }
+        if (empty($this->reasonForVacating)) {
+            $moveOutErrors['reasonForVacating'] = 'Reason for vacating is required.';
+        }
+        if (empty($this->depositRefundMethod)) {
+            $moveOutErrors['depositRefundMethod'] = 'Refund method is required.';
+        }
+        if (empty(trim($this->depositRefundAccount ?? ''))) {
+            $moveOutErrors['depositRefundAccount'] = 'Account name or number is required for refund processing.';
+        }
+
+        // Enforce: reason must match actual lease state
+        if ($this->reasonForVacating && $lease->end_date) {
+            $isBeforeEndDate = now()->lt($lease->end_date);
+            $earlyReasons = [
+                'Voluntary early termination by Lessee',
+                'Mutual agreement between both parties',
+                'Lease violation or termination by Lessor',
+                'Transfer to a different unit / building (internal transfer)',
+            ];
+            $normalEndReason = 'End of lease term (contract expired)';
+
+            if ($this->reasonForVacating === $normalEndReason && $isBeforeEndDate) {
+                $moveOutErrors['reasonForVacating'] = 'Cannot select "End of lease term" — the lease has not expired yet (ends ' . $lease->end_date->format('M d, Y') . '). Please select the appropriate early termination reason.';
+            }
+            if (in_array($this->reasonForVacating, $earlyReasons) && !$isBeforeEndDate) {
+                $moveOutErrors['reasonForVacating'] = 'The lease has already ended or is ending today. The correct reason is "End of lease term (contract expired)".';
+            }
+        }
+
+        if (!empty($moveOutErrors)) {
+            foreach ($moveOutErrors as $key => $message) {
+                $this->addError($key, $message);
+            }
+            $this->dispatch('notify', type: 'error', title: 'Missing Information', description: 'Please fill in all required move-out details.');
+            return;
+        }
+
         $lease->update([
             'move_out_initiated_at' => now(),
-            'forwarding_address' => $this->forwardingAddress ?: null,
-            'reason_for_vacating' => $this->reasonForVacating ?: null,
-            'deposit_refund_method' => $this->depositRefundMethod ?: null,
-            'deposit_refund_account' => $this->depositRefundAccount ?: null,
+            'forwarding_address' => $this->forwardingAddress,
+            'reason_for_vacating' => $this->reasonForVacating,
+            'deposit_refund_method' => $this->depositRefundMethod,
+            'deposit_refund_account' => $this->depositRefundAccount,
         ]);
 
         ContractAuditLog::log($lease->lease_id, 'move_out_initiated', [
@@ -558,17 +674,57 @@ class TenantDetail extends Component
             ->where('type', 'item_returned')
             ->exists();
 
+        // Check all costs are confirmed (no TBD values)
+        $hasUnconfirmedCosts = MoveOutInspection::where('lease_id', $leaseId)
+            ->where(function ($q) {
+                // Damaged checklist items without repair cost
+                $q->where(function ($q2) {
+                    $q2->where('type', 'checklist')
+                       ->whereIn('condition', ['damaged', 'missing'])
+                       ->where(function ($q3) {
+                           $q3->whereNull('repair_cost')->orWhere('repair_cost', 0);
+                       });
+                })
+                // Unreturned items without replacement cost
+                ->orWhere(function ($q2) {
+                    $q2->where('type', 'item_returned')
+                       ->where('is_returned', false)
+                       ->where(function ($q3) {
+                           $q3->whereNull('replacement_cost')->orWhere('replacement_cost', 0);
+                       });
+                });
+            })
+            ->exists();
+        $costsConfirmed = $inspectionDone && !$hasUnconfirmedCosts;
+
         $lease = Lease::find($leaseId);
         $contractSigned = $lease
-            && $lease->moveout_tenant_signature
             && $lease->moveout_owner_signature
+            && $lease->moveout_manager_signature
+            && $lease->moveout_tenant_signature
             && $lease->moveout_contract_agreed;
 
+        // 30-day notice enforcement for early termination (Contract Section 7)
+        $isEarlyTermination = $lease
+            && $lease->move_out_initiated_at
+            && $lease->end_date
+            && \Carbon\Carbon::parse($lease->move_out_initiated_at)->lt($lease->end_date);
+
+        $noticePeriodMet = true;
+        $noticeLabel = '30-day notice period (N/A — normal end of lease)';
+        if ($isEarlyTermination) {
+            $daysSinceNotice = \Carbon\Carbon::parse($lease->move_out_initiated_at)->diffInDays(\Carbon\Carbon::today());
+            $noticePeriodMet = $daysSinceNotice >= 30;
+            $noticeLabel = "30-day notice period elapsed ({$daysSinceNotice}/30 days)";
+        }
+
         $this->moveOutPrerequisites = [
-            ['label' => 'All bills settled', 'done' => $unpaidCount === 0],
+            ['label' => $unpaidCount === 0 ? 'All bills settled' : "Outstanding bills ({$unpaidCount}) — will be deducted from deposit", 'done' => true],
             ['label' => 'Move-out inspection completed', 'done' => $inspectionDone],
             ['label' => 'Items returned recorded', 'done' => $itemsReturnedDone],
+            ['label' => 'All repair/replacement costs confirmed (no TBD)', 'done' => $costsConfirmed],
             ['label' => 'Move-out contract signed by both parties', 'done' => $contractSigned],
+            ['label' => $noticeLabel, 'done' => $noticePeriodMet],
         ];
     }
 
@@ -619,11 +775,16 @@ class TenantDetail extends Component
                     'end_date' => $today,
                 ]);
 
+                // Auto-compute deposit interest (RA 9653 IRR §7b)
+                $computedInterest = $lease->computeDepositInterest();
+                $lease->update(['deposit_interest_amount' => $computedInterest]);
+
                 // Auto-calculate deposit refund with original end_date
                 $refundData = $lease->calculateDepositRefund($originalEndDate);
                 $lease->update([
                     'deposit_refund_amount' => $refundData['refund_amount'],
                     'deposit_deductions' => $refundData['deductions'],
+                    'deposit_refund_deadline' => $today->copy()->addDays(30),
                 ]);
 
                 ContractAuditLog::log($lease->lease_id, 'move_out_completed', [
@@ -657,6 +818,48 @@ class TenantDetail extends Component
             title: 'Tenant Moved Out',
             description: 'Lease marked as expired, deposit refund calculated, and bed status updated.'
         );
+    }
+
+    public function markRefundCompleted(): void
+    {
+        if (!$this->currentLeaseId) return;
+
+        $lease = Lease::find($this->currentLeaseId);
+        if (!$lease || $lease->status !== 'Expired' || $lease->deposit_refund_completed_at) return;
+
+        $lease->update([
+            'deposit_refund_completed_at' => now(),
+            'deposit_refund_reference' => $this->depositRefundReference ?: null,
+        ]);
+
+        ContractAuditLog::log($lease->lease_id, 'deposit_refund_completed', [
+            'metadata' => [
+                'refund_amount' => $lease->deposit_refund_amount,
+                'reference' => $this->depositRefundReference,
+            ],
+        ]);
+
+        // Notify tenant
+        if ($lease->tenant_id) {
+            $amount = number_format((float) $lease->deposit_refund_amount, 2);
+            Notification::create([
+                'user_id' => $lease->tenant_id,
+                'type' => 'deposit_refund_completed',
+                'title' => 'Deposit Refund Processed',
+                'message' => "Your deposit refund of PHP {$amount} has been processed." .
+                    ($this->depositRefundReference ? " Reference: {$this->depositRefundReference}" : ''),
+                'link' => '/tenant?tab=inspection',
+            ]);
+        }
+
+        $this->dispatch('notify',
+            type: 'success',
+            title: 'Refund Marked Complete',
+            description: 'Tenant has been notified that the deposit refund has been processed.'
+        );
+
+        $this->depositRefundReference = '';
+        $this->loadTenantData($this->currentTenantId);
     }
 
     public function openMoveInContract(): void
@@ -699,13 +902,19 @@ class TenantDetail extends Component
         })->where('manager_id', Auth::id())->exists();
     }
 
-    public function openSignatureModal(string $role): void
+    public function openSignatureModal(string $role = 'manager'): void
     {
-        // Manager can only sign as owner/lessor
-        if ($role !== 'owner') return;
+        // Manager signs as witness
+        if ($role !== 'manager') return;
 
         if (!$this->authorizedForLease()) {
             $this->dispatch('notify', type: 'error', title: 'Unauthorized', description: 'You are not authorized to sign this contract.');
+            return;
+        }
+
+        // Owner must sign first
+        if (!$this->ownerSignature) {
+            $this->dispatch('notify', type: 'warning', title: 'Owner Must Sign First', description: 'The property owner must sign the contract before the manager can sign as witness.');
             return;
         }
 
@@ -721,8 +930,8 @@ class TenantDetail extends Component
 
     public function saveSignature(string $signatureData): void
     {
-        // Manager can only sign as owner
-        if (!$this->currentLeaseId || $this->signatureRole !== 'owner') return;
+        // Manager signs as witness
+        if (!$this->currentLeaseId || $this->signatureRole !== 'manager') return;
 
         if (!$this->authorizedForLease()) {
             $this->dispatch('notify', type: 'error', title: 'Unauthorized', description: 'You are not authorized to sign this contract.');
@@ -732,27 +941,27 @@ class TenantDetail extends Component
         $lease = Lease::find($this->currentLeaseId);
         if (!$lease) return;
 
-        $result = $this->saveLeaseSignature($lease, $signatureData, 'owner', 'movein');
+        $result = $this->saveLeaseSignature($lease, $signatureData, 'manager', 'movein');
 
-        $this->ownerSignature = $result['signature'];
-        $this->ownerSignedAt = $result['signedAt'];
+        $this->managerSignature = $result['signature'];
+        $this->managerSignedAt = $result['signedAt'];
         $this->contractAgreed = $result['agreed'];
 
-        // Notify tenant that the manager/owner signed
-        $this->notifyTenantOfSign($lease, 'move-in');
+        // Notify tenant that manager (witness) signed → tenant's turn
+        $this->notifyTenantOfManagerSign($lease, 'move-in');
 
-        // If both signatures exist, generate PDF and auto-generate billing
+        // If all three signatures exist, generate PDF and auto-generate billing
         if ($result['agreed']) {
             $lease->refresh();
             $this->generateSignedPdf($lease);
             $this->autoGenerateBillingOnExecution($lease);
 
-            // Notify both parties that contract is fully executed
+            // Notify tenant that contract is fully executed
             Notification::create([
                 'user_id' => $lease->tenant_id,
                 'type' => 'contract_executed',
                 'title' => 'Contract Fully Executed',
-                'message' => 'Your move-in contract has been signed by both parties and is now active. You can download the signed copy from your dashboard.',
+                'message' => 'Your move-in contract has been signed by all parties and is now active. You can download the signed copy from your dashboard.',
                 'link' => '/tenant?tab=inspection',
             ]);
         }
@@ -764,13 +973,15 @@ class TenantDetail extends Component
             'tenant_signed_at'     => $lease->tenant_signed_at?->format('M d, Y h:i A'),
             'owner_signature'      => $lease->owner_signature,
             'owner_signed_at'      => $lease->owner_signed_at?->format('M d, Y h:i A'),
+            'manager_signature'    => $lease->manager_signature,
+            'manager_signed_at'    => $lease->manager_signed_at?->format('M d, Y h:i A'),
             'contract_agreed'      => (bool) $lease->contract_agreed,
             'signed_contract_path' => $lease->signed_contract_path,
         ];
 
         $this->closeSignatureModal();
         $this->dispatch('signature-saved');
-        $this->dispatch('notify', type: 'success', title: 'Signature Saved', description: 'Move-in contract has been signed by the lessor.');
+        $this->dispatch('notify', type: 'success', title: 'Witness Signature Saved', description: 'You have signed the move-in contract as witness.');
     }
 
     /**
@@ -841,31 +1052,85 @@ class TenantDetail extends Component
         ]);
     }
 
+    /**
+     * Resolve a file path from private (local) disk, falling back to public disk
+     * for backward compatibility with existing files.
+     */
+    private function resolveSecureFilePath(?string $relativePath): ?string
+    {
+        if (!$relativePath) return null;
+        if (Storage::disk('local')->exists($relativePath)) {
+            return Storage::disk('local')->path($relativePath);
+        }
+        if (Storage::disk('public')->exists($relativePath)) {
+            return Storage::disk('public')->path($relativePath);
+        }
+        return null;
+    }
+
     private function generateSignedPdf(Lease $lease): void
     {
         $lease->load(['tenant', 'bed.unit.property']);
 
-        // Verify signature files exist before attempting to read them
-        if (!$lease->tenant_signature || !Storage::disk('public')->exists($lease->tenant_signature)) {
+        // Verify all three signature files exist (check both private and public disks)
+        $tenantSigPath  = $this->resolveSecureFilePath($lease->tenant_signature);
+        $ownerSigPath   = $this->resolveSecureFilePath($lease->owner_signature);
+        $managerSigPath = $this->resolveSecureFilePath($lease->manager_signature);
+
+        if (!$tenantSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Tenant signature file is missing. Cannot generate signed contract PDF.');
             return;
         }
-        if (!$lease->owner_signature || !Storage::disk('public')->exists($lease->owner_signature)) {
+        if (!$ownerSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Owner signature file is missing. Cannot generate signed contract PDF.');
             return;
         }
+        if (!$managerSigPath) {
+            $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Manager witness signature file is missing. Cannot generate signed contract PDF.');
+            return;
+        }
 
-        $tenantSigPath = Storage::disk('public')->path($lease->tenant_signature);
-        $ownerSigPath  = Storage::disk('public')->path($lease->owner_signature);
+        // Get manager name
+        $managerId = $this->findManagerIdForLease($lease);
+        $manager = $managerId ? User::find($managerId) : null;
+
+        // Prepare additional data for PDF parity with web contract
+        $property = $lease->bed?->unit?->property;
+        $contractSettings = $property?->contract_settings ?? [];
+        $dueDay = $this->currentTenant['move_in_details']['monthly_due_date'] ?? null;
+        $dueSfx = match ((int) $dueDay) { 1, 21, 31 => 'st', 2, 22 => 'nd', 3, 23 => 'rd', default => 'th' };
+
+        // Base64-encode government ID image for PDF appendix (check private then public)
+        $govIdImage = $lease->tenant?->government_id_image;
+        $govIdBase64 = null;
+        if ($govIdImage) {
+            if (Storage::disk('local')->exists($govIdImage)) {
+                $govIdBase64 = 'data:image/png;base64,' . base64_encode(Storage::disk('local')->get($govIdImage));
+            } elseif (Storage::disk('public')->exists($govIdImage)) {
+                $govIdBase64 = 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($govIdImage));
+            }
+        }
 
         $data = [
-            'tenant'                => $this->currentTenant,
-            'lessor'                => $this->currentTenant['lessor_info'],
-            't'                     => $this->currentTenant,
-            'tenantSignatureBase64' => 'data:image/png;base64,' . base64_encode(file_get_contents($tenantSigPath)),
-            'ownerSignatureBase64'  => 'data:image/png;base64,' . base64_encode(file_get_contents($ownerSigPath)),
-            'tenantSignedAt'        => $lease->tenant_signed_at->format('M d, Y'),
-            'ownerSignedAt'         => $lease->owner_signed_at->format('M d, Y'),
+            'tenant'                 => $this->currentTenant,
+            'lessor'                 => $this->currentTenant['lessor_info'],
+            't'                      => $this->currentTenant,
+            'tenantSignatureBase64'  => 'data:image/png;base64,' . base64_encode(file_get_contents($tenantSigPath)),
+            'ownerSignatureBase64'   => 'data:image/png;base64,' . base64_encode(file_get_contents($ownerSigPath)),
+            'managerSignatureBase64' => 'data:image/png;base64,' . base64_encode(file_get_contents($managerSigPath)),
+            'tenantSignedAt'         => $lease->tenant_signed_at->format('M d, Y'),
+            'ownerSignedAt'          => $lease->owner_signed_at->format('M d, Y'),
+            'managerSignedAt'        => $lease->manager_signed_at->format('M d, Y'),
+            'managerName'            => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
+            'contractSettings'       => $contractSettings,
+            'inspectionChecklist'    => $this->inspectionChecklist ?? [],
+            'itemsReceived'          => $this->itemsReceived ?? [],
+            'rate'                   => (float) ($this->currentTenant['move_in_details']['monthly_rate'] ?? 0),
+            'deposit'                => (float) ($this->currentTenant['move_in_details']['security_deposit'] ?? 0),
+            'premium'                => (float) ($this->currentTenant['move_in_details']['short_term_premium'] ?? 0),
+            'dueDay'                 => $dueDay,
+            'dueSfx'                 => $dueSfx,
+            'govIdBase64'            => $govIdBase64,
         ];
 
         $pdf = Pdf::loadView('pdf.move-in-contract', $data)
@@ -895,13 +1160,55 @@ class TenantDetail extends Component
         );
     }
 
-    public function openMoveOutSignatureModal(string $role): void
+    public function openMoveOutSignatureModal(string $role = 'manager'): void
     {
-        // Manager can only sign as owner/lessor
-        if ($role !== 'owner') return;
+        // Manager signs as witness
+        if ($role !== 'manager') return;
 
         if (!$this->authorizedForLease()) {
             $this->dispatch('notify', type: 'error', title: 'Unauthorized', description: 'You are not authorized to sign this contract.');
+            return;
+        }
+
+        // Owner must sign first
+        if (!$this->moveOutOwnerSignature) {
+            $this->dispatch('notify', type: 'warning', title: 'Owner Must Sign First', description: 'The property owner must sign the move-out contract before the manager can sign as witness.');
+            return;
+        }
+
+        // Refresh outstanding balances to ensure real-time accuracy before signing
+        $lease = Lease::find($this->currentLeaseId);
+        if ($lease) {
+            $this->currentTenant['outstanding_balances'] = $this->buildOutstandingBalances($lease);
+            $this->currentTenant['deposit_refund'] = [
+                'amount' => $lease->deposit_refund_amount,
+                'deductions' => $lease->deposit_deductions,
+                'interest_earned' => $lease->deposit_interest_amount,
+            ];
+        }
+
+        // Block signing if there are TBD (unconfirmed) repair/replacement costs
+        $hasTBD = MoveOutInspection::where('lease_id', $this->currentLeaseId)
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->where('type', 'checklist')
+                       ->whereIn('condition', ['damaged', 'missing'])
+                       ->where(function ($q3) {
+                           $q3->whereNull('repair_cost')->orWhere('repair_cost', 0);
+                       });
+                })
+                ->orWhere(function ($q2) {
+                    $q2->where('type', 'item_returned')
+                       ->where('is_returned', false)
+                       ->where(function ($q3) {
+                           $q3->whereNull('replacement_cost')->orWhere('replacement_cost', 0);
+                       });
+                });
+            })
+            ->exists();
+
+        if ($hasTBD) {
+            $this->dispatch('notify', type: 'error', title: 'Cannot Sign Yet', description: 'All repair and replacement costs must be confirmed before signing. No TBD values allowed.');
             return;
         }
 
@@ -917,8 +1224,8 @@ class TenantDetail extends Component
 
     public function saveMoveOutSignature(string $signatureData): void
     {
-        // Manager can only sign as owner
-        if (!$this->currentLeaseId || $this->moveOutSignatureRole !== 'owner') return;
+        // Manager signs as witness
+        if (!$this->currentLeaseId || $this->moveOutSignatureRole !== 'manager') return;
 
         if (!$this->authorizedForLease()) {
             $this->dispatch('notify', type: 'error', title: 'Unauthorized', description: 'You are not authorized to sign this contract.');
@@ -928,16 +1235,16 @@ class TenantDetail extends Component
         $lease = Lease::find($this->currentLeaseId);
         if (!$lease) return;
 
-        $result = $this->saveLeaseSignature($lease, $signatureData, 'owner', 'moveout');
+        $result = $this->saveLeaseSignature($lease, $signatureData, 'manager', 'moveout');
 
-        $this->moveOutOwnerSignature = $result['signature'];
-        $this->moveOutOwnerSignedAt = $result['signedAt'];
+        $this->moveOutManagerSignature = $result['signature'];
+        $this->moveOutManagerSignedAt = $result['signedAt'];
         $this->moveOutContractAgreed = $result['agreed'];
 
-        // Notify tenant that the manager/owner signed
-        $this->notifyTenantOfSign($lease, 'move-out');
+        // Notify tenant that manager (witness) signed → tenant's turn
+        $this->notifyTenantOfManagerSign($lease, 'move-out');
 
-        // If both signatures exist, generate PDF
+        // If all three signatures exist, generate PDF
         if ($result['agreed']) {
             $lease->refresh();
             $this->generateMoveOutSignedPdf($lease);
@@ -945,25 +1252,30 @@ class TenantDetail extends Component
 
         $this->closeMoveOutSignatureModal();
         $this->dispatch('moveout-signature-saved');
-        $this->dispatch('notify', type: 'success', title: 'Signature Saved', description: 'Move-out contract has been signed by the lessor.');
+        $this->dispatch('notify', type: 'success', title: 'Witness Signature Saved', description: 'You have signed the move-out contract as witness.');
     }
 
     private function generateMoveOutSignedPdf(Lease $lease): void
     {
         $lease->load(['tenant', 'bed.unit.property', 'moveInInspections', 'moveOutInspections']);
 
-        // Verify signature files exist before attempting to read them
-        if (!$lease->moveout_tenant_signature || !Storage::disk('public')->exists($lease->moveout_tenant_signature)) {
+        // Verify all three signature files exist (check both private and public disks)
+        $tenantSigPath  = $this->resolveSecureFilePath($lease->moveout_tenant_signature);
+        $ownerSigPath   = $this->resolveSecureFilePath($lease->moveout_owner_signature);
+        $managerSigPath = $this->resolveSecureFilePath($lease->moveout_manager_signature);
+
+        if (!$tenantSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Tenant signature file is missing. Cannot generate signed move-out PDF.');
             return;
         }
-        if (!$lease->moveout_owner_signature || !Storage::disk('public')->exists($lease->moveout_owner_signature)) {
+        if (!$ownerSigPath) {
             $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Owner signature file is missing. Cannot generate signed move-out PDF.');
             return;
         }
-
-        $tenantSigPath = Storage::disk('public')->path($lease->moveout_tenant_signature);
-        $ownerSigPath = Storage::disk('public')->path($lease->moveout_owner_signature);
+        if (!$managerSigPath) {
+            $this->dispatch('notify', type: 'error', title: 'PDF Error', description: 'Manager witness signature file is missing. Cannot generate signed move-out PDF.');
+            return;
+        }
 
         // Build move-in checklist for comparison
         $moveInChecklist = $lease->moveInInspections
@@ -994,6 +1306,10 @@ class TenantDetail extends Component
         $outstandingBalances = $this->buildOutstandingBalances($lease);
         $depositRefund = $lease->calculateDepositRefund();
 
+        // Get manager name
+        $managerId = $this->findManagerIdForLease($lease);
+        $manager = $managerId ? User::find($managerId) : null;
+
         $data = [
             'tenant' => $this->currentTenant,
             'moveInChecklist' => $moveInChecklist,
@@ -1001,10 +1317,13 @@ class TenantDetail extends Component
             'itemsReturned' => $itemsReturned,
             'outstandingBalances' => $outstandingBalances,
             'depositRefund' => $depositRefund,
-            'tenantSignatureBase64' => 'data:image/png;base64,' . base64_encode(file_get_contents($tenantSigPath)),
-            'ownerSignatureBase64'  => 'data:image/png;base64,' . base64_encode(file_get_contents($ownerSigPath)),
-            'tenantSignedAt' => $lease->moveout_tenant_signed_at->format('M d, Y'),
-            'ownerSignedAt'  => $lease->moveout_owner_signed_at->format('M d, Y'),
+            'tenantSignatureBase64'  => 'data:image/png;base64,' . base64_encode(file_get_contents($tenantSigPath)),
+            'ownerSignatureBase64'   => 'data:image/png;base64,' . base64_encode(file_get_contents($ownerSigPath)),
+            'managerSignatureBase64' => 'data:image/png;base64,' . base64_encode(file_get_contents($managerSigPath)),
+            'tenantSignedAt'  => $lease->moveout_tenant_signed_at->format('M d, Y'),
+            'ownerSignedAt'   => $lease->moveout_owner_signed_at->format('M d, Y'),
+            'managerSignedAt' => $lease->moveout_manager_signed_at->format('M d, Y'),
+            'managerName'     => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
         ];
 
         $pdf = Pdf::loadView('pdf.move-out-contract', $data)

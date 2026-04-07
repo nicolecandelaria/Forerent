@@ -68,7 +68,7 @@
     >
         <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl">
             {{-- Header --}}
-            <div class="bg-gradient-to-r from-[#070589] to-[#2360E8] text-white p-5 flex items-center justify-between">
+            <div class="bg-gradient-to-r from-[#070589] to-[#2360E8] text-white p-5 rounded-t-2xl flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-bold">{{ $title }}</h2>
                     <p class="text-xs text-blue-200 mt-0.5">{{ $subtitle }}</p>

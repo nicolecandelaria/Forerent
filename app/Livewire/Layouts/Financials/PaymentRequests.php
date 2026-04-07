@@ -53,7 +53,7 @@ class PaymentRequests extends Component
 
     public function viewRequest(int $id): void
     {
-        $request = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property', 'reviewer'])->find($id);
+        $request = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property', 'reviewer', 'paymentCategory'])->find($id);
         if (!$request) return;
 
         $this->selectedRequest = $request->toArray();
@@ -69,6 +69,7 @@ class PaymentRequests extends Component
         $this->selectedRequest['billing_period'] = $request->billing?->billing_date ? Carbon::parse($request->billing->billing_date)->format('F Y') : 'N/A';
         $this->selectedRequest['billing_amount'] = $request->billing?->to_pay ?? 0;
         $this->selectedRequest['billing_due'] = $request->billing?->due_date ? Carbon::parse($request->billing->due_date)->format('M d, Y') : 'N/A';
+        $this->selectedRequest['category_name'] = $request->paymentCategory?->name ?? '—';
 
         $this->showRejectForm = false;
         $this->rejectReasons = [];
@@ -240,7 +241,7 @@ class PaymentRequests extends Component
             }
         };
 
-        $query = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property'])
+        $query = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property', 'paymentCategory'])
             ->tap($scopeQuery)
             ->tap($applyFilters)
             ->when($this->activeTab !== 'All', fn($q) => $q->where('status', $this->activeTab))

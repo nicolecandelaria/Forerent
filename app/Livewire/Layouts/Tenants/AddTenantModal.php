@@ -23,6 +23,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\Bed;
 use App\Models\Lease;
+use App\Models\Notification as NotificationModel;
 use App\Models\UtilityBill;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -88,12 +89,12 @@ class AddTenantModal extends Component
     #[Validate('required|min:5')]
     public $permanentAddress = '';
 
-    #[Validate('required')]
+    #[Validate('nullable')]
     public $governmentIdType = '';
 
     public $governmentIdTypeOther = '';
 
-    #[Validate('required|min:3')]
+    #[Validate('nullable|min:3')]
     public $governmentIdNumber = '';
 
     #[Validate('nullable|image|max:10240')]
@@ -149,7 +150,7 @@ class AddTenantModal extends Component
     public $securityDeposit = '';
 
     #[Validate('required')]
-    public $paymentStatus = '';
+    public $paymentStatus = 'Paid';
 
     #[Validate('required')]
     public $monthlyDueDate = '';
@@ -708,6 +709,17 @@ class AddTenantModal extends Component
         }
 
         if ($createdUser) {
+            // Notify tenant to upload valid ID if missing
+            if (!$createdUser->government_id_type || !$createdUser->government_id_number || !$createdUser->government_id_image) {
+                NotificationModel::create([
+                    'user_id' => $createdUser->user_id,
+                    'type'    => 'valid_id_required',
+                    'title'   => 'Valid ID Required',
+                    'message' => 'Please upload your valid government ID in Settings to complete your profile.',
+                    'link'    => '/settings',
+                ]);
+            }
+
             $this->attemptWelcomeEmailDelivery($createdUser, $password);
         }
 
@@ -1080,8 +1092,8 @@ class AddTenantModal extends Component
             ],
             2 => array_merge([
                 'permanentAddress'             => 'required|min:5',
-                'governmentIdType'             => 'required',
-                'governmentIdNumber'           => 'required|min:3',
+                'governmentIdType'             => 'nullable',
+                'governmentIdNumber'           => 'nullable|min:3',
                 'companySchool'                => 'required|min:2',
                 'positionCourse'               => 'required|min:2',
                 'emergencyContactName'         => 'required|min:2',
@@ -1137,8 +1149,8 @@ class AddTenantModal extends Component
             $rules['lastName']                     = 'required|min:2';
             $rules['gender']                       = 'required';
             $rules['permanentAddress']             = 'required|min:5';
-            $rules['governmentIdType']             = 'required';
-            $rules['governmentIdNumber']           = 'required|min:3';
+            $rules['governmentIdType']             = 'nullable';
+            $rules['governmentIdNumber']           = 'nullable|min:3';
             $rules['companySchool']                = 'required|min:2';
             $rules['positionCourse']               = 'required|min:2';
             $rules['emergencyContactName']         = 'required|min:2';

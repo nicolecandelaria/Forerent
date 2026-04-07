@@ -5,10 +5,12 @@ namespace App\Livewire\Layouts\Dashboard;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Carbon\Carbon;
+use App\Models\Lease;
 use App\Models\Transaction;
 use App\Models\Billing;
 use App\Models\MaintenanceLog;
 use App\Models\Unit;
+use Illuminate\Support\Facades\Auth;
 
 class Dashboard extends Component
 {
@@ -45,6 +47,9 @@ class Dashboard extends Component
     public $prevAvailableUnits = 0;
     public $prevVacantUnits = 0;
 
+    public $pendingContracts = [];
+    public $pendingContractsCount = 0;
+
     public function mount()
     {
         $this->selectedDate = Carbon::today();
@@ -53,6 +58,7 @@ class Dashboard extends Component
         $this->loadPropertyUnitStats();
         $this->loadFinancialData();
         $this->loadMonthlyData();
+        $this->loadPendingContracts();
     }
 
     private function loadPropertyUnitStats(): void
@@ -284,6 +290,32 @@ class Dashboard extends Component
         foreach ($monthlyExpensesData as $expense) {
             $this->monthlyExpenses[$expense->month - 1] = $expense->total;
         }
+    }
+
+    private function loadPendingContracts(): void
+    {
+        $user = Auth::user();
+
+        $query = Lease::whereHas('bed.unit.property', fn($q) => $q->where('owner_id', $user->user_id))
+            ->where(fn($q) => $q->whereNull('contract_status')->orWhere('contract_status', '!=', 'executed'))
+            ->where('status', 'Active')
+            ->with(['tenant', 'bed.unit.property'])
+            ->latest('start_date');
+
+        $this->pendingContractsCount = $query->count();
+        $this->pendingContracts = $query->take(5)->get()->map(function ($lease) {
+            $sigCount = collect([$lease->owner_signature, $lease->manager_signature, $lease->tenant_signature])->filter()->count();
+            return [
+                'lease_id' => $lease->lease_id,
+                'tenant_name' => ($lease->tenant?->first_name ?? '') . ' ' . ($lease->tenant?->last_name ?? ''),
+                'tenant_initial' => strtoupper(substr($lease->tenant?->first_name ?? '?', 0, 1)),
+                'property' => $lease->bed?->unit?->property?->property_name,
+                'unit' => $lease->bed?->unit?->unit_number,
+                'contract_status' => $lease->contract_status ?? 'draft',
+                'needs_owner_sign' => !$lease->owner_signature,
+                'sig_count' => $sigCount,
+            ];
+        })->toArray();
     }
 
     #[Layout('layouts.app')]

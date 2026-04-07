@@ -406,7 +406,7 @@
                                     </div>
                                 </div>
 
-                                <h3 class="text-base font-bold text-[#070589] mb-4">Government ID</h3>
+                                <h3 class="text-base font-bold text-[#070589] mb-4">Government ID <span class="text-xs font-normal text-gray-400">(Optional)</span></h3>
                                 <div class="grid grid-cols-2 gap-4 mb-4">
                                     <div>
                                         <label class="text-xs font-semibold text-gray-700">ID Type</label>
@@ -637,8 +637,8 @@
                                         <select wire:model="paymentStatus" class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500">
                                             <option value="">Select Status</option>
                                             <option value="Paid">Paid</option>
-                                            <option value="Unpaid">Unpaid</option>
                                         </select>
+                                        <p class="text-[11px] text-gray-500 mt-1">Advance + deposit must be paid before move-in (RA 9653 Section 6).</p>
                                         @error('paymentStatus') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                                     </div>
                                 </div>

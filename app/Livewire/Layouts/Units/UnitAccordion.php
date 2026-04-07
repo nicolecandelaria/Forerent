@@ -341,7 +341,14 @@ class UnitAccordion extends Component
                     $search = '%' . $term . '%';
                     $cleanSearch = '%' . $cleanTerm . '%';
                     $q->where('unit_number', 'like', $cleanSearch)
-                      ->orWhere('floor_number', 'like', $cleanSearch);
+                      ->orWhere('floor_number', 'like', $cleanSearch)
+                      ->orWhereHas('beds.leases', function ($leaseQuery) use ($search) {
+                          $leaseQuery->whereIn('status', ['Active', 'Expired'])
+                              ->whereHas('tenant', function ($tenantQuery) use ($search) {
+                                  $tenantQuery->where('first_name', 'like', $search)
+                                      ->orWhere('last_name', 'like', $search);
+                              });
+                      });
                 });
             }
 

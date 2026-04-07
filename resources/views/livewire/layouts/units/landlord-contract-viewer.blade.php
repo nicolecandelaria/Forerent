@@ -1,9 +1,14 @@
 <div>
     @if($showModal && $contractData)
+        @php
+            $hasAnySignature = $ownerSignature || $managerSignature || $tenantSignature
+                || $moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature;
+        @endphp
         {{-- Backdrop --}}
         <div
+            x-data="{ showLeaveConfirm: false }"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            wire:click.self="closeModal"
+            @click.self="{{ $hasAnySignature ? '$wire.closeModal()' : 'showLeaveConfirm = true' }}"
         >
             {{-- Modal Container --}}
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-4 overflow-hidden">
@@ -46,7 +51,7 @@
                         </div>
 
                         {{-- Close Button --}}
-                        <button wire:click="closeModal" class="text-white/80 hover:text-white transition-colors">
+                        <button @click="{{ $hasAnySignature ? '$wire.closeModal()' : 'showLeaveConfirm = true' }}" class="text-white/80 hover:text-white transition-colors">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -85,10 +90,12 @@
                             'itemsReceived' => $itemsReceived,
                             'tenantSignature' => $tenantSignature,
                             'ownerSignature' => $ownerSignature,
+                            'managerSignature' => $managerSignature,
                             'tenantSignedAt' => $tenantSignedAt,
                             'ownerSignedAt' => $ownerSignedAt,
+                            'managerSignedAt' => $managerSignedAt,
                             'contractAgreed' => $contractAgreed,
-                            'signatureMode' => 'tenant',
+                            'signatureMode' => 'owner',
                             'contractSettings' => $contractSettings,
                         ])
                     @elseif($contractType === 'move-out')
@@ -100,10 +107,12 @@
                             'inspectionChecklist' => $inspectionChecklist,
                             'moveOutTenantSignature' => $moveOutTenantSignature,
                             'moveOutOwnerSignature' => $moveOutOwnerSignature,
+                            'moveOutManagerSignature' => $moveOutManagerSignature,
                             'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
                             'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
+                            'moveOutManagerSignedAt' => $moveOutManagerSignedAt,
                             'moveOutContractAgreed' => $moveOutContractAgreed,
-                            'signatureMode' => 'tenant',
+                            'signatureMode' => 'owner',
                             'outstandingBalances' => $contractData['outstanding_balances'] ?? [],
                             'depositRefund' => $contractData['deposit_refund'] ?? [],
                         ])
@@ -112,15 +121,52 @@
 
                 {{-- Footer --}}
                 <div class="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-                    <p class="text-xs text-gray-400">Read-only view</p>
+                    <p class="text-xs text-gray-400">
+                        @if($contractAgreed || $moveOutContractAgreed)
+                            Contract fully signed
+                        @elseif(!$ownerSignature && $contractType === 'move-in')
+                            Sign this contract as property owner
+                        @elseif(!$moveOutOwnerSignature && $contractType === 'move-out')
+                            Sign this contract as property owner
+                        @else
+                            Waiting for other parties to sign
+                        @endif
+                    </p>
                     <button
-                        wire:click="closeModal"
+                        @click="{{ $hasAnySignature ? '$wire.closeModal()' : 'showLeaveConfirm = true' }}"
                         class="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         Close
                     </button>
                 </div>
             </div>
+
+            <x-contract-leave-confirm closeAction="$wire.closeModal()" />
         </div>
+
+        {{-- Owner Signature Pad Modals --}}
+        <x-inspection.signature-pad-modal
+            :show="$showSignatureModal"
+            title="Owner E-Signature"
+            subtitle="Move-In Contract — Sign as property owner"
+            signerName=""
+            signerRole="Property Owner / Lessor"
+            legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-In Contract. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
+            wireCloseMethod="closeSignatureModal"
+            wireSaveMethod="saveOwnerSignature"
+            canvasRef="sigCanvasOwnerMoveIn"
+        />
+
+        <x-inspection.signature-pad-modal
+            :show="$showMoveOutSignatureModal"
+            title="Owner E-Signature"
+            subtitle="Move-Out Contract — Sign as property owner"
+            signerName=""
+            signerRole="Property Owner / Lessor"
+            legalText="By clicking &quot;Apply Signature&quot;, I confirm that I have read and agree to all terms in this Move-Out Clearance &amp; Deposit Settlement Agreement. This electronic signature is legally binding under RA 8792 (Electronic Commerce Act of 2000)."
+            wireCloseMethod="closeMoveOutSignatureModal"
+            wireSaveMethod="saveMoveOutOwnerSignature"
+            canvasRef="sigCanvasOwnerMoveOut"
+        />
     @endif
 </div>

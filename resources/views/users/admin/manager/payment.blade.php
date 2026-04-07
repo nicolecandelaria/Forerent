@@ -79,6 +79,7 @@
         <div x-show="view === 'utility'" x-cloak>
             <livewire:layouts.financials.utility-bill-table />
         </div>
+
     </div>
 
     {{-- Utility Bill Entry Modal (always mounted for event listening) --}}

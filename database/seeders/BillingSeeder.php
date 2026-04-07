@@ -8,6 +8,7 @@ use App\Models\Lease;
 use App\Models\UtilityBill;
 use Faker\Generator;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class BillingSeeder extends Seeder
@@ -27,50 +28,52 @@ class BillingSeeder extends Seeder
             $this->utilityCache[$key] = $bill->per_tenant_amount;
         });
 
-        $leases = Lease::orderBy('start_date')->get();
+        $leases = Lease::with('bed')->orderBy('start_date')->get();
         $firstLeasePerTenant = [];
 
-        foreach ($leases as $lease) {
-            $tenantId     = $lease->tenant_id;
-            $isFirstLease = !isset($firstLeasePerTenant[$tenantId]);
+        DB::transaction(function () use ($leases, &$firstLeasePerTenant) {
+            foreach ($leases as $lease) {
+                $tenantId     = $lease->tenant_id;
+                $isFirstLease = !isset($firstLeasePerTenant[$tenantId]);
 
-            if ($isFirstLease) {
-                $firstLeasePerTenant[$tenantId] = $lease->lease_id;
+                if ($isFirstLease) {
+                    $firstLeasePerTenant[$tenantId] = $lease->lease_id;
+                }
+
+                // ── Move-In Billing (only for tenant's very first lease) ──
+                if ($isFirstLease) {
+                    $moveInBilling = Billing::factory()->create([
+                        'lease_id'     => $lease->lease_id,
+                        'billing_type' => 'move_in',
+                        'billing_date' => Carbon::parse($lease->move_in)->format('Y-m-d'),
+                        'next_billing' => Carbon::parse($lease->move_in)->addMonth()->format('Y-m-d'),
+                        'due_date'     => Carbon::parse($lease->move_in)->format('Y-m-d'),
+                        'to_pay'       => $lease->contract_rate * 2,
+                        'amount'       => $lease->contract_rate * 2,
+                        'status'       => 'Paid',
+                    ]);
+
+                    BillingItem::create([
+                        'billing_id'      => $moveInBilling->billing_id,
+                        'charge_category' => 'move_in',
+                        'charge_type'     => 'advance',
+                        'description'     => '1 Month Advance — First Month Rent',
+                        'amount'          => $lease->contract_rate,
+                    ]);
+
+                    BillingItem::create([
+                        'billing_id'      => $moveInBilling->billing_id,
+                        'charge_category' => 'move_in',
+                        'charge_type'     => 'security_deposit',
+                        'description'     => '1 Month Security Deposit',
+                        'amount'          => $lease->contract_rate,
+                    ]);
+                }
+
+                // ── Monthly Billings ──
+                $this->createMonthlyBillings($lease);
             }
-
-            // ── Move-In Billing (only for tenant's very first lease) ──
-            if ($isFirstLease) {
-                $moveInBilling = Billing::factory()->create([
-                    'lease_id'     => $lease->lease_id,
-                    'billing_type' => 'move_in',
-                    'billing_date' => Carbon::parse($lease->move_in)->format('Y-m-d'),
-                    'next_billing' => Carbon::parse($lease->move_in)->addMonth()->format('Y-m-d'),
-                    'due_date'     => Carbon::parse($lease->move_in)->format('Y-m-d'),
-                    'to_pay'       => $lease->contract_rate * 2,
-                    'amount'       => $lease->contract_rate * 2,
-                    'status'       => 'Paid',
-                ]);
-
-                BillingItem::create([
-                    'billing_id'      => $moveInBilling->billing_id,
-                    'charge_category' => 'move_in',
-                    'charge_type'     => 'advance',
-                    'description'     => '1 Month Advance — First Month Rent',
-                    'amount'          => $lease->contract_rate,
-                ]);
-
-                BillingItem::create([
-                    'billing_id'      => $moveInBilling->billing_id,
-                    'charge_category' => 'move_in',
-                    'charge_type'     => 'security_deposit',
-                    'description'     => '1 Month Security Deposit',
-                    'amount'          => $lease->contract_rate,
-                ]);
-            }
-
-            // ── Monthly Billings ──
-            $this->createMonthlyBillings($lease);
-        }
+        });
     }
 
     private function createMonthlyBillings(Lease $lease): void
@@ -152,7 +155,7 @@ class BillingSeeder extends Seeder
             ]);
             $totalCharges += $waterShare;
 
-            // Conditional: Short-Term Premium
+            // Conditional: Short-Term Premium (if lease term < 6 months)
             if ($leaseTerm < 6) {
                 BillingItem::create([
                     'billing_id'      => $billing->billing_id,
@@ -161,58 +164,20 @@ class BillingSeeder extends Seeder
                     'description'     => 'Short-Term Premium (contract under 6 months)',
                     'amount'          => 500.00,
                 ]);
-                $totalCharges += $contractPrice;
-
-                // NOTE: Utility shares (electricity_share, water_share) are created
-                // by UtilityBillSeeder which also creates the matching UtilityBill records.
-                // This keeps seeded data consistent with the production flow.
-
-                // B. Conditional: Short-Term Premium (if lease term < 6 months)
-                if ($leaseTerm < 6) {
-                    BillingItem::create([
-                        'billing_id'      => $billing->billing_id,
-                        'charge_category' => 'conditional',
-                        'charge_type'     => 'short_term_premium',
-                        'description'     => 'Short-Term Premium (contract under 6 months)',
-                        'amount'          => 500.00,
-                    ]);
-                    $totalCharges += 500.00;
-                }
-
-                // B. Conditional: Late Payment Fee (~10% chance, only for past months)
-                // Penalty = (late_payment_penalty% of contract_rate) × days late
-                if ($isPast && $this->faker->boolean(10)) {
-                    $penaltyRate = $lease->late_payment_penalty ?? 1; // percentage
-                    $daysLate = $this->faker->numberBetween(1, 10);
-                    $dailyPenalty = round(($penaltyRate / 100) * $lease->contract_rate, 2);
-                    $lateFee = $dailyPenalty * $daysLate;
-                    BillingItem::create([
-                        'billing_id'      => $billing->billing_id,
-                        'charge_category' => 'conditional',
-                        'charge_type'     => 'late_fee',
-                        'description'     => "Late Payment Fee ({$daysLate} day(s) × ₱" . number_format($dailyPenalty, 2) . "/day)",
-                        'amount'          => $lateFee,
-                    ]);
-                    $totalCharges += $lateFee;
-                }
-
-                // Update billing totals
-                $billing->update([
-                    'to_pay' => $totalCharges,
-                    'amount' => $totalCharges,
-                ]);
-
-                $billingDate->addMonth();
+                $totalCharges += 500.00;
             }
 
             // Conditional: Late Payment Fee (~10% chance, past months only)
             if ($isPast && $this->faker->boolean(10)) {
-                $lateFee = $this->faker->randomElement([100, 200, 300]);
+                $penaltyRate = $lease->late_payment_penalty ?? 1;
+                $daysLate = $this->faker->numberBetween(1, 10);
+                $dailyPenalty = round(($penaltyRate / 100) * $lease->contract_rate, 2);
+                $lateFee = $dailyPenalty * $daysLate;
                 BillingItem::create([
                     'billing_id'      => $billing->billing_id,
                     'charge_category' => 'conditional',
                     'charge_type'     => 'late_fee',
-                    'description'     => 'Late Payment Fee',
+                    'description'     => "Late Payment Fee ({$daysLate} day(s) × ₱" . number_format($dailyPenalty, 2) . "/day)",
                     'amount'          => $lateFee,
                 ]);
                 $totalCharges += $lateFee;

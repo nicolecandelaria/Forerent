@@ -3,6 +3,7 @@
 namespace App\Livewire\Actions;
 
 use App\Livewire\Concerns\WithNotifications;
+use App\Models\Notification as NotificationModel;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,10 @@ class SettingsForm extends Component
     public string $phoneNumber = '';
     public string $email = '';
 
+    // Government ID properties
+    public string $governmentIdType = '';
+    public string $governmentIdNumber = '';
+
     // Image upload properties
     #[Validate('nullable|image|max:10240')]
     public $profilePicture;
@@ -40,6 +45,8 @@ class SettingsForm extends Component
     public string $originalEmail = '';
     public ?string $originalProfileImg = null;
     public ?string $originalGovernmentIdImage = null;
+    public string $originalGovernmentIdType = '';
+    public string $originalGovernmentIdNumber = '';
 
     public bool $hasPendingChanges = false;
 
@@ -84,6 +91,8 @@ class SettingsForm extends Component
             'email',
             'profilePicture',
             'governmentIdImage',
+            'governmentIdType',
+            'governmentIdNumber',
             'existingProfileImg',
             'existingGovernmentIdImage',
         ], true)) {
@@ -104,6 +113,8 @@ class SettingsForm extends Component
             $this->existingGovernmentIdImage = null;
             $this->profilePicture = null;
             $this->governmentIdImage = null;
+            $this->governmentIdType = '';
+            $this->governmentIdNumber = '';
 
             $this->syncOriginalState();
             $this->hasPendingChanges = false;
@@ -117,6 +128,8 @@ class SettingsForm extends Component
         $this->lastName = (string) ($user->getAttribute('last_name') ?? '');
         $this->existingProfileImg = $user->profile_img;
         $this->existingGovernmentIdImage = $user->government_id_image;
+        $this->governmentIdType = (string) ($user->getAttribute('government_id_type') ?? '');
+        $this->governmentIdNumber = (string) ($user->getAttribute('government_id_number') ?? '');
         $this->profilePicture = null;
         $this->governmentIdImage = null;
 
@@ -221,6 +234,8 @@ class SettingsForm extends Component
         $this->originalPhoneNumber = $this->normalizePhone((string) $this->phoneNumber);
         $this->originalProfileImg = $this->existingProfileImg;
         $this->originalGovernmentIdImage = $this->existingGovernmentIdImage;
+        $this->originalGovernmentIdType = $this->governmentIdType;
+        $this->originalGovernmentIdNumber = $this->governmentIdNumber;
     }
 
     private function recomputePendingChanges(): void
@@ -237,7 +252,9 @@ class SettingsForm extends Component
             || $this->profilePicture !== null
             || $this->governmentIdImage !== null
             || $this->existingProfileImg !== $this->originalProfileImg
-            || $this->existingGovernmentIdImage !== $this->originalGovernmentIdImage;
+            || $this->existingGovernmentIdImage !== $this->originalGovernmentIdImage
+            || $this->governmentIdType !== $this->originalGovernmentIdType
+            || $this->governmentIdNumber !== $this->originalGovernmentIdNumber;
     }
 
     public function save(): void
@@ -269,6 +286,8 @@ class SettingsForm extends Component
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->user_id, 'user_id')],
                 'profilePicture' => 'nullable|image|max:10240',
                 'governmentIdImage' => 'nullable|image|max:10240',
+                'governmentIdType' => 'nullable|string|max:255',
+                'governmentIdNumber' => 'nullable|string|max:255',
             ]);
 
             $updateData = [
@@ -276,6 +295,8 @@ class SettingsForm extends Component
                 'last_name' => $this->lastName,
                 'email' => $this->email,
                 'contact' => $this->phoneNumber,
+                'government_id_type' => $this->governmentIdType ?: null,
+                'government_id_number' => $this->governmentIdNumber ?: null,
             ];
 
             // Handle profile picture upload
@@ -313,6 +334,14 @@ class SettingsForm extends Component
             $this->existingGovernmentIdImage = $user->government_id_image;
             $this->syncOriginalState();
             $this->hasPendingChanges = false;
+
+            // Auto-dismiss valid ID notification if all ID fields are now complete
+            if ($user->government_id_type && $user->government_id_number && $user->government_id_image) {
+                NotificationModel::where('user_id', $user->user_id)
+                    ->where('type', 'valid_id_required')
+                    ->where('is_read', false)
+                    ->update(['is_read' => true]);
+            }
 
             $this->dispatch('profile-updated');
             $this->notifySuccess('Settings Saved Successfully!', 'Your personal information has been updated.');

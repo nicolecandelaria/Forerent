@@ -120,6 +120,29 @@
                                 </div>
                             </div>
 
+                            {{-- Deposit Interest Rate --}}
+                            <div class="mt-4">
+                                <div class="relative">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="10"
+                                        wire:model.defer="depositInterestRate"
+                                        id="depositInterestRate"
+                                        class="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] peer"
+                                        placeholder=" "
+                                    />
+                                    <label
+                                        for="depositInterestRate"
+                                        class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0030C5] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 start-1"
+                                    >
+                                        Security Deposit Interest Rate (% per year)
+                                    </label>
+                                    <p class="text-[10px] text-gray-400 mt-1">Based on your depository bank's prevailing savings rate (RA 9653 IRR &sect;7b). Leave blank or 0 if not applicable.</p>
+                                </div>
+                            </div>
+
                         </div>
 
                         {{-- Property Photos --}}
@@ -245,6 +268,9 @@
 
                             @php
                                 $allDocs = [
+                                    ['field' => 'titleTct', 'label' => 'Title / TCT', 'category' => 'title_tct', 'group' => 'owner'],
+                                    ['field' => 'taxDeclaration', 'label' => 'Tax Declaration', 'category' => 'tax_declaration', 'group' => 'owner'],
+                                    ['field' => 'transferCertificate', 'label' => 'Transfer Certificate / Deed of Sale', 'category' => 'transfer_certificate', 'group' => 'owner'],
                                     ['field' => 'businessPermit', 'label' => 'Business Permit', 'category' => 'business_permit', 'group' => 'owner'],
                                     ['field' => 'bir2303', 'label' => 'BIR 2303', 'category' => 'bir_2303', 'group' => 'owner'],
                                     ['field' => 'inspectionReport', 'label' => 'Inspection Report', 'category' => 'inspection_report', 'group' => 'owner'],
