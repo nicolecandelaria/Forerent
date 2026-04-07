@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('header-title', 'MAINTENANCE MANAGEMENT')
+@section('header-title', 'MAINTENANCE REQUEST MANAGEMENT')
 @section('header-subtitle', 'Monitor costs, track trends, and manage repair tickets')
 
 @section('content')

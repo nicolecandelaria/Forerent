@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header-title', 'PROPERTY MANAGER')
+@section('header-title', 'PROPERTY ASSIGNMENT')
 @section('header-subtitle', 'View and record property or unit')
 
 @section('content')
