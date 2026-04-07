@@ -134,6 +134,26 @@
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 3 — Move-Out Room Condition Inspection</h3>
     <p class="text-xs text-gray-700 mb-3">Both parties shall conduct a joint room inspection on the move-out date. The condition of each item below will be compared against the Move-In Checklist (Section 8 of the Move-In Contract) to identify damages beyond normal wear and tear.</p>
 
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+        <p class="text-[10px] font-bold text-gray-600 uppercase mb-1">Definition: Normal Wear and Tear</p>
+        <p class="text-[10px] text-gray-500 leading-relaxed mb-2">Normal wear and tear refers to the natural and gradual deterioration of the premises resulting from ordinary, everyday use. The following are considered <strong>normal</strong> and shall NOT be charged to the Lessee:</p>
+        <ul class="text-[10px] text-gray-500 list-disc pl-4 space-y-0.5">
+            <li>Minor scuffs or light marks on walls from daily contact</li>
+            <li>Slight fading of paint or wall color due to sunlight exposure</li>
+            <li>Light wear on floor surfaces from regular foot traffic</li>
+            <li>Minor loosening of door handles or cabinet hinges from regular use</li>
+            <li>Dust or dirt accumulation requiring standard cleaning</li>
+        </ul>
+        <p class="text-[10px] text-gray-500 leading-relaxed mt-2 mb-1">The following are <strong>NOT</strong> normal wear and tear and may result in deductions:</p>
+        <ul class="text-[10px] text-gray-500 list-disc pl-4 space-y-0.5">
+            <li>Holes, large cracks, or gouges in walls, floors, or ceilings</li>
+            <li>Broken windows, door locks, or fixtures</li>
+            <li>Stains, burns, or water damage from misuse or neglect</li>
+            <li>Unauthorized modifications or removal of installed items</li>
+            <li>Damage caused by pets, if pets were not permitted</li>
+        </ul>
+    </div>
+
     <table class="w-full border border-gray-300 text-xs">
         <thead><tr class="bg-[#3B5998] text-white">
             <th class="p-2 text-left">Item</th>
@@ -190,7 +210,8 @@
         <thead><tr class="bg-[#3B5998] text-white">
             <th class="p-2 text-left">Item</th>
             <th class="p-2 text-center w-16">Qty Issued</th>
-            <th class="p-2 text-center w-24">Returned?</th>
+            <th class="p-2 text-center w-20">Qty Returned</th>
+            <th class="p-2 text-center w-16">Status</th>
             <th class="p-2 text-left">Condition</th>
             <th class="p-2 text-right w-32">Replacement Cost (PHP)</th>
         </tr></thead>
@@ -199,26 +220,43 @@
             @foreach($returnItemNames as $itemName)
                 @php
                     $returned = collect($itemsReturned)->firstWhere('item_name', $itemName);
-                    // Cross-reference with move-in received items for issued quantity
-                    $received = collect($inspectionChecklist)->where('type', 'item_received')->firstWhere('item_name', $itemName)
-                             ?? collect($t['received_items'] ?? [])->firstWhere('item_name', $itemName);
-                    $issuedQty = $received['quantity'] ?? $returned['quantity'] ?? '—';
+                    $issuedQty = (int) ($returned['quantity'] ?? 0);
+                    $returnedQty = (int) ($returned['quantity_returned'] ?? 0);
                     $isReturned = $returned && ($returned['is_returned'] ?? false);
+                    $isPartial = $isReturned && $issuedQty > 0 && $returnedQty < $issuedQty;
+                    $missingQty = $issuedQty - $returnedQty;
                     $condition = $returned['condition'] ?? '';
                     $replacementCost = (float) ($returned['replacement_cost'] ?? 0);
-                    if (!$isReturned && $returned) $totalReplacementCost += $replacementCost;
+                    // Charge for unreturned OR partial returns
+                    if ((!$isReturned || $isPartial) && $returned) $totalReplacementCost += $replacementCost;
+
+                    $statusLabel = '';
+                    $statusClass = '';
+                    if ($returned) {
+                        if (!$isReturned) {
+                            $statusLabel = '✗ Not Returned';
+                            $statusClass = 'text-red-600 font-bold';
+                        } elseif ($isPartial) {
+                            $statusLabel = "⚠ Partial ({$missingQty} missing)";
+                            $statusClass = 'text-amber-600 font-bold';
+                        } else {
+                            $statusLabel = '✓ Complete';
+                            $statusClass = 'text-green-600';
+                        }
+                    }
                 @endphp
-                <tr class="border-b {{ (!$isReturned && $returned) ? 'bg-red-50' : '' }}">
+                <tr class="border-b {{ (!$isReturned && $returned) ? 'bg-red-50' : ($isPartial ? 'bg-amber-50' : '') }}">
                     <td class="p-2 font-medium">{{ $itemName }}</td>
-                    <td class="p-2 text-center border-l">{{ $issuedQty }}</td>
-                    <td class="p-2 text-center border-l {{ (!$isReturned && $returned) ? 'text-red-600 font-bold' : '' }}">{{ $isReturned ? '✓ Yes' : ($returned ? '✗ No' : '') }}</td>
+                    <td class="p-2 text-center border-l">{{ $issuedQty ?: '—' }}</td>
+                    <td class="p-2 text-center border-l {{ $isPartial ? 'text-amber-600 font-bold' : '' }}">{{ $returned ? $returnedQty : '' }}</td>
+                    <td class="p-2 text-center border-l {{ $statusClass }}">{{ $statusLabel }}</td>
                     <td class="p-2 border-l">{{ $condition }}</td>
-                    <td class="p-2 text-right border-l">{{ (!$isReturned && $returned && $replacementCost > 0) ? '&#8369; ' . number_format($replacementCost, 2) : ((!$isReturned && $returned) ? 'TBD' : '') }}</td>
+                    <td class="p-2 text-right border-l">{{ ((!$isReturned || $isPartial) && $returned && $replacementCost > 0) ? '&#8369; ' . number_format($replacementCost, 2) : (((!$isReturned || $isPartial) && $returned) ? 'TBD' : '') }}</td>
                 </tr>
             @endforeach
             @if($totalReplacementCost > 0)
             <tr class="bg-gray-50">
-                <td class="p-2 font-bold" colspan="4">Total Replacement Cost</td>
+                <td class="p-2 font-bold" colspan="5">Total Replacement Cost</td>
                 <td class="p-2 text-right border-l font-bold">&#8369; {{ number_format($totalReplacementCost, 2) }}</td>
             </tr>
             @endif

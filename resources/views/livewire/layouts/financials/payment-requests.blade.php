@@ -57,6 +57,7 @@
             <x-slot:head>
                 <x-ui.th>Tenant</x-ui.th>
                 <x-ui.th>Billing Period</x-ui.th>
+                <x-ui.th>Category</x-ui.th>
                 <x-ui.th>Amount</x-ui.th>
                 <x-ui.th>Method</x-ui.th>
                 <x-ui.th>Reference</x-ui.th>
@@ -77,6 +78,17 @@
 
                         <x-ui.td>
                             {{ $req->billing?->billing_date ? \Carbon\Carbon::parse($req->billing->billing_date)->format('M Y') : 'N/A' }}
+                        </x-ui.td>
+
+                        <x-ui.td>
+                            @if($req->paymentCategory)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                                    {{ $req->paymentCategory->type === 'income' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }}">
+                                    {{ $req->paymentCategory->name }}
+                                </span>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
                         </x-ui.td>
 
                         <x-ui.td>
@@ -107,7 +119,7 @@
                     </x-ui.tr>
                 @empty
                     <x-ui.tr>
-                        <x-ui.td colspan="7" class="text-center py-12 text-slate-500">
+                        <x-ui.td colspan="8" class="text-center py-12 text-slate-500">
                             No {{ strtolower($activeTab) }} payment requests.
                         </x-ui.td>
                     </x-ui.tr>
@@ -215,7 +227,11 @@
                                     <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Payment Method</p>
                                     <p class="text-[#070642] font-semibold text-sm">{{ $selectedRequest['payment_method'] }}</p>
                                 </div>
-                                <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50 col-span-2">
+                                <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
+                                    <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Category</p>
+                                    <p class="text-[#070642] font-semibold text-sm">{{ $selectedRequest['category_name'] }}</p>
+                                </div>
+                                <div class="bg-[#F4F7FF] p-4 rounded-xl border border-blue-50">
                                     <p class="text-gray-400 text-[11px] uppercase font-bold tracking-wide mb-1">Reference Number</p>
                                     <p class="text-[#070642] font-semibold text-sm font-mono">{{ $selectedRequest['reference_number'] ?: '—' }}</p>
                                 </div>

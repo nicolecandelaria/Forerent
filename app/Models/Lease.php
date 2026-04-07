@@ -132,8 +132,12 @@ class Lease extends Model
     }
 
     /**
-     * Auto-compute deposit interest based on BSP prevailing savings rate.
+     * Auto-compute deposit interest based on the property's configured savings rate.
      * RA 9653 IRR Section 7b requires interest on security deposits.
+     *
+     * The rate is configurable per property via contract_settings.deposit_interest_rate
+     * (annual %, e.g. 1.25 = 1.25% per year). This allows each owner to set their
+     * depository bank's actual savings rate — transparent and defensible.
      *
      * @return float computed interest amount
      */
@@ -146,8 +150,12 @@ class Lease extends Model
         $endDate = $this->move_out ?? now();
         if (!$startDate) return 0;
 
-        // BSP prevailing savings deposit rate (~1.25% per annum as of 2024-2025)
-        $annualRate = 0.0125;
+        // Pull rate from property contract_settings, default to 0 if not configured
+        $property = $this->bed?->unit?->property;
+        $annualRatePercent = (float) ($property?->getContractSetting('deposit_interest_rate', 0) ?? 0);
+        if ($annualRatePercent <= 0) return 0;
+
+        $annualRate = $annualRatePercent / 100; // Convert from % to decimal
         $daysHeld = $startDate->diffInDays($endDate);
         $interest = $deposit * ($annualRate / 365) * $daysHeld;
 
@@ -236,15 +244,26 @@ class Lease extends Model
             $deductions[] = ['label' => 'Damage Repair Costs', 'amount' => $damageCost, 'items' => $damagedItems];
         }
 
-        // 4. Unreturned items — use is_returned flag + replacement_cost
-        $unreturnedInspections = $this->moveOutInspections()
+        // 4. Unreturned / partially returned items — charge replacement for missing quantity
+        $returnedInspections = $this->moveOutInspections()
             ->where('type', 'item_returned')
-            ->where('is_returned', false)
             ->get();
-        $unreturnedItems = $unreturnedInspections->pluck('item_name')->toArray();
-        $replacementCost = (float) $unreturnedInspections->sum('replacement_cost');
-        if (!empty($unreturnedItems)) {
-            $deductions[] = ['label' => 'Unreturned Items', 'amount' => $replacementCost, 'items' => $unreturnedItems];
+        $missingItems = [];
+        $replacementCost = 0;
+
+        foreach ($returnedInspections as $item) {
+            $isReturned = (bool) $item->is_returned;
+            $qtyIssued = (int) ($item->quantity ?? 0);
+            $qtyReturned = (int) ($item->quantity_returned ?? 0);
+            $isPartial = $isReturned && $qtyIssued > 0 && $qtyReturned < $qtyIssued;
+
+            if (!$isReturned || $isPartial) {
+                $missingItems[] = $item->item_name . ($isPartial ? " ({$qtyReturned}/{$qtyIssued} returned)" : '');
+                $replacementCost += (float) ($item->replacement_cost ?? 0);
+            }
+        }
+        if (!empty($missingItems)) {
+            $deductions[] = ['label' => 'Unreturned / Missing Items', 'amount' => $replacementCost, 'items' => $missingItems];
         }
 
         // 5. Early termination — deposit forfeited in full (no additional fee per contract Section 7)

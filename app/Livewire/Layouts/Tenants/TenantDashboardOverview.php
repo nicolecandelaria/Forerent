@@ -560,6 +560,11 @@ class TenantDashboardOverview extends Component
 
     public function submitPaymentRequest(): void
     {
+        // Force the amount to the full billing amount — no partial payments
+        $billing = collect($this->unpaidBillings)->firstWhere('billing_id', $this->selectedBillingId);
+        $requiredAmount = $billing ? (float) $billing['to_pay'] : 0;
+        $this->paymentAmountPaid = $requiredAmount;
+
         $rules = [
             'selectedBillingId' => 'required',
             'selectedPaymentMethod' => 'required|in:GCash,Maya,Bank Transfer',

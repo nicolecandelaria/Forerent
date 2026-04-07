@@ -346,10 +346,23 @@ class TenantDetail extends Component
         }
         foreach ($this->itemsReturned as $index => $item) {
             $isReturned = $item['is_returned'] ?? false;
+            $qtyIssued = (int) ($item['quantity'] ?? 0);
+            $qtyReturned = (int) ($item['quantity_returned'] ?? 0);
+            $isPartial = $isReturned && $qtyIssued > 0 && $qtyReturned < $qtyIssued;
             $replacementCost = $item['replacement_cost'] ?? null;
-            if (!$isReturned && (empty($replacementCost) || (float) $replacementCost <= 0)) {
-                $costErrors["itemsReturned.{$index}.replacement_cost"] =
-                    "Replacement cost is required for unreturned \"{$item['item_name']}\".";
+
+            // Require replacement cost for fully unreturned OR partially returned items
+            if ((!$isReturned || $isPartial) && (empty($replacementCost) || (float) $replacementCost <= 0)) {
+                $label = $isPartial
+                    ? "Replacement cost is required for partially returned \"{$item['item_name']}\" ({$qtyReturned}/{$qtyIssued} returned)."
+                    : "Replacement cost is required for unreturned \"{$item['item_name']}\".";
+                $costErrors["itemsReturned.{$index}.replacement_cost"] = $label;
+            }
+
+            // Validate quantity_returned doesn't exceed quantity issued
+            if ($isReturned && $qtyIssued > 0 && $qtyReturned > $qtyIssued) {
+                $costErrors["itemsReturned.{$index}.quantity_returned"] =
+                    "Quantity returned ({$qtyReturned}) cannot exceed quantity issued ({$qtyIssued}).";
             }
         }
         if (!empty($costErrors)) {
@@ -568,6 +581,25 @@ class TenantDetail extends Component
             $moveOutErrors['depositRefundAccount'] = 'Account name or number is required for refund processing.';
         }
 
+        // Enforce: reason must match actual lease state
+        if ($this->reasonForVacating && $lease->end_date) {
+            $isBeforeEndDate = now()->lt($lease->end_date);
+            $earlyReasons = [
+                'Voluntary early termination by Lessee',
+                'Mutual agreement between both parties',
+                'Lease violation or termination by Lessor',
+                'Transfer to a different unit / building (internal transfer)',
+            ];
+            $normalEndReason = 'End of lease term (contract expired)';
+
+            if ($this->reasonForVacating === $normalEndReason && $isBeforeEndDate) {
+                $moveOutErrors['reasonForVacating'] = 'Cannot select "End of lease term" — the lease has not expired yet (ends ' . $lease->end_date->format('M d, Y') . '). Please select the appropriate early termination reason.';
+            }
+            if (in_array($this->reasonForVacating, $earlyReasons) && !$isBeforeEndDate) {
+                $moveOutErrors['reasonForVacating'] = 'The lease has already ended or is ending today. The correct reason is "End of lease term (contract expired)".';
+            }
+        }
+
         if (!empty($moveOutErrors)) {
             foreach ($moveOutErrors as $key => $message) {
                 $this->addError($key, $message);
@@ -687,7 +719,7 @@ class TenantDetail extends Component
         }
 
         $this->moveOutPrerequisites = [
-            ['label' => 'All bills settled', 'done' => $unpaidCount === 0],
+            ['label' => $unpaidCount === 0 ? 'All bills settled' : "Outstanding bills ({$unpaidCount}) — will be deducted from deposit", 'done' => true],
             ['label' => 'Move-out inspection completed', 'done' => $inspectionDone],
             ['label' => 'Items returned recorded', 'done' => $itemsReturnedDone],
             ['label' => 'All repair/replacement costs confirmed (no TBD)', 'done' => $costsConfirmed],
@@ -1141,6 +1173,42 @@ class TenantDetail extends Component
         // Owner must sign first
         if (!$this->moveOutOwnerSignature) {
             $this->dispatch('notify', type: 'warning', title: 'Owner Must Sign First', description: 'The property owner must sign the move-out contract before the manager can sign as witness.');
+            return;
+        }
+
+        // Refresh outstanding balances to ensure real-time accuracy before signing
+        $lease = Lease::find($this->currentLeaseId);
+        if ($lease) {
+            $this->currentTenant['outstanding_balances'] = $this->buildOutstandingBalances($lease);
+            $this->currentTenant['deposit_refund'] = [
+                'amount' => $lease->deposit_refund_amount,
+                'deductions' => $lease->deposit_deductions,
+                'interest_earned' => $lease->deposit_interest_amount,
+            ];
+        }
+
+        // Block signing if there are TBD (unconfirmed) repair/replacement costs
+        $hasTBD = MoveOutInspection::where('lease_id', $this->currentLeaseId)
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->where('type', 'checklist')
+                       ->whereIn('condition', ['damaged', 'missing'])
+                       ->where(function ($q3) {
+                           $q3->whereNull('repair_cost')->orWhere('repair_cost', 0);
+                       });
+                })
+                ->orWhere(function ($q2) {
+                    $q2->where('type', 'item_returned')
+                       ->where('is_returned', false)
+                       ->where(function ($q3) {
+                           $q3->whereNull('replacement_cost')->orWhere('replacement_cost', 0);
+                       });
+                });
+            })
+            ->exists();
+
+        if ($hasTBD) {
+            $this->dispatch('notify', type: 'error', title: 'Cannot Sign Yet', description: 'All repair and replacement costs must be confirmed before signing. No TBD values allowed.');
             return;
         }
 

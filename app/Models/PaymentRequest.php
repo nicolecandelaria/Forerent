@@ -11,6 +11,7 @@ class PaymentRequest extends Model
         'billing_id',
         'lease_id',
         'tenant_id',
+        'payment_category_id',
         'payment_method',
         'reference_number',
         'amount_paid',
@@ -44,5 +45,10 @@ class PaymentRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by', 'user_id');
+    }
+
+    public function paymentCategory(): BelongsTo
+    {
+        return $this->belongsTo(PaymentCategory::class, 'payment_category_id', 'payment_category_id');
     }
 }

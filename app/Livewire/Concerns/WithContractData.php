@@ -378,6 +378,7 @@ trait WithContractData
             ];
             if ($isMoveOut) {
                 $entry['is_returned'] = $saved?->is_returned ?? false;
+                $entry['quantity_returned'] = $saved?->quantity_returned ?? '';
                 $entry['replacement_cost'] = $saved?->replacement_cost ?? '';
             }
             $items[] = $entry;
@@ -448,10 +449,11 @@ trait WithContractData
                         'item_name' => $item['item_name'],
                     ],
                     [
-                        'quantity'         => $item['quantity'] ?: null,
-                        'remarks'          => $item['condition'] ?? null,
-                        'is_returned'      => $item['is_returned'] ?? false,
-                        'replacement_cost' => !empty($item['replacement_cost']) ? $item['replacement_cost'] : null,
+                        'quantity'           => $item['quantity'] ?: null,
+                        'quantity_returned'  => !empty($item['quantity_returned']) ? $item['quantity_returned'] : null,
+                        'remarks'            => $item['condition'] ?? null,
+                        'is_returned'        => $item['is_returned'] ?? false,
+                        'replacement_cost'   => !empty($item['replacement_cost']) ? $item['replacement_cost'] : null,
                     ]
                 );
             }
@@ -489,6 +491,17 @@ trait WithContractData
                 $this->addError("{$itemsKey}.{$index}.quantity", 'Required');
             } elseif ((int) $cleaned < 1) {
                 $this->addError("{$itemsKey}.{$index}.quantity", 'Min 1');
+            }
+        }
+
+        if ($field === 'quantity_returned') {
+            $cleaned = preg_replace('/[^0-9]/', '', (string) $value);
+            $items[$index]['quantity_returned'] = $cleaned;
+
+            $this->resetErrorBag("{$itemsKey}.{$index}.quantity_returned");
+            $issuedQty = (int) ($items[$index]['quantity'] ?? 0);
+            if ($cleaned !== '' && $issuedQty > 0 && (int) $cleaned > $issuedQty) {
+                $this->addError("{$itemsKey}.{$index}.quantity_returned", "Cannot exceed issued qty ({$issuedQty})");
             }
         }
 

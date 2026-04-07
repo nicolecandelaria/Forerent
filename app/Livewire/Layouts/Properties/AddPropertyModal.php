@@ -35,6 +35,9 @@ class AddPropertyModal extends Component
     #[Validate('required|string')]
     public $description = '';
 
+    /** Deposit interest rate (annual %, based on owner's depository bank savings rate) */
+    public $depositInterestRate = '';
+
     /** File uploads */
     public $propertyPhotos = [];
     public $newPhotos = [];
@@ -154,6 +157,7 @@ class AddPropertyModal extends Component
             $this->buildingName = $property->building_name;
             $this->address = $property->address;
             $this->description = $property->prop_description;
+            $this->depositInterestRate = $property->getContractSetting('deposit_interest_rate', '');
 
             $this->existingPhotos = $property->documents
                 ->where('category', 'property_photo')
@@ -249,10 +253,18 @@ class AddPropertyModal extends Component
             if ($this->editingPropertyId) {
                 $property = Property::find($this->editingPropertyId);
                 if ($property) {
+                    $updatedSettings = $property->contract_settings ?? [];
+                    if (is_numeric($this->depositInterestRate) && (float) $this->depositInterestRate > 0) {
+                        $updatedSettings['deposit_interest_rate'] = (float) $this->depositInterestRate;
+                    } else {
+                        unset($updatedSettings['deposit_interest_rate']);
+                    }
+
                     $property->update([
                         'building_name' => $this->buildingName,
                         'address' => $this->address,
                         'prop_description' => $this->description,
+                        'contract_settings' => !empty($updatedSettings) ? $updatedSettings : null,
                     ]);
 
                     // Remove documents marked for deletion
@@ -272,11 +284,17 @@ class AddPropertyModal extends Component
                     );
                 }
             } else {
+                $contractSettings = [];
+                if (is_numeric($this->depositInterestRate) && (float) $this->depositInterestRate > 0) {
+                    $contractSettings['deposit_interest_rate'] = (float) $this->depositInterestRate;
+                }
+
                 $property = Property::create([
                     'owner_id' => Auth::id(),
                     'building_name' => $this->buildingName,
                     'address' => $this->address,
                     'prop_description' => $this->description,
+                    'contract_settings' => !empty($contractSettings) ? $contractSettings : null,
                 ]);
 
                 $this->storeFiles($property);
@@ -360,6 +378,7 @@ class AddPropertyModal extends Component
             'buildingName',
             'address',
             'description',
+            'depositInterestRate',
             'editingPropertyId',
             'propertyPhotos',
             'newPhotos',

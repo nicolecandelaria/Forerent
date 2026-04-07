@@ -7,6 +7,7 @@ use App\Livewire\Concerns\WithContractData;
 use App\Livewire\Concerns\WithESignature;
 use App\Models\ContractAuditLog;
 use App\Models\Lease;
+use App\Models\MoveOutInspection;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -159,6 +160,42 @@ class LandlordContractViewer extends Component
 
     public function openMoveOutSignatureModal(): void
     {
+        // Refresh outstanding balances to ensure real-time accuracy before signing
+        $lease = Lease::find($this->leaseId);
+        if ($lease) {
+            $this->contractData['outstanding_balances'] = $this->buildOutstandingBalances($lease);
+            $this->contractData['deposit_refund'] = [
+                'amount' => $lease->deposit_refund_amount,
+                'deductions' => $lease->deposit_deductions,
+                'interest_earned' => $lease->deposit_interest_amount,
+            ];
+        }
+
+        // Block signing if there are TBD (unconfirmed) repair/replacement costs
+        $hasTBD = MoveOutInspection::where('lease_id', $this->leaseId)
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->where('type', 'checklist')
+                       ->whereIn('condition', ['damaged', 'missing'])
+                       ->where(function ($q3) {
+                           $q3->whereNull('repair_cost')->orWhere('repair_cost', 0);
+                       });
+                })
+                ->orWhere(function ($q2) {
+                    $q2->where('type', 'item_returned')
+                       ->where('is_returned', false)
+                       ->where(function ($q3) {
+                           $q3->whereNull('replacement_cost')->orWhere('replacement_cost', 0);
+                       });
+                });
+            })
+            ->exists();
+
+        if ($hasTBD) {
+            $this->dispatch('notify', type: 'error', title: 'Cannot Sign Yet', description: 'All repair and replacement costs must be confirmed before signing. No TBD values allowed.');
+            return;
+        }
+
         $this->showMoveOutSignatureModal = true;
     }
 
