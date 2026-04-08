@@ -64,10 +64,16 @@ Route::get('/', function (Request $request) {
 })->name('landing');
 
 Route::get('/privacy-policy', function () {
+    if (session()->has('terms_pending_user_id')) {
+        session(['terms_has_read_privacy' => true]);
+    }
     return view('users.privacy-policy');
 })->name('privacy-policy');
 
 Route::get('/terms-of-service', function () {
+    if (session()->has('terms_pending_user_id')) {
+        session(['terms_has_read_terms' => true]);
+    }
     return view('users.terms-of-service');
 })->name('terms-of-service');
 

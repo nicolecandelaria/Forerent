@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class UserSeeder extends Seeder
 {
@@ -17,10 +18,21 @@ class UserSeeder extends Seeder
     {
         $this->hashedPassword = Hash::make('password');
 
-        $this->seedNamedUsers();
-        $this->seedBulkUsers();
-    }
+        // Ensure government-ids directory exists and generate placeholder images
+        Storage::disk('public')->makeDirectory('government-ids');
+        $this->generatePlaceholderIds();
 
+        User::factory()->create([
+            'first_name' => 'Tricia',
+            'last_name' => 'Tenant',
+            'email' => 'tenant@example.com',
+            'role' => 'tenant',
+            'password' => Hash::make('password'),
+            'government_id_type' => 'National ID',
+            'government_id_number' => 'PSN-20241234567',
+            'government_id_image' => 'government-ids/sample-id-tricia.jpg',
+        ]);
+    }
     private function seedNamedUsers(): void
     {
         $namedUsers = [
@@ -110,6 +122,37 @@ class UserSeeder extends Seeder
                     'government_id_number'  => $idNumber,
                     'government_id_image'   => $idImage,
                 ]);
+            }
+        }
+    }
+
+    /**
+     * Generate placeholder government ID images for seeded users.
+     */
+    private function generatePlaceholderIds(): void
+    {
+        $names = [
+            'tricia', 'tanya', 'marcus', 'mia', 'liam',
+        ];
+
+        foreach ($names as $name) {
+            $path = 'government-ids/sample-id-' . $name . '.jpg';
+
+            if (!Storage::disk('public')->exists($path)) {
+                // Create a simple placeholder image
+                $img = imagecreatetruecolor(400, 250);
+                $bg = imagecolorallocate($img, 240, 240, 240);
+                $textColor = imagecolorallocate($img, 80, 80, 80);
+                imagefilledrectangle($img, 0, 0, 399, 249, $bg);
+                imagestring($img, 5, 120, 100, 'Government ID', $textColor);
+                imagestring($img, 4, 140, 130, ucfirst($name), $textColor);
+
+                ob_start();
+                imagejpeg($img, null, 90);
+                $imageData = ob_get_clean();
+                imagedestroy($img);
+
+                Storage::disk('public')->put($path, $imageData);
             }
         }
     }

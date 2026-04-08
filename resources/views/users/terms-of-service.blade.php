@@ -22,13 +22,13 @@
                 <a href="/" class="flex items-center no-underline">
                     <img src="/images/white_logo.svg" alt="ForeRent Logo" class="h-11 w-auto">
                 </a>
-                <a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 border border-white/20
+                <a href="{{ session()->has('terms_pending_user_id') ? route('login') : '/' }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 border border-white/20
                            text-white text-[0.85rem] font-semibold no-underline
                            hover:bg-white/20 transition-all duration-200">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                     </svg>
-                    Back to Home
+                    {{ session()->has('terms_pending_user_id') ? 'Back to Login' : 'Back to Home' }}
                 </a>
             </nav>
             <div class="pt-12 pb-20">

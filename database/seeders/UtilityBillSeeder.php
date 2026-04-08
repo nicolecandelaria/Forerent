@@ -138,4 +138,55 @@ class UtilityBillSeeder extends Seeder
 
         $this->command->info('✅ Utility bills seeded successfully!');
     }
+
+    /**
+     * Add a utility billing item to each tenant's monthly billing.
+     * Mirrors the logic in UtilityBillEntry::save().
+     */
+    private function addUtilityToTenantBillings($leases, Carbon $period, string $utilityType, float $totalAmount, float $perTenantAmount, int $tenantCount): void
+    {
+        $chargeType = $utilityType === 'electricity' ? 'electricity_share' : 'water_share';
+        $description = $utilityType === 'electricity'
+            ? "Electricity Share (Meralco ₱" . number_format($totalAmount, 2) . " ÷ {$tenantCount} tenants)"
+            : "Water Share (₱" . number_format($totalAmount, 2) . " ÷ {$tenantCount} tenants)";
+
+        foreach ($leases as $lease) {
+            $billing = Billing::where('lease_id', $lease->lease_id)
+                ->where('billing_type', 'monthly')
+                ->whereMonth('billing_date', $period->month)
+                ->whereYear('billing_date', $period->year)
+                ->first();
+
+            if (!$billing) continue;
+
+            // Check if utility item already exists for this billing (e.g. from BillingSeeder)
+            $existing = BillingItem::where('billing_id', $billing->billing_id)
+                ->where('charge_type', $chargeType)
+                ->first();
+
+            if ($existing) {
+                $oldAmount = $existing->amount;
+                $existing->update([
+                    'amount'      => $perTenantAmount,
+                    'description' => $description,
+                ]);
+                $billing->update([
+                    'to_pay' => $billing->to_pay - $oldAmount + $perTenantAmount,
+                    'amount' => $billing->amount - $oldAmount + $perTenantAmount,
+                ]);
+            } else {
+                BillingItem::create([
+                    'billing_id'      => $billing->billing_id,
+                    'charge_category' => 'recurring',
+                    'charge_type'     => $chargeType,
+                    'description'     => $description,
+                    'amount'          => $perTenantAmount,
+                ]);
+                $billing->update([
+                    'to_pay' => $billing->to_pay + $perTenantAmount,
+                    'amount' => $billing->amount + $perTenantAmount,
+                ]);
+            }
+        }
+    }
 }

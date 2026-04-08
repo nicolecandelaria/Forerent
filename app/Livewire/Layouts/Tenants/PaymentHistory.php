@@ -78,7 +78,7 @@ class PaymentHistory extends Component
         if ($billing) {
             $this->amountDue = $billing->to_pay;
             $this->dueDate = $billing->due_date;
-            $this->daysUntilDue = $billing->due_date ? Carbon::parse($billing->due_date)->diffInDays(now(), false) * -1 : 0;
+            $this->daysUntilDue = $billing->due_date ? (int) (Carbon::parse($billing->due_date)->diffInDays(now(), false) * -1) : 0;
             $this->paymentStatus = $billing->status;
         } else {
             $paidBilling = Billing::where('lease_id', $lease->lease_id)

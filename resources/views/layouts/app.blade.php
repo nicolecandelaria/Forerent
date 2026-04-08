@@ -61,7 +61,7 @@
     {{-- Floating Chat Widget (hidden on message pages) --}}
     @auth
         @if(!request()->routeIs('landlord.messages') && !request()->routeIs('manager.messages') && !request()->routeIs('tenant.messages'))
-            <div style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9990;">
+            <div style="position: fixed; bottom: 1rem; right: 1rem; z-index: 9990;" class="sm:bottom-6 sm:right-6">
                 <livewire:layouts.message.floating-chat />
             </div>
         @endif

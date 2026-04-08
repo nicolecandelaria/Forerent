@@ -21,7 +21,7 @@
 
         {{-- Filters Slot --}}
         @if($filters)
-            <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto justify-end">
+            <div class="flex flex-row gap-2 sm:gap-3 w-full lg:w-auto justify-end">
                 {{ $filters }}
             </div>
         @endif

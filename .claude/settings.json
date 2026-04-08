@@ -143,10 +143,12 @@
       "Bash(find /e/reigne/Citispace-Forerent/app/Livewire -name \"*.php\" -exec grep -l \"validate\\\\|rules\" {} \\\\;)",
       "Bash(xargs wc:*)",
       "Bash(find /e/reigne/Citispace-Forerent/app/Models -type f -name \"BillingItem.php\" -exec cat {} \\\\;)",
-      "Bash(find /e/reigne/Citispace-Forerent/tests -type f -name \"*.php\" -exec wc -l {} +)"
+      "Bash(find /e/reigne/Citispace-Forerent/tests -type f -name \"*.php\" -exec wc -l {} +)",
+      "Bash(find /e/reigne/Citispace-Forerent/routes -type f -name \"*.php\" -exec grep -l \"contract\\\\|pdf\" {} \\\\;)"
     ],
     "additionalDirectories": [
-      "\\tmp"
+      "\\tmp",
+      "e:\\reigne\\Citispace-Forerent\\storage\\framework\\views"
     ]
   }
 }

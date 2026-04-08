@@ -1,29 +1,37 @@
 <div class="font-sans">
+    <style>
+        @media (max-width: 767px) {
+            .tenant-payment-desktop-table { display: none !important; }
+        }
+        @media (min-width: 768px) {
+            .tenant-payment-mobile-cards { display: none !important; }
+        }
+    </style>
 
     {{-- PAYMENT BANNER --}}
     @if($paymentStatus !== 'No Billing')
-        <div class="mb-6 rounded-2xl overflow-hidden">
+        <div class="mb-4 sm:mb-6 rounded-2xl overflow-hidden">
             @include('partials.tenant-payment-banner')
         </div>
     @endif
 
     {{-- REJECTED PAYMENT REQUESTS --}}
     @if(count($rejectedPaymentRequests) > 0)
-        <div class="mb-6 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div class="px-5 py-4 border-b border-gray-50 flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        <div class="mb-4 sm:mb-6 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-50 flex items-center gap-2">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                 </div>
-                <h3 class="text-sm font-bold text-gray-900">Rejected Payments — Resubmit Required</h3>
+                <h3 class="text-xs sm:text-sm font-bold text-gray-900">Rejected Payments — Resubmit Required</h3>
             </div>
-            <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div class="px-3 sm:px-5 py-3 sm:py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 @foreach($rejectedPaymentRequests as $pr)
-                    <div class="p-3.5 rounded-xl bg-red-50/80 border border-red-100">
+                    <div class="p-3 sm:p-3.5 rounded-xl bg-red-50/80 border border-red-100">
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-xs font-bold text-gray-900">{{ $pr['billing'] ? \Carbon\Carbon::parse($pr['billing']['billing_date'])->format('F Y') : 'N/A' }}</p>
-                            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Rejected</span>
+                            <span class="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Rejected</span>
                         </div>
-                        <p class="text-lg font-extrabold text-gray-900">&#8369;{{ number_format($pr['amount_paid'], 2) }}</p>
+                        <p class="text-base sm:text-lg font-extrabold text-gray-900">&#8369;{{ number_format($pr['amount_paid'], 2) }}</p>
                         @if($pr['reject_reason'])
                             <p class="text-xs font-medium text-red-500 mt-1.5">{{ $pr['reject_reason'] }}</p>
                         @endif
@@ -35,8 +43,8 @@
     @endif
 
     {{-- TITLE LABEL --}}
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-[#070642]">Payment Receipts</h2>
+    <div class="mb-4 sm:mb-6">
+        <h2 class="text-xl sm:text-2xl font-bold text-[#070642]">Payment Receipts</h2>
     </div>
 
     <x-ui.card-with-tabs
@@ -59,8 +67,8 @@
             <x-ui.sort-dropdown model="sortOrder" :current="$sortOrder" />
         </x-slot:filters>
 
-        {{-- TABLE --}}
-        <x-ui.table>
+        {{-- DESKTOP TABLE --}}
+        <x-ui.table wrapperClass="tenant-payment-desktop-table">
             <x-slot:head>
                 <x-ui.th>Reference Number</x-ui.th>
                 <x-ui.th>Category</x-ui.th>
@@ -103,6 +111,45 @@
             </x-slot:body>
         </x-ui.table>
 
+        {{-- MOBILE CARDS --}}
+        <div class="tenant-payment-mobile-cards space-y-3">
+            @forelse ($payments as $payment)
+                <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-blue-900 truncate">{{ $payment->reference_number ?? '—' }}</p>
+                            <p class="text-[11px] text-gray-500 mt-0.5">{{ $payment->category ?? 'Rent Payment' }}</p>
+                        </div>
+                        <p class="text-sm font-extrabold text-blue-900 ml-3">₱ {{ number_format($payment->to_pay, 2) }}</p>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 text-[11px] text-gray-500">
+                            <div>
+                                <span class="font-semibold text-gray-600">Billed:</span>
+                                {{ \Carbon\Carbon::parse($payment->billing_date)->format('M d, Y') }}
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-600">Paid:</span>
+                                @if($payment->transaction_date)
+                                    {{ \Carbon\Carbon::parse($payment->transaction_date)->format('M d, Y') }}
+                                @else
+                                    —
+                                @endif
+                            </div>
+                        </div>
+                        <button
+                            wire:click="viewReceipt({{ $payment->billing_id }})"
+                            class="px-3 py-1 rounded-md border border-[#0906ae] text-[#0906ae] text-[10px] font-bold uppercase tracking-wide hover:bg-blue-50 transition-colors flex-shrink-0"
+                        >
+                            View
+                        </button>
+                    </div>
+                </div>
+            @empty
+                <div class="text-center py-12 text-gray-500 text-sm">No records found.</div>
+            @endforelse
+        </div>
+
         <x-slot:footer>
             {{ $payments->onEachSide(1)->links('livewire.layouts.components.paginate-blue') }}
         </x-slot:footer>
@@ -114,15 +161,15 @@
     {{-- PAY NOW MODAL                                              --}}
     {{-- ═══════════════════════════════════════════════════════════ --}}
     @if($showPaymentModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" x-data>
-            <div class="relative w-full max-w-3xl bg-gray-50 rounded-2xl shadow-xl overflow-hidden max-h-[95vh] flex flex-col">
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-gray-900/50 backdrop-blur-sm" x-data>
+            <div class="relative w-full sm:max-w-3xl bg-gray-50 rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[95vh] sm:max-h-[95vh] flex flex-col">
 
                 {{-- Header --}}
-                <div class="bg-[#070589] text-white p-6 flex-shrink-0">
+                <div class="bg-[#070589] text-white p-4 sm:p-6 flex-shrink-0">
                     <div class="flex items-start justify-between">
                         <div>
-                            <h2 class="text-xl font-bold uppercase">PAY NOW</h2>
-                            <p class="mt-1 text-sm text-blue-100">Submit your payment for verification</p>
+                            <h2 class="text-lg sm:text-xl font-bold uppercase">PAY NOW</h2>
+                            <p class="mt-0.5 sm:mt-1 text-xs sm:text-sm text-blue-100">Submit your payment for verification</p>
                         </div>
                         <flux:tooltip :content="'Close payment details'" position="bottom">
                             <button type="button" x-on:click="$dispatch('open-modal', 'cancel-payment-modal')" class="text-white hover:text-blue-200 transition-colors focus:outline-none">
@@ -135,13 +182,13 @@
 
                     {{-- Stepper --}}
                     @if($paymentStep < 4)
-                        <div class="mt-5">
+                        <div class="mt-4 sm:mt-5">
                             <div class="flex items-center justify-between">
                                 @php
                                     $paySteps = [
-                                        ['num' => 1, 'title' => 'Select Billing'],
-                                        ['num' => 2, 'title' => 'Payment Method'],
-                                        ['num' => 3, 'title' => 'Submit Proof'],
+                                        ['num' => 1, 'title' => 'Billing'],
+                                        ['num' => 2, 'title' => 'Method'],
+                                        ['num' => 3, 'title' => 'Proof'],
                                     ];
                                 @endphp
                                 @foreach($paySteps as $i => $step)
@@ -149,23 +196,23 @@
                                         <button type="button"
                                             wire:click="{{ $step['num'] < $paymentStep ? 'goToPaymentStep(' . $step['num'] . ')' : '' }}"
                                             class="flex flex-col items-center group {{ $paymentStep > $step['num'] ? 'cursor-pointer' : 'cursor-default' }}">
-                                            <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-200
+                                            <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold border-2 transition-all duration-200
                                                 {{ $paymentStep === $step['num'] ? 'bg-white text-[#070589] border-white shadow-lg shadow-white/20' : '' }}
                                                 {{ $paymentStep > $step['num'] ? 'bg-white/20 text-white border-white/40' : '' }}
                                                 {{ $paymentStep < $step['num'] ? 'bg-transparent text-blue-200 border-blue-300/30' : '' }}">
                                                 @if($paymentStep > $step['num'])
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                                                 @else
                                                     {{ $step['num'] }}
                                                 @endif
                                             </div>
-                                            <span class="text-xs font-semibold mt-1.5 tracking-wide transition-all duration-200
+                                            <span class="text-[10px] sm:text-xs font-semibold mt-1 sm:mt-1.5 tracking-wide transition-all duration-200
                                                 {{ $paymentStep === $step['num'] ? 'text-white' : '' }}
                                                 {{ $paymentStep > $step['num'] ? 'text-blue-200' : '' }}
                                                 {{ $paymentStep < $step['num'] ? 'text-blue-300/50' : '' }}">{{ $step['title'] }}</span>
                                         </button>
                                         @if($i < count($paySteps) - 1)
-                                            <div class="flex-1 mx-2 mt-[-14px]">
+                                            <div class="flex-1 mx-1.5 sm:mx-2 mt-[-14px]">
                                                 <div class="h-0.5 rounded-full bg-blue-300/20 relative overflow-hidden">
                                                     <div class="absolute inset-y-0 left-0 bg-white/60 rounded-full transition-all duration-300 ease-out"
                                                         style="width: {{ $paymentStep > $step['num'] ? '100%' : '0%' }}"></div>
@@ -181,7 +228,7 @@
 
                 {{-- Scrollable Content --}}
                 <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 mx-6 my-6 p-8">
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 mx-3 sm:mx-6 my-4 sm:my-6 p-4 sm:p-8">
 
                         {{-- STEP 1: Select Billing --}}
                         @if($paymentStep === 1)
@@ -225,19 +272,19 @@
                             <p class="text-sm text-gray-500 mb-5">Select how you will pay and follow the instructions.</p>
 
                             @if($selectedBilling)
-                                <div class="p-4 rounded-xl bg-[#F4F7FC] border border-gray-200 mb-5">
-                                    <div class="grid grid-cols-3 gap-4">
+                                <div class="p-3 sm:p-4 rounded-xl bg-[#F4F7FC] border border-gray-200 mb-5">
+                                    <div class="grid grid-cols-3 gap-2 sm:gap-4">
                                         <div>
-                                            <p class="text-xs text-gray-500">Billing Period</p>
-                                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ \Carbon\Carbon::parse($selectedBilling['billing_date'])->format('F Y') }}</p>
+                                            <p class="text-[10px] sm:text-xs text-gray-500">Billing Period</p>
+                                            <p class="text-xs sm:text-sm font-bold text-gray-900 mt-0.5">{{ \Carbon\Carbon::parse($selectedBilling['billing_date'])->format('F Y') }}</p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500">Amount Due</p>
-                                            <p class="text-sm font-bold text-gray-900 mt-0.5">&#8369;{{ number_format($selectedBilling['to_pay'], 2) }}</p>
+                                            <p class="text-[10px] sm:text-xs text-gray-500">Amount Due</p>
+                                            <p class="text-xs sm:text-sm font-bold text-gray-900 mt-0.5">&#8369;{{ number_format($selectedBilling['to_pay'], 2) }}</p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500">Due Date</p>
-                                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $selectedBilling['due_date'] ? \Carbon\Carbon::parse($selectedBilling['due_date'])->format('M d, Y') : 'N/A' }}</p>
+                                            <p class="text-[10px] sm:text-xs text-gray-500">Due Date</p>
+                                            <p class="text-xs sm:text-sm font-bold text-gray-900 mt-0.5">{{ $selectedBilling['due_date'] ? \Carbon\Carbon::parse($selectedBilling['due_date'])->format('M d, Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -311,19 +358,19 @@
                                 </div>
                             @endif
 
-                            <div class="p-4 rounded-xl bg-[#F4F7FC] border border-gray-200 mb-6">
-                                <div class="grid grid-cols-3 gap-4">
+                            <div class="p-3 sm:p-4 rounded-xl bg-[#F4F7FC] border border-gray-200 mb-4 sm:mb-6">
+                                <div class="grid grid-cols-3 gap-2 sm:gap-4">
                                     <div>
-                                        <p class="text-xs text-gray-500">Billing</p>
-                                        <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $selectedBilling ? \Carbon\Carbon::parse($selectedBilling['billing_date'])->format('F Y') : '' }}</p>
+                                        <p class="text-[10px] sm:text-xs text-gray-500">Billing</p>
+                                        <p class="text-xs sm:text-sm font-bold text-gray-900 mt-0.5">{{ $selectedBilling ? \Carbon\Carbon::parse($selectedBilling['billing_date'])->format('F Y') : '' }}</p>
                                     </div>
                                     <div>
-                                        <p class="text-xs text-gray-500">Method</p>
-                                        <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $selectedPaymentMethod }}</p>
+                                        <p class="text-[10px] sm:text-xs text-gray-500">Method</p>
+                                        <p class="text-xs sm:text-sm font-bold text-gray-900 mt-0.5">{{ $selectedPaymentMethod }}</p>
                                     </div>
                                     <div>
-                                        <p class="text-xs text-gray-500">Send to</p>
-                                        <p class="text-sm font-bold text-[#2360E8] mt-0.5">{{ $paymentOwnerInfo['owner_name'] ?? '' }}</p>
+                                        <p class="text-[10px] sm:text-xs text-gray-500">Send to</p>
+                                        <p class="text-xs sm:text-sm font-bold text-[#2360E8] mt-0.5">{{ $paymentOwnerInfo['owner_name'] ?? '' }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -342,7 +389,7 @@
                                     @error('selectedPaymentCategoryId') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="text-xs font-semibold text-gray-700">Reference Number</label>
                                         <input type="text" wire:model="paymentReferenceNumber"
@@ -414,30 +461,30 @@
                 </div>
 
                 {{-- Footer --}}
-                <div class="p-6 bg-white border-t border-gray-200 flex justify-between flex-shrink-0">
+                <div class="p-3 sm:p-6 bg-white border-t border-gray-200 flex justify-between flex-shrink-0">
                     @if($paymentStep === 1)
                         <div></div>
                         <p class="text-xs text-gray-400 self-center">Select a billing to continue</p>
                     @elseif($paymentStep === 2)
                         <button type="button" wire:click="goToPaymentStep(1)"
-                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-8 rounded-xl text-sm transition-colors">
+                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 sm:py-3 px-5 sm:px-8 rounded-xl text-xs sm:text-sm transition-colors">
                             Back
                         </button>
                         @if($selectedPaymentMethod)
                             <button type="button" wire:click="confirmPaymentMethod"
-                                class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-3 px-10 rounded-xl text-sm transition-colors shadow-lg">
+                                class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 sm:py-3 px-6 sm:px-10 rounded-xl text-xs sm:text-sm transition-colors shadow-lg">
                                 Continue
                             </button>
                         @else
-                            <p class="text-xs text-gray-400 self-center">Select a payment method to continue</p>
+                            <p class="text-xs text-gray-400 self-center">Select a method to continue</p>
                         @endif
                     @elseif($paymentStep === 3)
                         <button type="button" wire:click="goToPaymentStep(2)"
-                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-8 rounded-xl text-sm transition-colors">
+                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 sm:py-3 px-5 sm:px-8 rounded-xl text-xs sm:text-sm transition-colors">
                             Back
                         </button>
                         <button type="button" wire:click="submitPaymentRequest"
-                            class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-3 px-10 rounded-xl text-sm transition-colors shadow-lg"
+                            class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 sm:py-3 px-6 sm:px-10 rounded-xl text-xs sm:text-sm transition-colors shadow-lg"
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-50 cursor-wait">
                             <span wire:loading.remove wire:target="submitPaymentRequest">Submit Payment</span>
@@ -446,7 +493,7 @@
                     @elseif($paymentStep === 4)
                         <div></div>
                         <button type="button" wire:click="closePaymentModal"
-                            class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-3 px-10 rounded-xl text-sm transition-colors shadow-lg">
+                            class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 sm:py-3 px-6 sm:px-10 rounded-xl text-xs sm:text-sm transition-colors shadow-lg">
                             Done
                         </button>
                     @endif

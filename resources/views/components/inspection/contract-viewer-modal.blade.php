@@ -7,13 +7,14 @@
     'contractAgreed' => false,
     'statusText' => '',
     'wireDownloadMethod' => null,
+    'needsSignature' => false,
 ])
 
 @if($show)
     @php
         $modalName = 'leave-confirm-' . $contractId;
-        // If fully signed OR no signatures at all → close directly. Only warn when partially signed.
-        $canCloseDirectly = $contractAgreed || !$hasSignatures;
+        // Only warn if the current user still needs to sign. Otherwise close directly.
+        $canCloseDirectly = $contractAgreed || !$hasSignatures || !$needsSignature;
         $closeAction = $canCloseDirectly
             ? "\$el.closest('.fixed').style.display='none'; \$wire.{$wireCloseMethod}()"
             : "\$dispatch('open-modal', '{$modalName}')";
@@ -41,6 +42,16 @@
                     </svg>
                 </button>
             </div>
+
+            {{-- Signing Reminder Banner --}}
+            @if($needsSignature && !$contractAgreed)
+                <div class="flex-shrink-0 px-4 sm:px-6 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-xs sm:text-sm text-blue-700 font-medium">Please read the contract carefully and sign at the bottom of the document.</p>
+                </div>
+            @endif
 
             {{-- Contract Body (Scrollable) --}}
             <div class="flex-1 overflow-y-auto p-4 sm:p-8 space-y-4 sm:space-y-6 text-sm text-gray-800" id="{{ $contractId }}" style="font-family: 'Open Sans', sans-serif;">

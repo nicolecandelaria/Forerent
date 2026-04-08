@@ -305,7 +305,7 @@ class LandlordContractViewer extends Component
 
         $pdf = Pdf::loadView('pdf.move-in-contract', $data)
             ->setPaper('a4')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', false);
 
         // Cache the generated PDF for future downloads
         $cachePath = 'contracts/move-in-' . $lease->id . '.pdf';
@@ -361,7 +361,7 @@ class LandlordContractViewer extends Component
 
         $pdf = Pdf::loadView('pdf.move-out-contract', $data)
             ->setPaper('a4')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', false);
 
         // Cache the generated PDF for future downloads
         $cachePath = 'contracts/move-out-' . $lease->id . '.pdf';
