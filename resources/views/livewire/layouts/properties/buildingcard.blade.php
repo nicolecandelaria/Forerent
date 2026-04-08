@@ -3,10 +3,24 @@
      @mouseleave="hovered = false"
      class="bg-white rounded-lg shadow-md overflow-hidden shrink-0 w-64 transition-all cursor-pointer hover:shadow-xl selected-building:bg-[#2360E8]">
 
+    @php
+        $thumbnailSrc = asset('office-building.png');
+
+        if (!empty($property->thumbnail)) {
+            $thumb = (string) $property->thumbnail;
+
+            if (\Illuminate\Support\Str::startsWith($thumb, ['http://', 'https://', '//', 'data:', '/'])) {
+                $thumbnailSrc = $thumb;
+            } else {
+                $thumbnailSrc = asset('storage/' . ltrim($thumb, '/'));
+            }
+        }
+    @endphp
+
     {{-- Image Container --}}
     <div class="relative h-48 overflow-hidden flex items-center justify-center bg-gray-100">
         <img
-            src="{{ $property->thumbnail ? asset('storage/' . $property->thumbnail) : asset('office-building.png') }}"
+            src="{{ $thumbnailSrc }}"
             alt="{{ $property->building_name }}"
             class="{{ $property->thumbnail ? 'w-full h-full object-cover' : 'max-h-full max-w-full object-contain' }} transition-transform hover:scale-110 duration-300">
 

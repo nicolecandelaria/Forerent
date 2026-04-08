@@ -1,38 +1,6 @@
 <div class="bg-white rounded-lg shadow-md p-6" wire:init="loadForecast">
-    <div class="flex justify-between items-center mb-6">
+    <div class="mb-6">
         <h2 class="text-2xl font-bold text-[#070642]">Revenue Forecast</h2>
-
-        <!-- Year Dropdown -->
-        <div x-data="{ open: false }" @click.away="open = false" @keydown.escape.stop="open = false" class="relative">
-            <button
-                @click="open = !open"
-                type="button"
-                class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-[#070642] shadow-sm hover:border-gray-300 transition-all focus:outline-none focus:ring-0"
-            >
-                <span>{{ $forecastYear }}</span>
-                <svg :class="{ 'rotate-180': open }" class="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-
-            <div
-                x-show="open"
-                x-transition.origin.top.right
-                style="display: none;"
-                class="absolute right-0 z-30 w-40 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"
-            >
-                @foreach(range(now()->year, now()->year + 2) as $year)
-                    <button
-                        type="button"
-                        wire:click="updateYear({{ $year }})"
-                        @click="open = false"
-                        class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors {{ $forecastYear == $year ? 'text-[#070642] font-semibold bg-gray-50' : 'text-gray-600' }}"
-                    >
-                        {{ $year }}
-                    </button>
-                @endforeach
-            </div>
-        </div>
     </div>
 
     @if($error)

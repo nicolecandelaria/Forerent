@@ -5,19 +5,24 @@ namespace Database\Seeders;
 use App\Models\Property;
 use App\Models\PropertyDocument;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class PropertyDocumentSeeder extends Seeder
 {
+    private const PHOTO_DIRECTORY = 'property_photos';
+    private const DOCUMENT_DIRECTORY = 'property_documents';
+
     private const PHOTO_SETS = [
         'set-a' => [
-            'property-a.jpg',
+            'property-a.png',
         ],
         'set-b' => [
-            'property-b.jpg',
-            'property-b-1.jpg',
+            'property-b.png',
+            'property-b-1.png',
         ],
         'set-c' => [
-            'property-c.jpg',
+            'property-c.png',
         ],
     ];
 
@@ -48,6 +53,7 @@ class PropertyDocumentSeeder extends Seeder
     public function run(): void
     {
         $properties = Property::all();
+        $fallbackPhoto = public_path('office-building.png');
 
         if ($properties->isEmpty()) {
             $this->command->error('No properties found. Run PropertySeeder first.');
@@ -65,10 +71,12 @@ class PropertyDocumentSeeder extends Seeder
 
             // --- Photos ---
             foreach (self::PHOTO_SETS[$photoSetKey] as $filename) {
+                $storedPath = $this->seedPhotoFile($property->property_id, $filename, $fallbackPhoto);
+
                 $documents[] = [
                     'property_id'   => $property->property_id,
                     'category'      => 'property_photo',
-                    'file_path'     => "property-photos/{$filename}", // <-- fixed
+                    'file_path'     => $storedPath,
                     'original_name' => $filename,
                     'visibility'    => 'all',
                     'created_at'    => now(),
@@ -78,10 +86,12 @@ class PropertyDocumentSeeder extends Seeder
 
             // --- Documents ---
             foreach (self::DOCUMENT_SETS[$documentSetKey] as $category => [$originalName, $visibility]) {
+                $storedPath = $this->seedDocumentFile($property->property_id, $category, $originalName);
+
                 $documents[] = [
                     'property_id'   => $property->property_id,
                     'category'      => $category,
-                    'file_path'     => "property-documents/{$originalName}", // <-- fixed
+                    'file_path'     => $storedPath,
                     'original_name' => $originalName,
                     'visibility'    => $visibility,
                     'created_at'    => now(),
@@ -95,5 +105,74 @@ class PropertyDocumentSeeder extends Seeder
         }
 
         $this->command->info('✅ Property documents seeded successfully!');
+    }
+
+    private function seedPhotoFile(int $propertyId, string $filename, string $fallbackPhoto): string
+    {
+        $base = pathinfo($filename, PATHINFO_FILENAME);
+        $path = self::PHOTO_DIRECTORY . '/' . $propertyId . '-' . $base . '.png';
+
+        if (!Storage::disk('public')->exists($path)) {
+            if (File::exists($fallbackPhoto)) {
+                Storage::disk('public')->put($path, File::get($fallbackPhoto));
+            } else {
+                Storage::disk('public')->put($path, '');
+            }
+        }
+
+        return $path;
+    }
+
+    private function seedDocumentFile(int $propertyId, string $category, string $originalName): string
+    {
+        $safeCategory = str_replace('_', '-', $category);
+        $path = self::DOCUMENT_DIRECTORY . '/' . $propertyId . '-' . $safeCategory . '.pdf';
+
+        if (!Storage::disk('public')->exists($path)) {
+            $pdfText = 'Seeded document: ' . $originalName;
+            Storage::disk('public')->put($path, $this->buildSimplePdf($pdfText));
+        }
+
+        return $path;
+    }
+
+    private function buildSimplePdf(string $text): string
+    {
+        $escapedText = str_replace(
+            ['\\', '(', ')', "\r", "\n"],
+            ['\\\\', '\\(', '\\)', ' ', ' '],
+            $text
+        );
+
+        $stream = "BT\n/F1 16 Tf\n72 720 Td\n({$escapedText}) Tj\nET";
+
+        $objects = [
+            "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+            "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+            "4 0 obj\n<< /Length " . strlen($stream) . " >>\nstream\n{$stream}\nendstream\nendobj\n",
+            "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+        ];
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [];
+
+        foreach ($objects as $object) {
+            $offsets[] = strlen($pdf);
+            $pdf .= $object;
+        }
+
+        $xrefOffset = strlen($pdf);
+        $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
+        $pdf .= "0000000000 65535 f \n";
+
+        foreach ($offsets as $offset) {
+            $pdf .= sprintf("%010d 00000 n \n", $offset);
+        }
+
+        $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\n";
+        $pdf .= "startxref\n{$xrefOffset}\n%%EOF";
+
+        return $pdf;
     }
 }
