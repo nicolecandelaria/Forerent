@@ -47,7 +47,7 @@ fi
 
 # php artisan migrate --force
 # Run database migration and seeding asynchronously
-php artisan migrate:fresh --seed > /var/www/storage/logs/migrate-seed.log 2>&1 &
+php artisan migrate:fresh --seed &
 
 php artisan config:cache
 php artisan storage:link
