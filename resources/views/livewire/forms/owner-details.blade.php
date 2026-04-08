@@ -23,6 +23,7 @@
         class="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-6 md:p-8"
         wire:submit.prevent="save"
         x-data="{ editing: false }"
+        x-on:profile-updated.window="editing = false"
     >
 
         @if (session('success'))
@@ -235,14 +236,14 @@
 
         {{-- ID Photo display --}}
         @if ($governmentIdImage)
-            <div class="relative inline-block w-full max-w-md">
+            <div class="relative inline-block w-full max-w-md overflow-visible">
                 <img src="{{ $governmentIdImage->temporaryUrl() }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
-                <button type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
+                <button type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
             </div>
         @elseif ($this->existingGovernmentIdImageUrl)
-            <div class="relative inline-block w-full max-w-md">
+            <div class="relative inline-block w-full max-w-md overflow-visible">
                 <img src="{{ $this->existingGovernmentIdImageUrl }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
-                <button x-show="editing" x-cloak type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
+                <button x-show="editing" x-cloak type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
             </div>
         @endif
 
@@ -253,7 +254,7 @@
                 type="file"
                 wire:model="governmentIdImage"
                 accept="image/*"
-                class="block w-full max-w-md text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2360E8] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#070589] file:cursor-pointer"
+                class="block w-full max-w-md text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2360E8] file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-[#070589] file:cursor-pointer py-1"
             >
             <div wire:loading wire:target="governmentIdImage" class="mt-2 flex items-center gap-2 text-sm text-[#2360E8]">
                 <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
