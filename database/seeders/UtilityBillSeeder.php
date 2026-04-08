@@ -129,18 +129,34 @@ class UtilityBillSeeder extends Seeder
 
             if (!$billing) continue;
 
-            BillingItem::create([
-                'billing_id'      => $billing->billing_id,
-                'charge_category' => 'recurring',
-                'charge_type'     => $chargeType,
-                'description'     => $description,
-                'amount'          => $perTenantAmount,
-            ]);
+            // Check if utility item already exists for this billing (e.g. from BillingSeeder)
+            $existing = BillingItem::where('billing_id', $billing->billing_id)
+                ->where('charge_type', $chargeType)
+                ->first();
 
-            $billing->update([
-                'to_pay' => $billing->to_pay + $perTenantAmount,
-                'amount' => $billing->amount + $perTenantAmount,
-            ]);
+            if ($existing) {
+                $oldAmount = $existing->amount;
+                $existing->update([
+                    'amount'      => $perTenantAmount,
+                    'description' => $description,
+                ]);
+                $billing->update([
+                    'to_pay' => $billing->to_pay - $oldAmount + $perTenantAmount,
+                    'amount' => $billing->amount - $oldAmount + $perTenantAmount,
+                ]);
+            } else {
+                BillingItem::create([
+                    'billing_id'      => $billing->billing_id,
+                    'charge_category' => 'recurring',
+                    'charge_type'     => $chargeType,
+                    'description'     => $description,
+                    'amount'          => $perTenantAmount,
+                ]);
+                $billing->update([
+                    'to_pay' => $billing->to_pay + $perTenantAmount,
+                    'amount' => $billing->amount + $perTenantAmount,
+                ]);
+            }
         }
     }
 }

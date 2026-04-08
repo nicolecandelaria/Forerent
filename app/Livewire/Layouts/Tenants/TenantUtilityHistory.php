@@ -27,23 +27,27 @@ class TenantUtilityHistory extends Component
     public function updatedSelectedMonth() { $this->resetPage(); }
     public function updatedSelectedYear() { $this->resetPage(); }
 
-    private function getUnitId()
+    private function getLease()
     {
-        $lease = Lease::where('tenant_id', Auth::user()->user_id)
+        return Lease::where('tenant_id', Auth::user()->user_id)
             ->whereNull('deleted_at')
             ->with('bed.unit')
             ->latest('start_date')
             ->first();
-
-        return $lease?->bed?->unit?->unit_id;
     }
 
     private function baseQuery()
     {
-        $unitId = $this->getUnitId();
+        $lease = $this->getLease();
+        $unitId = $lease?->bed?->unit?->unit_id;
 
         $query = UtilityBill::where('unit_id', $unitId)
             ->with('unit.property');
+
+        // Only show utility bills from the tenant's lease start date onwards
+        if ($lease?->start_date) {
+            $query->where('billing_period', '>=', $lease->start_date->startOfMonth());
+        }
 
         return $query;
     }

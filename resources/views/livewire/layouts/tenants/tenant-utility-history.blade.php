@@ -99,11 +99,9 @@
                     @if($isExpanded)
                         <tr wire:key="expanded-{{ $item->utility_bill_id }}" class="{{ $isElectricity ? 'bg-orange-50' : 'bg-blue-50' }}">
                             <td colspan="4" class="px-4 pb-4 pt-0">
-                                <div class="rounded-xl bg-white shadow-sm border {{ $isElectricity ? 'border-orange-200' : 'border-blue-200' }} p-4 relative">
-                                    {{-- Colored left accent bar --}}
-                                    <div class="absolute left-0 top-3 bottom-3 w-1 rounded-full {{ $isElectricity ? 'bg-orange-400' : 'bg-blue-400' }}"></div>
+                                <div class="rounded-xl bg-white shadow-sm border {{ $isElectricity ? 'border-orange-200' : 'border-blue-200' }} p-4">
 
-                                    <div class="pl-4">
+                                    <div>
                                         <div class="flex items-center gap-2 mb-3">
                                             <div class="w-6 h-6 rounded-full flex items-center justify-center {{ $isElectricity ? 'bg-orange-100' : 'bg-blue-100' }}">
                                                 @if($isElectricity)
@@ -191,9 +189,8 @@
                     {{-- Expanded Breakdown --}}
                     @if($isExpanded)
                         <div class="px-3.5 pb-3.5">
-                            <div class="rounded-xl bg-white shadow-sm border {{ $isElectricity ? 'border-orange-200' : 'border-blue-200' }} p-3 relative">
-                                <div class="absolute left-0 top-3 bottom-3 w-1 rounded-full {{ $isElectricity ? 'bg-orange-400' : 'bg-blue-400' }}"></div>
-                                <div class="pl-3">
+                            <div class="rounded-xl bg-white shadow-sm border {{ $isElectricity ? 'border-orange-200' : 'border-blue-200' }} p-3">
+                                <div>
                                     <p class="text-xs font-bold {{ $isElectricity ? 'text-orange-700' : 'text-blue-700' }} mb-2">
                                         {{ $isElectricity ? 'Electricity' : 'Water' }} Breakdown
                                     </p>
