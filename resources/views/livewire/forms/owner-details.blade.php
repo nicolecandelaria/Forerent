@@ -1,17 +1,3 @@
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-
-<style>
-    input:-webkit-autofill,
-    input:-webkit-autofill:hover,
-    input:-webkit-autofill:focus,
-    input:-webkit-autofill:active {
-        -webkit-box-shadow: 0 0 0 9999px white inset !important;
-        box-shadow: 0 0 0 9999px white inset !important;
-        -webkit-text-fill-color: #374151 !important;
-        transition: background-color 9999s ease-in-out 0s;
-    }
-</style>
-
 @php
     $authUser = auth()->user();
     $fallbackFirstName = $firstName !== '' ? $firstName : (string) ($authUser->first_name ?? '');
@@ -22,24 +8,22 @@
 @endphp
 
 <div class="w-full" style="font-family: 'Open Sans', sans-serif;">
+    <style>
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 9999px white inset !important;
+            box-shadow: 0 0 0 9999px white inset !important;
+            -webkit-text-fill-color: #374151 !important;
+            transition: background-color 9999s ease-in-out 0s;
+        }
+    </style>
     <form
         class="w-full bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-6 md:p-8"
         wire:submit.prevent="save"
-        method="POST"
-        action="{{ route('settings.profile.update') }}"
-        enctype="multipart/form-data"
-        x-data="{
-            editing: false,
-            uploading: false,
-            progress: 0,
-        }"
-        x-on:livewire-upload-start="uploading = true; progress = 0"
-        x-on:livewire-upload-finish="uploading = false; progress = 100"
-        x-on:livewire-upload-cancel="uploading = false"
-        x-on:livewire-upload-error="uploading = false"
-        x-on:livewire-upload-progress="progress = $event.detail.progress"
+        x-data="{ editing: false }"
     >
-        @csrf
 
         @if (session('success'))
             <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
@@ -102,7 +86,7 @@
                         <p class="mt-1 text-sm text-gray-500">This will be displayed on your profile</p>
                     </div>
                     {{-- Edit / Close toggle button --}}
-                    <button type="button" @click="editing = !editing; if (editing) { $wire.clearAllFields(); }" class="flex h-9 w-9 items-center justify-center rounded-full text-[#2360E8] transition-colors duration-200 hover:bg-blue-100" :class="editing ? 'bg-red-50 !text-red-500 hover:!bg-red-100' : ''">
+                    <button type="button" @click="editing = !editing" class="flex h-9 w-9 items-center justify-center rounded-full text-[#2360E8] transition-colors duration-200 hover:bg-blue-100" :class="editing ? 'bg-red-50 !text-red-500 hover:!bg-red-100' : ''">
                         {{-- Edit icon --}}
                         <svg x-show="!editing" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -260,36 +244,23 @@
                 <img src="{{ $this->existingGovernmentIdImageUrl }}" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 shadow-sm">
                 <button x-show="editing" x-cloak type="button" wire:click="removeGovernmentIdImage" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-md hover:bg-red-600">&times;</button>
             </div>
-        @else
-            <div x-show="!editing" class="w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 px-6 py-8 text-center">
-                <span class="text-sm text-gray-400">No ID photo uploaded</span>
-            </div>
         @endif
 
-        {{-- Upload area (edit mode) --}}
+        {{-- ID Photo file input (edit mode) --}}
         <div x-show="editing" x-cloak class="mt-3">
-            <label x-show="!uploading" class="flex w-full max-w-md cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-8 transition-colors duration-200 hover:border-blue-400 hover:bg-blue-50/50">
-                <svg class="mb-2 h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-                </svg>
-                <span class="text-sm font-semibold text-gray-600">{{ $governmentIdImage || $this->existingGovernmentIdImageUrl ? 'Change ID photo' : 'Upload your Valid ID' }}</span>
-                <span class="mt-1 text-xs text-gray-400">Photo or scan of your government-issued ID (max 10MB)</span>
-                <input type="file" wire:model="governmentIdImage" class="hidden" accept="image/*">
-            </label>
-
-            {{-- Uploading state --}}
-            <div x-show="uploading" x-cloak class="flex w-full max-w-md flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#2360E8] bg-blue-50/50 px-6 py-8">
-                <svg class="mb-3 h-10 w-10 animate-spin text-[#2360E8]" fill="none" viewBox="0 0 24 24">
+            <label class="mb-1.5 block text-sm font-semibold text-gray-700">ID Photo</label>
+            <input
+                type="file"
+                wire:model="governmentIdImage"
+                accept="image/*"
+                class="block w-full max-w-md text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2360E8] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#070589] file:cursor-pointer"
+            >
+            <div wire:loading wire:target="governmentIdImage" class="mt-2 flex items-center gap-2 text-sm text-[#2360E8]">
+                <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span class="text-sm font-semibold text-[#2360E8]">Uploading ID photo...</span>
-                <div class="mt-3 w-full max-w-xs">
-                    <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                        <div class="h-full rounded-full bg-[#2360E8] transition-all duration-300 ease-out" :style="'width: ' + progress + '%'"></div>
-                    </div>
-                    <p class="mt-1 text-center text-[11px] font-medium text-[#2360E8]" x-text="progress + '%'"></p>
-                </div>
+                Uploading...
             </div>
         </div>
 

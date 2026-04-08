@@ -1148,7 +1148,7 @@ class TenantDetail extends Component
 
         $pdf = Pdf::loadView('pdf.move-in-contract', $data)
             ->setPaper('a4')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', false);
 
         $pdfPath = "contracts/lease_{$lease->lease_id}_signed_" . time() . '.pdf';
         Storage::disk('public')->put($pdfPath, $pdf->output());
@@ -1222,7 +1222,7 @@ class TenantDetail extends Component
 
         $pdf = Pdf::loadView('pdf.move-in-contract', $data)
             ->setPaper('a4')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', false);
 
         $cachePath = 'contracts/move-in-' . $lease->id . '.pdf';
         Storage::disk('public')->put($cachePath, $pdf->output());
@@ -1414,7 +1414,7 @@ class TenantDetail extends Component
 
         $pdf = Pdf::loadView('pdf.move-out-contract', $data)
             ->setPaper('a4')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', false);
 
         $pdfPath = "contracts/lease_{$lease->lease_id}_moveout_signed_" . time() . '.pdf';
         Storage::disk('public')->put($pdfPath, $pdf->output());
@@ -1472,7 +1472,7 @@ class TenantDetail extends Component
 
         $pdf = Pdf::loadView('pdf.move-out-contract', $data)
             ->setPaper('a4')
-            ->setOption('isRemoteEnabled', true);
+            ->setOption('isRemoteEnabled', false);
 
         $cachePath = 'contracts/move-out-' . $lease->id . '.pdf';
         Storage::disk('public')->put($cachePath, $pdf->output());

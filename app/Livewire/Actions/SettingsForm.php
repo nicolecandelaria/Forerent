@@ -195,16 +195,7 @@ class SettingsForm extends Component
 
         $normalized = $this->normalizeStoragePath($path);
 
-        if (Storage::disk('public')->exists($normalized)) {
-            return Storage::url($normalized);
-        }
-
-        // Fallback: check if file exists directly in public/storage
-        if (file_exists(public_path('storage/' . $normalized))) {
-            return asset('storage/' . $normalized);
-        }
-
-        return null;
+        return asset('storage/' . $normalized);
     }
 
     private function normalizeStoragePath(string $path): string
@@ -285,17 +276,37 @@ class SettingsForm extends Component
         $this->email = trim((string) $this->email);
         $this->phoneNumber = $this->normalizePhone((string) $this->phoneNumber);
 
-        $this->recomputePendingChanges();
-
-        if (!$this->hasPendingChanges) {
-            $this->notifyInfo('No changes detected', 'Update any field before saving.');
-            return;
-        }
-
         $user = $this->resolveCurrentUser();
 
         if (!$user) {
             $this->notifyError('Session expired', 'Please sign in again.');
+            return;
+        }
+
+        // Fill empty fields with existing DB values so partial updates work
+        if ($this->firstName === '') {
+            $this->firstName = (string) $user->first_name;
+        }
+        if ($this->lastName === '') {
+            $this->lastName = (string) $user->last_name;
+        }
+        if ($this->phoneNumber === '') {
+            $this->phoneNumber = $this->normalizePhone((string) $user->contact);
+        }
+        if ($this->email === '') {
+            $this->email = (string) $user->email;
+        }
+        if ($this->governmentIdType === '' && $user->government_id_type) {
+            $this->governmentIdType = (string) $user->government_id_type;
+        }
+        if ($this->governmentIdNumber === '' && $user->government_id_number) {
+            $this->governmentIdNumber = (string) $user->government_id_number;
+        }
+
+        $this->recomputePendingChanges();
+
+        if (!$this->hasPendingChanges) {
+            $this->notifyInfo('No changes detected', 'Update any field before saving.');
             return;
         }
 
@@ -341,13 +352,17 @@ class SettingsForm extends Component
                 $storedPath = $this->profilePicture->store('profile-photos', 'public');
                 $updateData['profile_img'] = $storedPath;
 
-                // Sync to public/storage if it's not a symlink
-                $publicDir = public_path('storage/' . dirname($storedPath));
-                if (!is_link(public_path('storage')) && !is_dir($publicDir)) {
+                // Sync to public/storage
+                $sourcePath = storage_path('app/public/' . $storedPath);
+                $destPath = public_path('storage/' . $storedPath);
+                $publicDir = dirname($destPath);
+
+                if (!is_dir($publicDir)) {
                     mkdir($publicDir, 0755, true);
                 }
-                if (!is_link(public_path('storage'))) {
-                    copy(storage_path('app/public/' . $storedPath), public_path('storage/' . $storedPath));
+
+                if (file_exists($sourcePath)) {
+                    copy($sourcePath, $destPath);
                 }
             } elseif ($this->existingProfileImg === null && $user->profile_img) {
                 // Only delete if user explicitly removed the image
@@ -363,14 +378,22 @@ class SettingsForm extends Component
                 }
                 $storedPath = $this->governmentIdImage->store('government-ids', 'public');
                 $updateData['government_id_image'] = $storedPath;
+                Log::info('Government ID stored', ['path' => $storedPath]);
 
                 // Sync to public/storage if it's not a symlink
-                $publicDir = public_path('storage/' . dirname($storedPath));
-                if (!is_link(public_path('storage')) && !is_dir($publicDir)) {
+                $sourcePath = storage_path('app/public/' . $storedPath);
+                $destPath = public_path('storage/' . $storedPath);
+                $publicDir = dirname($destPath);
+
+                if (!is_dir($publicDir)) {
                     mkdir($publicDir, 0755, true);
                 }
-                if (!is_link(public_path('storage'))) {
-                    copy(storage_path('app/public/' . $storedPath), public_path('storage/' . $storedPath));
+
+                if (file_exists($sourcePath)) {
+                    copy($sourcePath, $destPath);
+                    Log::info('Government ID synced to public', ['dest' => $destPath]);
+                } else {
+                    Log::warning('Government ID source not found', ['source' => $sourcePath]);
                 }
             } elseif ($this->existingGovernmentIdImage === null && $user->government_id_image) {
                 // Only delete if user explicitly removed the image

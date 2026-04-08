@@ -45,12 +45,15 @@
         .doc-header-banner {
             background: #1a2744;
             color: #fff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             padding: 14px 20px;
             margin-bottom: 4px;
             border-bottom: 3px solid #2360E8;
+        }
+        .doc-header-banner table {
+            width: 100%;
+        }
+        .doc-header-banner table td {
+            vertical-align: middle;
         }
         .doc-header-banner .banner-left .doc-title-main {
             font-size: 15pt;
@@ -108,29 +111,24 @@
             color: #111;
         }
 
-        .field-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 6px;
+        .field-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 6px;
             font-size: 9.5pt;
         }
-        .field-row.two-col {
-            flex-wrap: wrap;
-            gap: 6px 20px;
-        }
-        .field-row.two-col > .field-row {
-            min-width: 200px;
+        .field-table td {
+            padding: 2px 0;
+            vertical-align: bottom;
         }
         .field-label {
             white-space: nowrap;
             color: #333;
-            flex-shrink: 0;
+            padding-right: 6px;
+            width: 1%;
         }
         .field-value {
             border-bottom: 0.75pt solid #333;
-            flex: 1;
-            min-width: 80px;
             padding-bottom: 1px;
             font-weight: bold;
             color: #000;
@@ -232,11 +230,16 @@
         .signature-section {
             margin-top: 24px;
         }
-        .sig-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+        .sig-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 20px;
+        }
+        .sig-table td {
+            width: 50%;
+            text-align: center;
+            vertical-align: top;
+            padding: 0 12px;
         }
         .sig-block {
             text-align: center;
@@ -252,16 +255,14 @@
             line-height: 1.4;
         }
         .sig-date-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 6px;
             margin-top: 8px;
             font-size: 9pt;
-            justify-content: center;
+            text-align: center;
         }
         .sig-date-line {
             border-bottom: 0.75pt solid #333;
             width: 120px;
+            display: inline-block;
         }
 
         .doc-footer {
@@ -316,11 +317,15 @@
 <div class="page">
 
     <div class="doc-header-banner">
-        <div class="banner-left">
-            <div class="doc-title-main">Dormitory Rental Agreement</div>
-            <div class="republic">Republic of the Philippines</div>
-        </div>
-        <div class="banner-right">Move-Out Clearance</div>
+        <table><tr>
+            <td>
+                <div class="doc-title-main">Dormitory Rental Agreement</div>
+                <div class="republic">Republic of the Philippines</div>
+            </td>
+            <td style="text-align:right;">
+                <span class="banner-right">Move-Out Clearance</span>
+            </td>
+        </tr></table>
     </div>
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
@@ -332,84 +337,44 @@
     <div class="section-heading">Section 1 — Parties</div>
 
     <div class="sub-heading">LESSOR</div>
-    <div class="field-row">
-        <span class="field-label">Business / Trade Name:</span>
-        <span class="field-value">{{ $tenant['lessor_info']['business_name'] ?? '' }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Authorized Representative:</span>
-        <span class="field-value">{{ $tenant['lessor_info']['representative'] ?? '' }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Government ID:</span>
-        <span class="field-value">{{ $tenant['lessor_info']['government_id_type'] ?? '' }} — {{ $tenant['lessor_info']['government_id_number'] ?? '' }}</span>
-    </div>
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Contact Number:</span>
-            <span class="field-value">{{ $tenant['lessor_info']['contact'] ?? '' }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Email Address:</span>
-            <span class="field-value">{{ $tenant['lessor_info']['email'] ?? '' }}</span>
-        </div>
-    </div>
+    <table class="field-table">
+        <tr><td class="field-label">Business / Trade Name:</td><td class="field-value">{{ $tenant['lessor_info']['business_name'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Authorized Representative:</td><td class="field-value">{{ $tenant['lessor_info']['representative'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Government ID:</td><td class="field-value">{{ $tenant['lessor_info']['government_id_type'] ?? '' }} — {{ $tenant['lessor_info']['government_id_number'] ?? '' }}</td></tr>
+    </table>
+    <table class="field-table"><tr>
+        <td class="field-label">Contact Number:</td><td class="field-value">{{ $tenant['lessor_info']['contact'] ?? '' }}</td>
+        <td class="field-label" style="padding-left:20px;">Email:</td><td class="field-value">{{ $tenant['lessor_info']['email'] ?? '' }}</td>
+    </tr></table>
 
     <div class="sub-heading">LESSEE</div>
-    <div class="field-row">
-        <span class="field-label">Full Legal Name:</span>
-        <span class="field-value">{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</span>
-    </div>
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Contact Number:</span>
-            <span class="field-value">{{ $tenant['contact_info']['contact_number'] }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Email Address:</span>
-            <span class="field-value">{{ $tenant['contact_info']['email'] }}</span>
-        </div>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Forwarding Address:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['forwarding_address'] ?? '' }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Emergency Contact:</span>
-        <span class="field-value">{{ $tenant['personal_info']['emergency_contact_name'] ?? '' }} ({{ $tenant['personal_info']['emergency_contact_relationship'] ?? '' }}) — {{ $tenant['personal_info']['emergency_contact_number'] ?? '' }}</span>
-    </div>
+    <table class="field-table">
+        <tr><td class="field-label">Full Legal Name:</td><td class="field-value">{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</td></tr>
+    </table>
+    <table class="field-table"><tr>
+        <td class="field-label">Contact Number:</td><td class="field-value">{{ $tenant['contact_info']['contact_number'] }}</td>
+        <td class="field-label" style="padding-left:20px;">Email:</td><td class="field-value">{{ $tenant['contact_info']['email'] }}</td>
+    </tr></table>
+    <table class="field-table">
+        <tr><td class="field-label">Forwarding Address:</td><td class="field-value">{{ $tenant['move_out_details']['forwarding_address'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Emergency Contact:</td><td class="field-value">{{ $tenant['personal_info']['emergency_contact_name'] ?? '' }} ({{ $tenant['personal_info']['emergency_contact_relationship'] ?? '' }}) — {{ $tenant['personal_info']['emergency_contact_number'] ?? '' }}</td></tr>
+    </table>
 
     {{-- SECTION 2 — LEASE REFERENCE --}}
     <div class="section-heading">Section 2 — Lease Reference</div>
 
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Original Move-In Date:</span>
-            <span class="field-value">{{ ($tenant['move_in_details']['move_in_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_in_details']['move_in_date'])->format('F d, Y') : '' }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Actual Move-Out Date:</span>
-            <span class="field-value">{{ ($tenant['move_out_details']['move_out_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_out_details']['move_out_date'])->format('F d, Y') : '' }}</span>
-        </div>
-    </div>
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Lease Start Date:</span>
-            <span class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_start_date'])->format('F d, Y') }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Lease End Date:</span>
-            <span class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_end_date'])->format('F d, Y') }}</span>
-        </div>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Building / Unit / Floor / Bed:</span>
-        <span class="field-value">{{ $tenant['personal_info']['property'] }} / {{ $tenant['personal_info']['unit'] }} / Floor {{ $tenant['rent_details']['floor'] ?? '—' }} / Bed {{ $tenant['rent_details']['bed_number'] }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Reason for Vacating:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['reason_for_vacating'] ?? '' }}</span>
-    </div>
+    <table class="field-table"><tr>
+        <td class="field-label">Original Move-In Date:</td><td class="field-value">{{ ($tenant['move_in_details']['move_in_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_in_details']['move_in_date'])->format('F d, Y') : '' }}</td>
+        <td class="field-label" style="padding-left:20px;">Actual Move-Out Date:</td><td class="field-value">{{ ($tenant['move_out_details']['move_out_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_out_details']['move_out_date'])->format('F d, Y') : '' }}</td>
+    </tr></table>
+    <table class="field-table"><tr>
+        <td class="field-label">Lease Start Date:</td><td class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_start_date'])->format('F d, Y') }}</td>
+        <td class="field-label" style="padding-left:20px;">Lease End Date:</td><td class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_end_date'])->format('F d, Y') }}</td>
+    </tr></table>
+    <table class="field-table">
+        <tr><td class="field-label">Building / Unit / Floor / Bed:</td><td class="field-value">{{ $tenant['personal_info']['property'] }} / {{ $tenant['personal_info']['unit'] }} / Floor {{ $tenant['rent_details']['floor'] ?? '—' }} / Bed {{ $tenant['rent_details']['bed_number'] }}</td></tr>
+        <tr><td class="field-label">Reason for Vacating:</td><td class="field-value">{{ $tenant['move_out_details']['reason_for_vacating'] ?? '' }}</td></tr>
+    </table>
 
     {{-- SECTION 3 — MOVE-OUT ROOM CONDITION INSPECTION --}}
     <div class="section-heading">Section 3 — Move-Out Room Condition Inspection</div>
@@ -467,11 +432,15 @@
 <div class="page">
 
     <div class="doc-header-banner">
-        <div class="banner-left">
-            <div class="doc-title-main">Dormitory Rental Agreement</div>
-            <div class="republic">Republic of the Philippines | Move-Out Clearance</div>
-        </div>
-        <div class="banner-right">Page 2</div>
+        <table><tr>
+            <td>
+                <div class="doc-title-main">Dormitory Rental Agreement</div>
+                <div class="republic">Republic of the Philippines | Move-Out Clearance</div>
+            </td>
+            <td style="text-align:right;">
+                <span class="banner-right">Page 2</span>
+            </td>
+        </tr></table>
     </div>
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
@@ -570,14 +539,10 @@
         </tbody>
     </table>
 
-    <div class="field-row" style="margin-top:10px;">
-        <span class="field-label">Refund Method:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['deposit_refund_method'] ?? '' }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Account Name / Number:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['deposit_refund_account'] ?? '' }}</span>
-    </div>
+    <table class="field-table" style="margin-top:10px;">
+        <tr><td class="field-label">Refund Method:</td><td class="field-value">{{ $tenant['move_out_details']['deposit_refund_method'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Account Name / Number:</td><td class="field-value">{{ $tenant['move_out_details']['deposit_refund_account'] ?? '' }}</td></tr>
+    </table>
 
     {{-- SECTION 6 — CLEARANCE CERTIFICATION --}}
     <div class="section-heading">Section 6 — Clearance Certification</div>
@@ -608,79 +573,81 @@
         @endif
 
         {{-- Owner and Tenant signatures --}}
-        <div class="sig-grid">
-            <div class="sig-block">
-                @if(!empty($ownerSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Owner Signature">
-                    </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $tenant['lessor_info']['representative'] ?? '' }}</strong><br>
-                    Lessor / Property Owner
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($ownerSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $ownerSignedAt }}</span>
+        <table class="sig-table">
+            <tr>
+                <td>
+                    @if(!empty($ownerSignatureBase64))
+                        <div style="height:60px; text-align:center; margin-bottom:4px;">
+                            <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Owner Signature">
+                        </div>
                     @else
-                        <div class="sig-date-line"></div>
+                        <div class="sig-line"></div>
                     @endif
-                </div>
-            </div>
-            <div class="sig-block">
-                @if(!empty($tenantSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
+                    <div class="sig-label">
+                        <strong>{{ $tenant['lessor_info']['representative'] ?? '' }}</strong><br>
+                        Lessor / Property Owner
                     </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
-                    Tenant / Lessee
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($tenantSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
+                    <div class="sig-date-row">
+                        <span>Date:</span>
+                        @if(!empty($ownerSignedAt))
+                            <span style="font-size:8.5pt; margin-left:4px;">{{ $ownerSignedAt }}</span>
+                        @else
+                            <span class="sig-date-line"></span>
+                        @endif
+                    </div>
+                </td>
+                <td>
+                    @if(!empty($tenantSignatureBase64))
+                        <div style="height:60px; text-align:center; margin-bottom:4px;">
+                            <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
+                        </div>
                     @else
-                        <div class="sig-date-line"></div>
+                        <div class="sig-line"></div>
                     @endif
-                </div>
-            </div>
-        </div>
+                    <div class="sig-label">
+                        <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
+                        Tenant / Lessee
+                    </div>
+                    <div class="sig-date-row">
+                        <span>Date:</span>
+                        @if(!empty($tenantSignedAt))
+                            <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
+                        @else
+                            <span class="sig-date-line"></span>
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        </table>
 
         {{-- Manager Witness signature --}}
         <p style="font-size:9pt; color:#333; margin: 16px 0 8px; font-weight:bold;">Witnessed by:</p>
-        <div class="sig-grid">
-            <div class="sig-block">
-                @if(!empty($managerSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $managerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Manager Witness Signature">
-                    </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $managerName ?? 'Unit Manager' }}</strong><br>
-                    Unit Manager / Witness
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($managerSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $managerSignedAt }}</span>
+        <table class="sig-table">
+            <tr>
+                <td>
+                    @if(!empty($managerSignatureBase64))
+                        <div style="height:60px; text-align:center; margin-bottom:4px;">
+                            <img src="{{ $managerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Manager Witness Signature">
+                        </div>
                     @else
-                        <div class="sig-date-line"></div>
+                        <div class="sig-line"></div>
                     @endif
-                </div>
-            </div>
-            <div class="sig-block">
-                {{-- Empty witness 2 slot --}}
-            </div>
-        </div>
+                    <div class="sig-label">
+                        <strong>{{ $managerName ?? 'Unit Manager' }}</strong><br>
+                        Unit Manager / Witness
+                    </div>
+                    <div class="sig-date-row">
+                        <span>Date:</span>
+                        @if(!empty($managerSignedAt))
+                            <span style="font-size:8.5pt; margin-left:4px;">{{ $managerSignedAt }}</span>
+                        @else
+                            <span class="sig-date-line"></span>
+                        @endif
+                    </div>
+                </td>
+                <td></td>
+            </tr>
+        </table>
 
         <p style="font-size:8.5pt; color:#555; text-align:center; margin-top:18px; font-style:italic;">
             This Agreement is executed in two (2) original copies — one for the Lessor and one for the Lessee.

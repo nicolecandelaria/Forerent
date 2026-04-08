@@ -37,7 +37,7 @@
     x-init="$nextTick(() => { recalc(); })"
     x-effect="activeIndex; $nextTick(() => { recalc(); })"
     x-on:resize.window.debounce.150ms="recalc()"
-    {{ $attributes->merge(['class' => "relative inline-flex items-center gap-0.5 sm:gap-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto no-scrollbar $containerPadding"]) }}
+    {{ $attributes->merge(['class' => "relative inline-flex items-center gap-0.5 sm:gap-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden $containerPadding"]) }}
 >
     {{-- Sliding Indicator --}}
     <div

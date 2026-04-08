@@ -7,7 +7,7 @@
 <div
     x-data="{
         open: false,
-        inputVal: $wire.get('{{ $model }}') || '',
+        inputVal: '',
         suggestions: @js($suggestions),
         get filtered() {
             if (!this.inputVal || this.inputVal.length < 1) return [];
@@ -24,6 +24,7 @@
             $wire.set('{{ $model }}', value);
         }
     }"
+    x-init="inputVal = $wire.get('{{ $model }}') || ''"
     @click.away="open = false"
     class="relative flex-1 min-w-0"
 >

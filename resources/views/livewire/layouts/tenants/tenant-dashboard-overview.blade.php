@@ -834,6 +834,7 @@
             contractId="move-out-contract-tenant"
             :hasSignatures="(bool) ($moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature)"
             :contractAgreed="(bool) $moveOutContractAgreed"
+            :needsSignature="!$moveOutTenantSignature && $moveOutOwnerSignature && $moveOutManagerSignature"
             :statusText="$moveOutContractAgreed ? 'Contract fully signed' : (!$moveOutTenantSignature && $moveOutOwnerSignature && $moveOutManagerSignature ? 'Sign this contract as tenant' : 'Waiting for other parties to sign')"
         >
             @include('partials.move-out-contract-body', [
@@ -861,12 +862,6 @@
                     <span wire:loading.remove wire:target="downloadMoveOutSignedContract">Download PDF</span>
                     <span wire:loading wire:target="downloadMoveOutSignedContract">Generating...</span>
                 </button>
-                @if(!$moveOutTenantSignature && $moveOutOwnerSignature && $moveOutManagerSignature)
-                    <button wire:click="openMoveOutSignatureModal" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 sm:py-2.5 px-4 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-colors flex items-center gap-1.5 sm:gap-2">
-                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-                        Sign Contract
-                    </button>
-                @endif
             </x-slot:footer>
         </x-inspection.contract-viewer-modal>
     @endif
@@ -889,6 +884,7 @@
             contractId="move-in-contract-tenant"
             :hasSignatures="(bool) ($ownerSignature || $managerSignature || $tenantSignature)"
             :contractAgreed="(bool) $contractAgreed"
+            :needsSignature="!$tenantSignature && $ownerSignature && $managerSignature"
             :statusText="$contractAgreed ? 'Contract fully signed' : (!$tenantSignature && $ownerSignature && $managerSignature ? 'Sign this contract as tenant' : 'Waiting for other parties to sign')"
         >
             @include('partials.move-in-contract-body', [
@@ -918,12 +914,6 @@
                     <span wire:loading.remove wire:target="downloadSignedContract">Download PDF</span>
                     <span wire:loading wire:target="downloadSignedContract">Generating...</span>
                 </button>
-                @if(!$tenantSignature && $ownerSignature && $managerSignature)
-                    <button wire:click="openSignatureModal" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 sm:py-2.5 px-4 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-colors flex items-center gap-1.5 sm:gap-2">
-                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-                        Sign Contract
-                    </button>
-                @endif
             </x-slot:footer>
         </x-inspection.contract-viewer-modal>
     @endif

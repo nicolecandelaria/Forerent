@@ -1,12 +1,12 @@
-<style>
-    @media (max-width: 767px) {
-        .tenant-payment-desktop-table { display: none !important; }
-    }
-    @media (min-width: 768px) {
-        .tenant-payment-mobile-cards { display: none !important; }
-    }
-</style>
 <div class="font-sans">
+    <style>
+        @media (max-width: 767px) {
+            .tenant-payment-desktop-table { display: none !important; }
+        }
+        @media (min-width: 768px) {
+            .tenant-payment-mobile-cards { display: none !important; }
+        }
+    </style>
 
     {{-- PAYMENT BANNER --}}
     @if($paymentStatus !== 'No Billing')
