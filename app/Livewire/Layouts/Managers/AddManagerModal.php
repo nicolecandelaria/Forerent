@@ -338,8 +338,7 @@ class AddManagerModal extends Component
     private function sendManagerWelcomeEmail(User $manager, string $tempPassword): void
     {
         try {
-            Mail::mailer('smtp')
-                ->to($manager->email)
+            Mail::to($manager->email)
                 ->send(new NewAccountSmtpMail(
                     email: $manager->email,
                     password: $tempPassword,
@@ -351,7 +350,7 @@ class AddManagerModal extends Component
             Log::info('ForeRent Manager Email Success: Welcome email sent.', [
                 'manager_id' => $manager->user_id,
                 'email' => $manager->email,
-                'mailer' => 'smtp',
+                'mailer' => config('mail.default'),
             ]);
         } catch (\Throwable $notificationError) {
             Log::warning('Manager account created but notification email failed.', [

@@ -754,7 +754,7 @@ class AddTenantModal extends Component
     private function attemptWelcomeEmailDelivery(User $createdUser, string $password): void
     {
         try {
-            Mail::mailer('smtp')->to($createdUser->email)->send(new NewAccountSmtpMail(
+            Mail::to($createdUser->email)->send(new NewAccountSmtpMail(
                 email: $createdUser->email,
                 password: $password,
                 role: $createdUser->role,
