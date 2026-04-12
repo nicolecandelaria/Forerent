@@ -4,7 +4,6 @@ namespace App\Livewire\Layouts\Properties;
 
 use App\Models\Property;
 use App\Models\PropertyDocument;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -39,7 +38,7 @@ class PropertyDetails extends Component
     #[On('buildingSelected')]
     public function onBuildingSelected($buildingId = null)
     {
-        if (!$buildingId) {
+        if (! $buildingId) {
             return;
         }
 
@@ -61,7 +60,7 @@ class PropertyDetails extends Component
     #[On('refresh-unit-list')]
     public function refreshFromUnitUpdate($buildingId = null): void
     {
-        if (!$this->propertyId) {
+        if (! $this->propertyId) {
             return;
         }
 
@@ -98,7 +97,7 @@ class PropertyDetails extends Component
             ->where('category', 'property_photo')
             ->map(fn ($doc) => [
                 'id' => $doc->id,
-                'url' => Storage::disk('public')->url($doc->file_path),
+                'url' => asset('storage/'.$doc->file_path),
                 'name' => $doc->original_name,
             ])
             ->values()
@@ -108,7 +107,7 @@ class PropertyDetails extends Component
             ->where('category', '!=', 'property_photo')
             ->map(fn ($doc) => [
                 'id' => $doc->id,
-                'url' => Storage::disk('public')->url($doc->file_path),
+                'url' => asset('storage/'.$doc->file_path),
                 'name' => $doc->original_name,
                 'category' => $doc->category,
                 'visibility' => $doc->visibility,

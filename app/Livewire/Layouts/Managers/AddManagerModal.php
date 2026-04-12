@@ -4,7 +4,7 @@ namespace App\Livewire\Layouts\Managers;
 
 use App\Livewire\Concerns\WithNotifications;
 use App\Livewire\Forms\AddUserForm;
-use App\Mail\NewAccountSmtpMail;
+use App\Models\Notification as NotificationModel;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
@@ -23,6 +23,8 @@ use Livewire\WithFileUploads;
 class AddManagerModal extends Component
 {
     use WithFileUploads, WithNotifications;
+
+    public const MAX_UNITS_PER_MANAGER = 10;
 
     public $isOpen = false;
 
@@ -111,11 +113,29 @@ class AddManagerModal extends Component
             ->get(['property_id', 'building_name']);
     }
 
+    public function getTotalSelectedUnitsProperty(): int
+    {
+        return count(array_merge(...array_values($this->allSelectedUnits) ?: [[]]));
+    }
+
     public function updatedSelectedUnits(): void
     {
         if ($this->selectedBuilding && $this->selectedFloor) {
-            $key = $this->selectedBuilding.'_'.$this->selectedFloor;
+            $key = $this->selectedBuilding . '_' . $this->selectedFloor;
+
+            // Temporarily save to compute total, then enforce the cap
+            $previousForKey = $this->allSelectedUnits[$key] ?? [];
             $this->allSelectedUnits[$key] = $this->selectedUnits;
+
+            if ($this->totalSelectedUnits > self::MAX_UNITS_PER_MANAGER) {
+                // Revert and notify
+                $this->allSelectedUnits[$key] = $previousForKey;
+                $this->selectedUnits = $previousForKey;
+                $this->notifyWarning(
+                    'Unit Limit Reached',
+                    'A manager can handle a maximum of ' . self::MAX_UNITS_PER_MANAGER . ' units.'
+                );
+            }
         }
     }
 
@@ -214,39 +234,37 @@ class AddManagerModal extends Component
                 $manager = $this->userForm->update($originalManager);
 
                 $changedFields = [];
-                if ($originalManager->first_name !== $manager->first_name) {
-                    $changedFields[] = 'first name';
-                }
-                if ($originalManager->last_name !== $manager->last_name) {
-                    $changedFields[] = 'last name';
-                }
-                if ($originalManager->contact !== $manager->contact) {
-                    $changedFields[] = 'phone number';
-                }
-                if ($originalManager->email !== $manager->email) {
-                    $changedFields[] = 'email';
-                }
-                if ($this->selectedFloor && $originalFloor != $this->selectedFloor) {
-                    $changedFields[] = 'floor assignment';
-                }
-                if ($this->profilePicture && ! is_string($this->profilePicture)) {
-                    $changedFields[] = 'profile picture';
-                }
-
-                $changeMessage = ! empty($changedFields)
-                    ? ucfirst(implode(', ', $changedFields)).' updated for '.$manager->first_name.'.'
-                    : $manager->first_name.' has been updated.';
+                if ($originalManager->first_name !== $manager->first_name) $changedFields[] = 'first name';
+                if ($originalManager->last_name !== $manager->last_name)   $changedFields[] = 'last name';
+                if ($originalManager->contact !== $manager->contact)       $changedFields[] = 'phone number';
+                if ($originalManager->email !== $manager->email)           $changedFields[] = 'email';
+                if ($this->selectedFloor && $originalFloor != $this->selectedFloor) $changedFields[] = 'floor assignment';
+                if ($this->profilePicture && !is_string($this->profilePicture))     $changedFields[] = 'profile picture';
+                
+                $changeMessage = !empty($changedFields)
+                    ? ucfirst(implode(', ', $changedFields)) . ' updated for ' . $manager->first_name . '.'
+                    : $manager->first_name . ' has been updated.';
             } else {
                 $tempPassword = PasswordGenerator::generate();
                 $manager = $this->userForm->store('manager', $tempPassword);
 
                 $this->sendManagerWelcomeEmail($manager, $tempPassword);
+                $changeMessage = $manager->first_name . ' added successfully as a manager!';
 
-                $changeMessage = $manager->first_name.' added successfully as a manager!';
+                // Notify manager to upload valid ID
+                if (!$manager->government_id_type || !$manager->government_id_number || !$manager->government_id_image) {
+                    NotificationModel::create([
+                        'user_id' => $manager->user_id,
+                        'type'    => 'valid_id_required',
+                        'title'   => 'Valid ID Required',
+                        'message' => 'Please upload your government ID in Settings to complete your profile.',
+                        'link'    => '/settings',
+                    ]);
+                }
             }
 
             // Handle profile picture upload
-            if ($this->profilePicture && ! is_string($this->profilePicture)) {
+            if ($this->profilePicture && !is_string($this->profilePicture)) {
                 if ($this->isEditing && $manager->profile_img) {
                     $this->deleteStoredImage($manager->profile_img);
                 }
@@ -255,13 +273,23 @@ class AddManagerModal extends Component
                 $manager->update(['profile_img' => $path]);
             }
 
-            // Flatten all selected unit IDs across every building+floor
+            // Flatten all selected unit IDs
             $allSelectedUnitIds = array_map(
                 'intval',
                 array_merge(...array_values($this->allSelectedUnits) ?: [[]])
             );
 
-            if (! empty($allSelectedUnitIds)) {
+            // Enforce maximum unit cap
+            if (count($allSelectedUnitIds) > self::MAX_UNITS_PER_MANAGER) {
+                $this->notifyError(
+                    'Unit Limit Exceeded',
+                    'A manager can handle a maximum of ' . self::MAX_UNITS_PER_MANAGER . ' units.'
+                );
+                return;
+            }
+
+            // Update Unit Assignments
+            if (!empty($allSelectedUnitIds)) {
                 Unit::where('manager_id', $manager->user_id)
                     ->whereNotIn('unit_id', $allSelectedUnitIds)
                     ->update(['manager_id' => null]);
@@ -285,90 +313,13 @@ class AddManagerModal extends Component
 
         } catch (\Throwable $e) {
             Log::error('Failed to save manager.', [
-                'manager_id' => $this->managerId,
-                'is_editing' => $this->isEditing,
-                'selected_building' => $this->selectedBuilding,
-                'selected_floor' => $this->selectedFloor,
-                'selected_units_count' => count($this->selectedUnits ?? []),
                 'error' => $e->getMessage(),
             ]);
 
             $this->notifyError(
                 'Failed to Save Manager',
-                'An error occurred while saving the manager. Please try again.'
+                'An error occurred. Please try again.'
             );
         }
-    }
-
-    public function close(): void
-    {
-        $this->isOpen = false;
-        $this->resetForm();
-    }
-
-    private function resetForm(): void
-    {
-        $this->reset(['profilePicture', 'selectedBuilding', 'selectedFloor', 'selectedUnits', 'allSelectedUnits', 'floors', 'availableUnits', 'managerId', 'isEditing']);
-        $this->userForm->reset();
-        $this->resetValidation();
-    }
-
-    private function deleteStoredImage(?string $path): void
-    {
-        if (! $path) {
-            return;
-        }
-
-        try {
-            $normalized = ltrim(trim((string) parse_url($path, PHP_URL_PATH) ?: $path), '/');
-
-            if (str_starts_with($normalized, 'storage/')) {
-                $normalized = substr($normalized, 8);
-            }
-
-            if ($normalized !== '' && Storage::disk('public')->exists($normalized)) {
-                Storage::disk('public')->delete($normalized);
-            }
-        } catch (\Throwable $exception) {
-            // File may not exist on Render ephemeral filesystem after redeploy
-            Log::debug('Could not delete stored image (may be expected on Render redeploy).', [
-                'path' => $path,
-                'error' => $exception->getMessage(),
-            ]);
-        }
-    }
-
-   private function sendManagerWelcomeEmail(User $manager, string $tempPassword): void
-    {
-        try {
-            // Using the default mailable class found in your imports
-            Mail::to($manager->email)->send(new NewAccountSmtpMail(
-                email: $manager->email,
-                password: $tempPassword,
-                role: (string) $manager->role,
-                firstName: (string) ($manager->first_name ?? ''),
-                lastName: (string) ($manager->last_name ?? ''),
-            ));
-
-            Log::info('ForeRent Email Success: Welcome email sent to ' . $manager->email);
-
-        } catch (\Exception $e) {
-            // THE LOGGING BLOCK: This captures the exact reason (e.g., "401 Unauthorized" from SendGrid)
-            Log::error("ForeRent Email Failure: " . $e->getMessage(), [
-                'manager_id' => $manager->user_id,
-                'email' => $manager->email
-            ]);
-            
-            // Inform the UI through your existing notification trait
-            $this->notifyWarning(
-                'Manager saved, email failed',
-                'The account was created, but the welcome email failed. Check system logs.'
-            );
-        }
-    }
-
-    public function render()
-    {
-        return view('livewire.layouts.managers.add-manager-modal');
     }
 }

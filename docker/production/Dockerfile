@@ -32,6 +32,9 @@ FROM php:8.4-fpm
 RUN apt-get update && apt-get install -y \
     nginx supervisor curl zip unzip git \
     libpng-dev libonig-dev libxml2-dev libpq-dev \
+    libjpeg62-turbo-dev libfreetype6-dev \        
+    && docker-php-ext-configure gd \
+        --with-freetype --with-jpeg \            
     && docker-php-ext-install \
     pdo pdo_mysql pdo_pgsql \
     mbstring exif pcntl bcmath gd \
@@ -62,7 +65,6 @@ RUN chown -R www-data:www-data /var/www \
     && chmod -R 755 /var/www/bootstrap/cache
 
 EXPOSE 80
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh

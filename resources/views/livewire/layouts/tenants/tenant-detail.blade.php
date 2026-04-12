@@ -413,6 +413,61 @@
                     </div>
                 @endif
 
+                {{-- Deposit Refund Tracking (shown after move-out is finalized) --}}
+                @if(($currentTenant['move_out_details']['move_out_date'] ?? null) && ($currentTenant['deposit_refund']['amount'] ?? 0) > 0)
+                    <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center">
+                                <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+                            </div>
+                            <h5 class="text-xs font-bold text-amber-700 uppercase tracking-wide">Deposit Refund</h5>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div class="bg-gray-50 rounded-lg p-2.5">
+                                <p class="text-[11px] text-gray-500">Refund Amount</p>
+                                <p class="text-sm font-bold text-gray-800">PHP {{ number_format((float) ($currentTenant['deposit_refund']['amount'] ?? 0), 2) }}</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-2.5">
+                                <p class="text-[11px] text-gray-500">Deadline</p>
+                                @php
+                                    $lease = \App\Models\Lease::find($currentLeaseId);
+                                    $refundDeadline = $lease?->deposit_refund_deadline;
+                                    $refundCompleted = $lease?->deposit_refund_completed_at;
+                                    $refundRef = $lease?->deposit_refund_reference;
+                                @endphp
+                                <p class="text-sm font-bold {{ $refundDeadline && $refundDeadline->isPast() && !$refundCompleted ? 'text-red-600' : 'text-gray-800' }}">
+                                    {{ $refundDeadline ? $refundDeadline->format('M d, Y') : '—' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        @if($refundCompleted)
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                                <p class="text-xs font-bold text-emerald-700">Refund Completed</p>
+                                <p class="text-[11px] text-emerald-600 mt-0.5">{{ $refundCompleted->format('M d, Y h:i A') }}</p>
+                                @if($refundRef)
+                                    <p class="text-[11px] text-emerald-600">Ref: {{ $refundRef }}</p>
+                                @endif
+                            </div>
+                        @else
+                            <div class="space-y-2">
+                                <label class="block text-[11px] font-semibold text-gray-600">Reference Number (optional)</label>
+                                <input type="text" wire:model="depositRefundReference" placeholder="e.g. GCash ref, bank transfer no."
+                                    class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+                                <button
+                                    wire:click="markRefundCompleted"
+                                    wire:loading.attr="disabled"
+                                    class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm transition-colors"
+                                >
+                                    <span wire:loading.remove wire:target="markRefundCompleted">Mark Refund as Completed</span>
+                                    <span wire:loading wire:target="markRefundCompleted">Processing...</span>
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
                 {{-- Contract Cards --}}
                 <div class="space-y-3 pt-1 pb-2">
 
@@ -921,8 +976,9 @@
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="bg-gray-50 border-b border-gray-200">
-                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-1/4">Item</th>
-                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Qty</th>
+                                                        <th class="text-left p-2.5 font-semibold text-gray-600 w-1/5">Item</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Qty Issued</th>
+                                                        <th class="text-center p-2.5 font-semibold text-gray-600 w-14">Qty Returned</th>
                                                         <th class="text-left p-2.5 font-semibold text-gray-600">Condition</th>
                                                         <th class="text-center p-2.5 font-semibold text-gray-600 w-16">Returned</th>
                                                         <th class="text-right p-2.5 font-semibold text-gray-600 w-24">Replacement</th>
@@ -944,6 +1000,15 @@
                                                                        onkeydown="if(!/[0-9]|Backspace|Tab|ArrowLeft|ArrowRight|Delete/.test(event.key))event.preventDefault()"
                                                                        oninput="this.value=this.value.replace(/^0+/,'').replace(/[^0-9]/g,'');if(this.value==='')this.value=''"
                                                                        class="w-14 text-xs text-center border rounded-lg px-1.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReturned.{$index}.quantity") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
+                                                            </td>
+                                                            <td class="p-2.5 text-center">
+                                                                <input type="number" min="0" step="1"
+                                                                       wire:model.live.debounce.300ms="itemsReturned.{{ $index }}.quantity_returned"
+                                                                       placeholder="0"
+                                                                       onkeydown="if(!/[0-9]|Backspace|Tab|ArrowLeft|ArrowRight|Delete/.test(event.key))event.preventDefault()"
+                                                                       oninput="this.value=this.value.replace(/^0+/,'').replace(/[^0-9]/g,'');if(this.value==='')this.value=''"
+                                                                       class="w-14 text-xs text-center border rounded-lg px-1.5 py-1.5 focus:ring-1 transition-colors placeholder:text-gray-300 {{ $errors->has("itemsReturned.{$index}.quantity_returned") ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 focus:border-blue-400 focus:ring-blue-400' }}">
+                                                                @error("itemsReturned.{$index}.quantity_returned") <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
                                                             </td>
                                                             <td class="p-2.5">
                                                                 <div x-data="{
@@ -1105,50 +1170,45 @@
                 $dueSfx = match((int) $dueDay) { 1 => 'st', 2 => 'nd', 3 => 'rd', default => 'th' };
                 $totalMoveIn = $rate + $deposit;
             @endphp
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-                <div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
-                    <div class="bg-[#070589] text-white p-5 flex items-center justify-between flex-shrink-0">
-                        <h2 class="text-lg font-bold">Move-In Contract</h2>
-                        <flux:tooltip :content="'Close the contract viewer'" position="bottom">
-                            <button @click="$el.closest('.fixed').style.display='none'; $wire.closeMoveInContract()" class="text-white hover:text-blue-200"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                        </flux:tooltip>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-8 space-y-6 text-sm text-gray-800" id="move-in-contract" style="font-family: 'Open Sans', sans-serif;">
+            <x-inspection.contract-viewer-modal
+                :show="true"
+                title="Move-In Contract"
+                wireCloseMethod="closeMoveInContract"
+                contractId="move-in-contract-manager"
+                :hasSignatures="(bool) ($ownerSignature || $managerSignature || $tenantSignature)"
+                :contractAgreed="(bool) $contractAgreed"
+                :needsSignature="!$managerSignature && $ownerSignature"
+                :statusText="$contractAgreed ? 'Contract fully signed' : (!$managerSignature && $ownerSignature ? 'Sign this contract as unit manager' : 'Waiting for other parties to sign')"
+            >
+                @include('partials.move-in-contract-body', [
+                    't' => $t,
+                    'rate' => $rate,
+                    'deposit' => $deposit,
+                    'premium' => $premium,
+                    'dueDay' => $dueDay,
+                    'dueSfx' => $dueSfx,
+                    'totalMoveIn' => $totalMoveIn,
+                    'inspectionChecklist' => $inspectionChecklist,
+                    'itemsReceived' => $itemsReceived,
+                    'tenantSignature' => $tenantSignature,
+                    'ownerSignature' => $ownerSignature,
+                    'managerSignature' => $managerSignature,
+                    'tenantSignedAt' => $tenantSignedAt,
+                    'ownerSignedAt' => $ownerSignedAt,
+                    'managerSignedAt' => $managerSignedAt,
+                    'contractAgreed' => $contractAgreed,
+                    'signatureMode' => 'manager',
+                ])
 
-                        @include('partials.move-in-contract-body', [
-                            't' => $t,
-                            'rate' => $rate,
-                            'deposit' => $deposit,
-                            'premium' => $premium,
-                            'dueDay' => $dueDay,
-                            'dueSfx' => $dueSfx,
-                            'totalMoveIn' => $totalMoveIn,
-                            'inspectionChecklist' => $inspectionChecklist,
-                            'itemsReceived' => $itemsReceived,
-                            'tenantSignature' => $tenantSignature,
-                            'ownerSignature' => $ownerSignature,
-                            'managerSignature' => $managerSignature,
-                            'tenantSignedAt' => $tenantSignedAt,
-                            'ownerSignedAt' => $ownerSignedAt,
-                            'managerSignedAt' => $managerSignedAt,
-                            'contractAgreed' => $contractAgreed,
-                            'signatureMode' => 'manager',
-                        ])
-
-                    </div>
-                    <div class="p-4 bg-gray-50 border-t flex justify-end gap-3 flex-shrink-0">
-                        @if($contractAgreed)
-                            <button wire:click="downloadSignedContract" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                                Download Signed PDF
-                            </button>
-                        @endif
-                        <button onclick="printContract('move-in-contract')" class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors">
-                            Print Contract
-                        </button>
-                    </div>
-                </div>
-            </div>
+                <x-slot:footer>
+                    <button wire:click="downloadSignedContract" wire:loading.attr="disabled" class="bg-[#070589] hover:bg-[#050467] text-white font-bold py-2 sm:py-2.5 px-4 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg wire:loading.remove wire:target="downloadSignedContract" class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                        <svg wire:loading wire:target="downloadSignedContract" class="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        <span wire:loading.remove wire:target="downloadSignedContract">Download PDF</span>
+                        <span wire:loading wire:target="downloadSignedContract">Generating...</span>
+                    </button>
+                </x-slot:footer>
+            </x-inspection.contract-viewer-modal>
         @endif
 
         {{-- ═══════════════════════════════════════════════
@@ -1159,48 +1219,43 @@
                 $t = $currentTenant;
                 $deposit = $t['move_in_details']['security_deposit'];
             @endphp
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-                <div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
-                    <div class="bg-[#070589] text-white p-5 flex items-center justify-between flex-shrink-0">
-                        <h2 class="text-lg font-bold">Move-Out Clearance & Deposit Settlement</h2>
-                        <flux:tooltip :content="'Close the contract viewer'" position="bottom">
-                            <button @click="$el.closest('.fixed').style.display='none'; $wire.closeMoveOutContract()" class="text-white hover:text-blue-200"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                        </flux:tooltip>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-8 space-y-6 text-sm text-gray-800" id="move-out-contract" style="font-family: 'Open Sans', sans-serif;">
+            <x-inspection.contract-viewer-modal
+                :show="true"
+                title="Move-Out Clearance & Deposit Settlement"
+                wireCloseMethod="closeMoveOutContract"
+                contractId="move-out-contract-manager"
+                :hasSignatures="(bool) ($moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature)"
+                :contractAgreed="(bool) $moveOutContractAgreed"
+                :needsSignature="!$moveOutManagerSignature && $moveOutOwnerSignature"
+                :statusText="$moveOutContractAgreed ? 'Contract fully signed' : (!$moveOutManagerSignature && $moveOutOwnerSignature ? 'Sign this contract as unit manager' : 'Waiting for other parties to sign')"
+            >
+                @include('partials.move-out-contract-body', [
+                    't' => $t,
+                    'deposit' => $deposit,
+                    'moveOutChecklist' => $moveOutChecklist,
+                    'itemsReturned' => $itemsReturned,
+                    'inspectionChecklist' => $inspectionChecklist,
+                    'moveOutTenantSignature' => $moveOutTenantSignature,
+                    'moveOutOwnerSignature' => $moveOutOwnerSignature,
+                    'moveOutManagerSignature' => $moveOutManagerSignature,
+                    'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
+                    'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
+                    'moveOutManagerSignedAt' => $moveOutManagerSignedAt,
+                    'moveOutContractAgreed' => $moveOutContractAgreed,
+                    'outstandingBalances' => $t['outstanding_balances'] ?? [],
+                    'depositRefund' => $t['deposit_refund'] ?? [],
+                    'signatureMode' => 'manager',
+                ])
 
-                        @include('partials.move-out-contract-body', [
-                            't' => $t,
-                            'deposit' => $deposit,
-                            'moveOutChecklist' => $moveOutChecklist,
-                            'itemsReturned' => $itemsReturned,
-                            'inspectionChecklist' => $inspectionChecklist,
-                            'moveOutTenantSignature' => $moveOutTenantSignature,
-                            'moveOutOwnerSignature' => $moveOutOwnerSignature,
-                            'moveOutManagerSignature' => $moveOutManagerSignature,
-                            'moveOutTenantSignedAt' => $moveOutTenantSignedAt,
-                            'moveOutOwnerSignedAt' => $moveOutOwnerSignedAt,
-                            'moveOutManagerSignedAt' => $moveOutManagerSignedAt,
-                            'moveOutContractAgreed' => $moveOutContractAgreed,
-                            'outstandingBalances' => $t['outstanding_balances'] ?? [],
-                            'depositRefund' => $t['deposit_refund'] ?? [],
-                            'signatureMode' => 'manager',
-                        ])
-
-                    </div>
-                    <div class="p-4 bg-gray-50 border-t flex justify-end gap-3 flex-shrink-0">
-                        @if($moveOutContractAgreed)
-                            <button wire:click="downloadMoveOutSignedContract" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                                Download Signed PDF
-                            </button>
-                        @endif
-                        <button onclick="printContract('move-out-contract')" class="bg-[#070589] hover:bg-[#000060] text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors">
-                            Print Contract
-                        </button>
-                    </div>
-                </div>
-            </div>
+                <x-slot:footer>
+                    <button wire:click="downloadMoveOutSignedContract" wire:loading.attr="disabled" class="bg-[#070589] hover:bg-[#050467] text-white font-bold py-2 sm:py-2.5 px-4 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg wire:loading.remove wire:target="downloadMoveOutSignedContract" class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                        <svg wire:loading wire:target="downloadMoveOutSignedContract" class="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        <span wire:loading.remove wire:target="downloadMoveOutSignedContract">Download PDF</span>
+                        <span wire:loading wire:target="downloadMoveOutSignedContract">Generating...</span>
+                    </button>
+                </x-slot:footer>
+            </x-inspection.contract-viewer-modal>
         @endif
 
     @else
@@ -1287,6 +1342,17 @@
                 @endforeach
             </div>
 
+            {{-- Deposit Interest Input (RA 9653 IRR Section 7b) --}}
+            <div class="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                <label class="block text-xs font-semibold text-blue-800 mb-1.5">Deposit Interest Earned (optional)</label>
+                <p class="text-[11px] text-blue-600 mb-2">Enter the interest earned on the security deposit per RA 9653. This amount will be added to the tenant's refund.</p>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-600">PHP</span>
+                    <input type="number" wire:model="depositInterestAmount" step="0.01" min="0" placeholder="0.00"
+                        class="flex-1 text-sm border border-blue-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
+                </div>
+            </div>
+
             <div class="flex justify-center gap-4 px-2">
                 <button @click="show = false" class="flex-1 bg-[#D6E6FF] hover:bg-[#c3daff] text-[#0C0B50] font-bold py-3 rounded-xl transition-colors text-sm">
                     Cancel
@@ -1316,8 +1382,8 @@
     >
         <div class="space-y-4 text-left">
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Reason for Vacating</label>
-                <select wire:model="reasonForVacating" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Reason for Vacating <span class="text-red-500">*</span></label>
+                <select wire:model="reasonForVacating" class="w-full text-sm border rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] {{ $errors->has('reasonForVacating') ? 'border-red-400' : 'border-gray-200' }}">
                     <option value="">Select a reason...</option>
                     <option value="End of lease term (contract expired)">End of lease term (contract expired)</option>
                     <option value="Voluntary early termination by Lessee">Voluntary early termination by Lessee</option>
@@ -1325,27 +1391,31 @@
                     <option value="Lease violation or termination by Lessor">Lease violation or termination by Lessor</option>
                     <option value="Transfer to a different unit / building (internal transfer)">Transfer to a different unit / building</option>
                 </select>
+                @error('reasonForVacating') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Forwarding Address</label>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Forwarding Address <span class="text-red-500">*</span></label>
                 <input type="text" wire:model="forwardingAddress" placeholder="Address for deposit refund / correspondence"
-                       class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
+                       class="w-full text-sm border rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300 {{ $errors->has('forwardingAddress') ? 'border-red-400' : 'border-gray-200' }}">
+                @error('forwardingAddress') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Refund Method</label>
-                    <select wire:model="depositRefundMethod" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589]">
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Refund Method <span class="text-red-500">*</span></label>
+                    <select wire:model="depositRefundMethod" class="w-full text-sm border rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] {{ $errors->has('depositRefundMethod') ? 'border-red-400' : 'border-gray-200' }}">
                         <option value="">Select...</option>
                         <option value="GCash">GCash</option>
                         <option value="Maya">Maya</option>
                         <option value="Bank Transfer">Bank Transfer</option>
                         <option value="Cash">Cash</option>
                     </select>
+                    @error('depositRefundMethod') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Account Name / Number</label>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Account Name / Number <span class="text-red-500">*</span></label>
                     <input type="text" wire:model="depositRefundAccount" placeholder="e.g. 0917-xxx-xxxx"
-                           class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300">
+                           class="w-full text-sm border rounded-xl px-3 py-2 focus:border-[#070589] focus:ring-1 focus:ring-[#070589] placeholder:text-gray-300 {{ $errors->has('depositRefundAccount') ? 'border-red-400' : 'border-gray-200' }}">
+                    @error('depositRefundAccount') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
         </div>

@@ -11,9 +11,9 @@
             x-transition:leave-start="scale-100 opacity-100"
             x-transition:leave-end="scale-50 opacity-0"
             @click="open = true"
-            class="w-14 h-14 rounded-full bg-[#070589] text-white shadow-lg hover:bg-[#0a07b5] transition-all duration-200 flex items-center justify-center relative"
+            class="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-[#070589] text-white shadow-lg hover:bg-[#0a07b5] transition-all duration-200 flex items-center justify-center relative"
         >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
             </svg>
             @if($totalUnread > 0)
@@ -34,7 +34,7 @@
         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
         x-transition:leave-end="opacity-0 translate-y-4 scale-95"
         x-cloak
-        style="position: absolute; bottom: 0; right: 0; width: 360px; height: 480px; transform-origin: bottom right;"
+        style="position: absolute; bottom: 0; right: 0; width: min(360px, calc(100vw - 2rem)); height: min(480px, 65vh); transform-origin: bottom right;"
         class="bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
     >
 

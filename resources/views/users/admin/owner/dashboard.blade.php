@@ -74,6 +74,71 @@
         @endforeach
     </div>
 
+    {{-- Pending Contracts Widget --}}
+    @if($pendingContractsCount > 0)
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800">Contracts Awaiting Signature</h3>
+                        <p class="text-xs text-gray-400">{{ $pendingContractsCount }} active {{ Str::plural('contract', $pendingContractsCount) }} pending</p>
+                    </div>
+                </div>
+                <a href="{{ route('landlord.property') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+                    View All
+                </a>
+            </div>
+
+            <div class="divide-y divide-gray-50">
+                @foreach($pendingContracts as $contract)
+                    @php
+                        $cLabel = match($contract['contract_status']) {
+                            'pending_manager' => 'Pending Manager',
+                            'pending_tenant' => 'Pending Tenant',
+                            'pending_owner' => 'Pending Owner',
+                            'pending_signatures' => 'Pending',
+                            'draft' => 'Draft',
+                            default => ucfirst(str_replace('_', ' ', $contract['contract_status'])),
+                        };
+                    @endphp
+                    <div class="px-6 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700">
+                                {{ $contract['tenant_initial'] }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800">{{ $contract['tenant_name'] }}</p>
+                                <p class="text-[11px] text-gray-400">{{ $contract['property'] }} &middot; Unit {{ $contract['unit'] }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            {{-- Signature indicators --}}
+                            <div class="flex items-center gap-0.5">
+                                <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold {{ !$contract['needs_owner_sign'] ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400' }}">O</div>
+                                <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-gray-100 text-gray-400">M</div>
+                                <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-gray-100 text-gray-400">T</div>
+                                <span class="text-[10px] text-gray-400 ml-0.5">{{ $contract['sig_count'] }}/3</span>
+                            </div>
+
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">{{ $cLabel }}</span>
+
+                            @if($contract['needs_owner_sign'])
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-blue-600 bg-blue-50 rounded-full">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                    Sign Now
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     {{-- 2. Financial Overview with Graphs --}}
     <div class="space-y-6">
         <h3 class="text-2xl font-bold text-[#070642]">Financial Overview</h3>

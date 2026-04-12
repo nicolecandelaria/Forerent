@@ -45,12 +45,20 @@ if [ -n "${FIREBASE_CREDENTIALS}" ] && [ ! -r "${FIREBASE_CREDENTIALS}" ]; then
 	echo "[WARN] FIREBASE_CREDENTIALS is set but not readable by runtime user: ${FIREBASE_CREDENTIALS}" >&2
 fi
 
-php artisan migrate --force
+# php artisan migrate --force
+# Run database migration and seeding asynchronously
+# Run migrations first (must complete before app starts)
+php artisan migrate:fresh --force
+
+# Cache/clear tasks (fast, run synchronously)
 php artisan config:cache
 php artisan storage:link
 php artisan config:clear
 php artisan view:clear
 php artisan cache:clear
 
-# Start nginx and php-fpm immediately
+# Seed in background — logs will still stream to stdout/render
+php artisan db:seed --force &
+
+# Start supervisor (app is available with empty DB during seed)
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

@@ -299,12 +299,8 @@
                                     </div>
                                     <div>
                                         <label class="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Payment Status</label>
-                                        <select wire:model="paymentStatus" class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:border-[#2360E8] focus:ring-[#2360E8]">
-                                            <option value="">Select Status</option>
-                                            <option value="Paid">Paid</option>
-                                            <option value="Unpaid">Unpaid</option>
-                                        </select>
-                                        @error('paymentStatus') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                                        <div class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700">Paid</div>
+                                        <input type="hidden" wire:model="paymentStatus" value="Paid">
                                     </div>
                                 </div>
                             </div>
@@ -352,10 +348,11 @@
                                             </div>
                                             <p class="text-[11px] text-[#2360E8] text-center mt-0.5 font-medium">Uploading...</p>
                                         </div>
-                                        <div x-show="!uploading" class="mt-2 text-center">
+                                        <div x-show="!uploading" class="mt-2 text-left">
                                             <p class="text-xs font-bold text-[#001B5E]">Profile Picture</p>
                                             <p class="text-[11px] text-gray-500">This will be displayed on your profile</p>
                                         </div>
+                                        @error('profilePicture') <span class="text-xs text-red-500 block text-left mt-1">{{ $message }}</span> @enderror
                                     </div>
                                     <div class="flex-1 grid grid-cols-2 gap-4">
                                         <div>
@@ -388,8 +385,12 @@
                                     <div>
                                         <label class="text-xs font-semibold text-gray-700">Phone Number</label>
                                         <div class="relative mt-1">
-                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-gray-500 sm:text-sm">+63</span></div>
-                                            <input wire:model="phoneNumber" type="text" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full pl-12 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter 10 digit number">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center gap-2 pointer-events-none">
+                                                <span class="text-gray-500 text-sm">+63</span>
+                                                <span class="border-l border-gray-300 h-5"></span>
+                                                <span class="text-gray-700 text-sm font-medium">9</span>
+                                            </div>
+                                            <input wire:model="phoneNumber" type="text" maxlength="9" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500" style="padding-left: 4rem;" placeholder="">
                                         </div>
                                         @error('phoneNumber') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                                     </div>
@@ -406,7 +407,7 @@
                                     </div>
                                 </div>
 
-                                <h3 class="text-base font-bold text-[#070589] mb-4">Government ID</h3>
+                                <h3 class="text-base font-bold text-[#070589] mb-4">Government ID <span class="text-xs font-normal text-gray-400">(Optional)</span></h3>
                                 <div class="grid grid-cols-2 gap-4 mb-4">
                                     <div>
                                         <label class="text-xs font-semibold text-gray-700">ID Type</label>
@@ -522,8 +523,12 @@
                                     <div class="col-span-2">
                                         <label class="text-xs font-semibold text-gray-700">Contact Number</label>
                                         <div class="relative mt-1">
-                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-gray-500 sm:text-sm">+63</span></div>
-                                            <input wire:model="emergencyContactNumber" type="text" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full pl-12 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter 10 digit number">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center gap-2 pointer-events-none">
+                                                <span class="text-gray-500 text-sm">+63</span>
+                                                <span class="border-l border-gray-300 h-5"></span>
+                                                <span class="text-gray-700 text-sm font-medium">9</span>
+                                            </div>
+                                            <input wire:model="emergencyContactNumber" type="text" maxlength="9" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500" style="padding-left: 4rem;" placeholder="">
                                         </div>
                                         @error('emergencyContactNumber') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                                     </div>
@@ -634,12 +639,9 @@
                                     </div>
                                     <div>
                                         <label class="text-xs font-semibold text-gray-700">Payment Status</label>
-                                        <select wire:model="paymentStatus" class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500">
-                                            <option value="">Select Status</option>
-                                            <option value="Paid">Paid</option>
-                                            <option value="Unpaid">Unpaid</option>
-                                        </select>
-                                        @error('paymentStatus') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                                        <div class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700">Paid</div>
+                                        <input type="hidden" wire:model="paymentStatus" value="Paid">
+                                        <p class="text-[11px] text-gray-500 mt-1">Advance + deposit must be paid before move-in (RA 9653 Section 6).</p>
                                     </div>
                                 </div>
 

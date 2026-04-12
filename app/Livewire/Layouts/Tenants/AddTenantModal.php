@@ -20,6 +20,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\Bed;
 use App\Models\Lease;
+use App\Models\Notification as NotificationModel;
 use App\Models\UtilityBill;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -77,7 +78,6 @@ class AddTenantModal extends Component
     public $currentAutoRenew = false;
 
     // === STEP 1: Profile Information ===
-    #[Validate('nullable|image|max:10240')]
     public $profilePicture = null;
 
     public ?string $existingProfileImg = null;
@@ -92,7 +92,7 @@ class AddTenantModal extends Component
     public $gender = '';
 
     // === STEP 2: Contact & Personal Details ===
-    #[Validate('required|numeric|digits:10')]
+    #[Validate('required|numeric|digits:9')]
     public $phoneNumber = '';
 
     #[Validate('required|email')]
@@ -101,12 +101,12 @@ class AddTenantModal extends Component
     #[Validate('required|min:5')]
     public $permanentAddress = '';
 
-    #[Validate('required')]
+    #[Validate('nullable')]
     public $governmentIdType = '';
 
     public $governmentIdTypeOther = '';
 
-    #[Validate('required|min:3')]
+    #[Validate('nullable|min:3')]
     public $governmentIdNumber = '';
 
     #[Validate('nullable|image|max:10240')]
@@ -128,7 +128,7 @@ class AddTenantModal extends Component
 
     public $emergencyContactRelationshipOther = '';
 
-    #[Validate('required|numeric|digits:10')]
+    #[Validate('required|numeric|digits:9')]
     public $emergencyContactNumber = '';
 
     // === STEP 3: Rent Details ===
@@ -163,7 +163,7 @@ class AddTenantModal extends Component
     public $securityDeposit = '';
 
     #[Validate('required')]
-    public $paymentStatus = '';
+    public $paymentStatus = 'Paid';
 
     #[Validate('required')]
     public $monthlyDueDate = '';
@@ -260,12 +260,12 @@ class AddTenantModal extends Component
         }
 
         $this->transferFromTenantId = $tenant->user_id;
-        $this->firstName = $tenant->first_name;
-        $this->lastName = $tenant->last_name;
-        $this->gender = $tenant->gender ?? '';
-        $this->phoneNumber = preg_replace('/\D/', '', $tenant->contact ?? '');
-        $this->email = $tenant->email;
-        $this->existingProfileImg = $tenant->profile_img;
+        $this->firstName            = $tenant->first_name;
+        $this->lastName             = $tenant->last_name;
+        $this->gender               = $tenant->gender ?? '';
+        $this->phoneNumber          = substr(preg_replace('/\D/', '', $tenant->contact ?? ''), 1);
+        $this->email                = $tenant->email;
+        $this->existingProfileImg   = $tenant->profile_img;
 
         $this->currentLeaseId = $lease?->lease_id;
         $this->currentBedId = $lease?->bed_id;
@@ -316,11 +316,11 @@ class AddTenantModal extends Component
         $this->editTenantId = $tenant->user_id;
         $this->editLeaseId = $lease?->lease_id;
 
-        $this->firstName = $tenant->first_name;
-        $this->lastName = $tenant->last_name;
-        $this->gender = $tenant->gender ?? '';
-        $this->phoneNumber = preg_replace('/\D/', '', $tenant->contact ?? '');
-        $this->email = $tenant->email;
+        $this->firstName          = $tenant->first_name;
+        $this->lastName           = $tenant->last_name;
+        $this->gender             = $tenant->gender ?? '';
+        $this->phoneNumber        = substr(preg_replace('/\D/', '', $tenant->contact ?? ''), 1);
+        $this->email              = $tenant->email;
         $this->existingProfileImg = $tenant->profile_img;
 
         $this->permanentAddress = $tenant->permanent_address ?? '';
@@ -335,11 +335,12 @@ class AddTenantModal extends Component
             $this->governmentIdType = $storedIdType;
         }
 
-        $this->governmentIdNumber = $tenant->government_id_number ?? '';
-        $this->companySchool = $tenant->company_school ?? '';
-        $this->positionCourse = $tenant->position_course ?? '';
-        $this->emergencyContactName = $tenant->emergency_contact_name ?? '';
-        $this->emergencyContactNumber = $tenant->emergency_contact_number ?? '';
+        $this->governmentIdNumber     = $tenant->government_id_number ?? '';
+        $this->companySchool          = $tenant->company_school ?? '';
+        $this->positionCourse         = $tenant->position_course ?? '';
+        $this->emergencyContactName   = $tenant->emergency_contact_name ?? '';
+        $emergencyNum = $tenant->emergency_contact_number ?? '';
+        $this->emergencyContactNumber = (strlen($emergencyNum) === 10 && str_starts_with($emergencyNum, '9')) ? substr($emergencyNum, 1) : $emergencyNum;
 
         $knownRelationships = ['Parent', 'Sibling', 'Spouse', 'Friend', 'Guardian'];
         $storedRelationship = $tenant->emergency_contact_relationship ?? '';
@@ -602,23 +603,23 @@ class AddTenantModal extends Component
 
             DB::transaction(function () use ($photoPath, $idImagePath, $password, &$createdUser) {
                 $createdUser = User::create([
-                    'first_name' => $this->firstName,
-                    'last_name' => $this->lastName,
-                    'gender' => $this->gender,
-                    'email' => $this->email,
-                    'contact' => $this->phoneNumber,
-                    'role' => 'tenant',
-                    'password' => Hash::make($password),
-                    'profile_img' => $photoPath,
-                    'permanent_address' => $this->permanentAddress,
-                    'government_id_type' => $this->resolvedIdType(),
-                    'government_id_number' => $this->governmentIdNumber,
-                    'government_id_image' => $idImagePath,
-                    'company_school' => $this->companySchool,
-                    'position_course' => $this->positionCourse,
-                    'emergency_contact_name' => $this->emergencyContactName,
+                    'first_name'                     => $this->firstName,
+                    'last_name'                      => $this->lastName,
+                    'gender'                         => $this->gender,
+                    'email'                          => $this->email,
+                    'contact'                        => '9' . $this->phoneNumber,
+                    'role'                           => 'tenant',
+                    'password'                       => Hash::make($password),
+                    'profile_img'                    => $photoPath,
+                    'permanent_address'              => $this->permanentAddress,
+                    'government_id_type'             => $this->resolvedIdType(),
+                    'government_id_number'           => $this->governmentIdNumber,
+                    'government_id_image'            => $idImagePath,
+                    'company_school'                 => $this->companySchool,
+                    'position_course'                => $this->positionCourse,
+                    'emergency_contact_name'         => $this->emergencyContactName,
                     'emergency_contact_relationship' => $this->resolvedRelationship(),
-                    'emergency_contact_number' => $this->emergencyContactNumber,
+                    'emergency_contact_number'       => '9' . $this->emergencyContactNumber,
                 ]);
 
                 $endDate = Carbon::parse($this->startDate)->addMonths((int) $this->term ?: 6);
@@ -727,6 +728,17 @@ class AddTenantModal extends Component
         }
 
         if ($createdUser) {
+            // Notify tenant to upload valid ID if missing
+            if (!$createdUser->government_id_type || !$createdUser->government_id_number || !$createdUser->government_id_image) {
+                NotificationModel::create([
+                    'user_id' => $createdUser->user_id,
+                    'type'    => 'valid_id_required',
+                    'title'   => 'Valid ID Required',
+                    'message' => 'Please upload your valid government ID in Settings to complete your profile.',
+                    'link'    => '/settings',
+                ]);
+            }
+
             $this->attemptWelcomeEmailDelivery($createdUser, $password);
         }
 
@@ -943,21 +955,21 @@ class AddTenantModal extends Component
                 : $tenant->government_id_image;
 
             $tenant->update([
-                'first_name' => $this->firstName,
-                'last_name' => $this->lastName,
-                'gender' => $this->gender,
-                'email' => $this->email,
-                'contact' => $this->phoneNumber,
-                'profile_img' => $photoPath,
-                'permanent_address' => $this->permanentAddress,
-                'government_id_type' => $this->resolvedIdType(),
-                'government_id_number' => $this->governmentIdNumber,
-                'government_id_image' => $idImagePath,
-                'company_school' => $this->companySchool,
-                'position_course' => $this->positionCourse,
-                'emergency_contact_name' => $this->emergencyContactName,
+                'first_name'                     => $this->firstName,
+                'last_name'                      => $this->lastName,
+                'gender'                         => $this->gender,
+                'email'                          => $this->email,
+                'contact'                        => '9' . $this->phoneNumber,
+                'profile_img'                    => $photoPath,
+                'permanent_address'              => $this->permanentAddress,
+                'government_id_type'             => $this->resolvedIdType(),
+                'government_id_number'           => $this->governmentIdNumber,
+                'government_id_image'            => $idImagePath,
+                'company_school'                 => $this->companySchool,
+                'position_course'                => $this->positionCourse,
+                'emergency_contact_name'         => $this->emergencyContactName,
                 'emergency_contact_relationship' => $this->resolvedRelationship(),
-                'emergency_contact_number' => $this->emergencyContactNumber,
+                'emergency_contact_number'       => '9' . $this->emergencyContactNumber,
             ]);
 
             $endDate = Carbon::parse($this->startDate)->addMonths((int) $this->term ?: 6);
@@ -1044,29 +1056,39 @@ class AddTenantModal extends Component
         }
 
         return match ($step) {
-            1 => [
+            1 => array_merge([
                 'firstName' => 'required|min:2',
-                'lastName' => 'required|min:2',
-                'gender' => 'required',
-            ],
+                'lastName'  => 'required|min:2',
+                'gender'    => 'required',
+            ], (!$this->profilePicture && !$this->existingProfileImg) ? [
+                'profilePicture' => 'required|image|max:10240',
+            ] : [
+                'profilePicture' => 'nullable|image|max:10240',
+            ]),
             2 => array_merge([
-                'permanentAddress' => 'required|min:5',
-                'governmentIdType' => 'required',
-                'governmentIdNumber' => 'required|min:3',
-                'companySchool' => 'required|min:2',
-                'positionCourse' => 'required|min:2',
-                'emergencyContactName' => 'required|min:2',
+                'permanentAddress'             => 'required|min:5',
+                'governmentIdType'             => 'nullable',
+                'governmentIdNumber'           => 'nullable|min:3',
+                'companySchool'                => 'required|min:2',
+                'positionCourse'               => 'required|min:2',
+                'emergencyContactName'         => 'required|min:2',
                 'emergencyContactRelationship' => 'required',
-                'emergencyContactNumber' => 'required|numeric|digits:10',
+                'emergencyContactNumber'       => 'required|numeric|digits:9',
             ],
                 $this->governmentIdType === 'Other' ? ['governmentIdTypeOther' => 'required|min:2'] : [],
                 $this->emergencyContactRelationship === 'Other' ? ['emergencyContactRelationshipOther' => 'required|min:2'] : [],
                 $this->isEdit() ? [
-                    'phoneNumber' => 'required|numeric|digits:10|unique:users,contact,'.$this->editTenantId.',user_id',
-                    'email' => 'required|email|unique:users,email,'.$this->editTenantId.',user_id',
+                    'phoneNumber' => ['required', 'numeric', 'digits:9', function ($attribute, $value, $fail) {
+                        $exists = \App\Models\User::where('contact', '9' . $value)->where('user_id', '!=', $this->editTenantId)->exists();
+                        if ($exists) $fail('This phone number is already registered.');
+                    }],
+                    'email'       => 'required|email|unique:users,email,' . $this->editTenantId . ',user_id',
                 ] : [
-                    'phoneNumber' => 'required|numeric|digits:10|unique:users,contact',
-                    'email' => 'required|email|unique:users,email|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/',
+                    'phoneNumber' => ['required', 'numeric', 'digits:9', function ($attribute, $value, $fail) {
+                        $exists = \App\Models\User::where('contact', '9' . $value)->exists();
+                        if ($exists) $fail('This phone number is already registered.');
+                    }],
+                    'email'       => 'required|email|unique:users,email|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/',
                 ]),
             3 => [
                 'selectedBuilding' => 'required',
@@ -1103,18 +1125,19 @@ class AddTenantModal extends Component
             'monthlyDueDate' => 'required',
         ];
 
-        if (! $this->isTransfer()) {
-            $rules['firstName'] = 'required|min:2';
-            $rules['lastName'] = 'required|min:2';
-            $rules['gender'] = 'required';
-            $rules['permanentAddress'] = 'required|min:5';
-            $rules['governmentIdType'] = 'required';
-            $rules['governmentIdNumber'] = 'required|min:3';
-            $rules['companySchool'] = 'required|min:2';
-            $rules['positionCourse'] = 'required|min:2';
-            $rules['emergencyContactName'] = 'required|min:2';
+        if (!$this->isTransfer()) {
+            $rules['firstName']                    = 'required|min:2';
+            $rules['lastName']                     = 'required|min:2';
+            $rules['gender']                       = 'required';
+            $rules['profilePicture']               = (!$this->profilePicture && !$this->existingProfileImg) ? 'required|image|max:10240' : 'nullable|image|max:10240';
+            $rules['permanentAddress']             = 'required|min:5';
+            $rules['governmentIdType']             = 'nullable';
+            $rules['governmentIdNumber']           = 'nullable|min:3';
+            $rules['companySchool']                = 'required|min:2';
+            $rules['positionCourse']               = 'required|min:2';
+            $rules['emergencyContactName']         = 'required|min:2';
             $rules['emergencyContactRelationship'] = 'required';
-            $rules['emergencyContactNumber'] = 'required|numeric|digits:10';
+            $rules['emergencyContactNumber']       = 'required|numeric|digits:9';
 
             if ($this->governmentIdType === 'Other') {
                 $rules['governmentIdTypeOther'] = 'required|min:2';
@@ -1124,11 +1147,17 @@ class AddTenantModal extends Component
             }
 
             if ($this->isEdit()) {
-                $rules['phoneNumber'] = 'required|numeric|digits:10|unique:users,contact,'.$this->editTenantId.',user_id';
-                $rules['email'] = 'required|email|unique:users,email,'.$this->editTenantId.',user_id';
+                $rules['phoneNumber'] = ['required', 'numeric', 'digits:9', function ($attribute, $value, $fail) {
+                    $exists = \App\Models\User::where('contact', '9' . $value)->where('user_id', '!=', $this->editTenantId)->exists();
+                    if ($exists) $fail('This phone number is already registered.');
+                }];
+                $rules['email']       = 'required|email|unique:users,email,' . $this->editTenantId . ',user_id';
             } else {
-                $rules['phoneNumber'] = 'required|numeric|digits:10|unique:users,contact';
-                $rules['email'] = 'required|email|unique:users,email|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/';
+                $rules['phoneNumber'] = ['required', 'numeric', 'digits:9', function ($attribute, $value, $fail) {
+                    $exists = \App\Models\User::where('contact', '9' . $value)->exists();
+                    if ($exists) $fail('This phone number is already registered.');
+                }];
+                $rules['email']       = 'required|email|unique:users,email|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/';
             }
         }
 

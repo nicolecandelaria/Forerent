@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header-title', 'PAYMENT DOCUMENTATION')
+@section('header-title', 'PAYMENT DOCUMENTS')
 @section('header-subtitle', 'Rental payment documentation')
 
 @section('content')
@@ -49,19 +49,6 @@
                     </svg>
                     Utility Bills
                 </button>
-                <button
-                    @click="view = 'categories'; $nextTick(() => window.dispatchEvent(new Event('resize')))"
-                    :class="view === 'categories'
-                        ? 'bg-[#070589] text-white shadow-md'
-                        : 'bg-transparent text-gray-500 hover:text-gray-700'"
-                    class="relative px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ease-in-out flex items-center gap-2"
-                >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
-                    </svg>
-                    Payment Categories
-                </button>
             </div>
 
             {{-- Utility Bill Entry Button (only visible on utility view) --}}
@@ -93,10 +80,6 @@
             <livewire:layouts.financials.utility-bill-table />
         </div>
 
-        {{-- Payment Categories View --}}
-        <div x-show="view === 'categories'" x-cloak>
-            <livewire:layouts.financials.payment-categories />
-        </div>
     </div>
 
     {{-- Utility Bill Entry Modal (always mounted for event listening) --}}

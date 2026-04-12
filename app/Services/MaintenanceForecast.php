@@ -43,6 +43,7 @@ class MaintenanceForecast
 
             if ($response->successful()) {
                 $result = $response->json();
+                $result = $this->attachActualsToMonthlyForecasts((array) $result, (int) $year);
                 Log::info("Maintenance forecast API response received", $result);
                 return $result;
             } else {
@@ -195,7 +196,7 @@ class MaintenanceForecast
             ];
         }
 
-        return [
+        $fallback = [
             'success' => true,
             'is_fallback' => true,
             'warning' => 'Using fallback forecast due to API unavailability.',
@@ -214,6 +215,69 @@ class MaintenanceForecast
                 'clusters_used' => 0,
             ],
         ];
+
+        return $this->attachActualsToMonthlyForecasts($fallback, $year);
+    }
+
+    private function attachActualsToMonthlyForecasts(array $result, int $year): array
+    {
+        if (!isset($result['monthly_forecasts']) || !is_array($result['monthly_forecasts'])) {
+            return $result;
+        }
+
+        $actualCosts = $this->getCurrentYearMonthlyActualCosts($year);
+        $actualJobCounts = $this->getCurrentYearMonthlyActualJobCounts($year);
+
+        foreach ($result['monthly_forecasts'] as &$monthForecast) {
+            $monthNumber = isset($monthForecast['month']) ? (int) $monthForecast['month'] : 0;
+
+            $monthForecast['actual_cost'] = round((float) ($actualCosts[$monthNumber] ?? 0), 2);
+            $monthForecast['actual_job_count'] = (int) ($actualJobCounts[$monthNumber] ?? 0);
+        }
+        unset($monthForecast);
+
+        return $result;
+    }
+
+    private function getCurrentYearMonthlyActualCosts(int $year): array
+    {
+        $monthExpr = $this->completionMonthExpression();
+
+        return DB::table('maintenance_requests as mr')
+            ->join('maintenance_logs as ml', 'mr.request_id', '=', 'ml.request_id')
+            ->where('mr.status', 'Completed')
+            ->whereYear('ml.completion_date', $year)
+            ->selectRaw("{$monthExpr} as month, SUM(ml.cost) as total_cost")
+            ->groupBy('month')
+            ->pluck('total_cost', 'month')
+            ->map(fn ($total) => (float) $total)
+            ->all();
+    }
+
+    private function getCurrentYearMonthlyActualJobCounts(int $year): array
+    {
+        $monthExpr = $this->completionMonthExpression();
+
+        return DB::table('maintenance_requests as mr')
+            ->join('maintenance_logs as ml', 'mr.request_id', '=', 'ml.request_id')
+            ->where('mr.status', 'Completed')
+            ->whereYear('ml.completion_date', $year)
+            ->selectRaw("{$monthExpr} as month, COUNT(*) as total_jobs")
+            ->groupBy('month')
+            ->pluck('total_jobs', 'month')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
+
+    private function completionMonthExpression(): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return 'EXTRACT(MONTH FROM ml.completion_date)::int';
+        }
+
+        return 'MONTH(ml.completion_date)';
     }
 
     private function urgencyToScore(?string $urgency): float

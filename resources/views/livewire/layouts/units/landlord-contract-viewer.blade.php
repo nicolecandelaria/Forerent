@@ -1,9 +1,17 @@
 <div>
     @if($showModal && $contractData)
+        @php
+            $hasAnySignature = $ownerSignature || $managerSignature || $tenantSignature
+                || $moveOutOwnerSignature || $moveOutManagerSignature || $moveOutTenantSignature;
+            $isFullySigned = $contractAgreed || $moveOutContractAgreed;
+            // Only warn when partially signed (some sigs but not complete). No sigs or fully signed → close directly.
+            $canCloseDirectly = $isFullySigned || !$hasAnySignature;
+            $landlordCloseAction = $canCloseDirectly ? '$wire.closeModal()' : "\$dispatch('open-modal', 'leave-confirm-landlord')";
+        @endphp
         {{-- Backdrop --}}
         <div
+            x-data
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            wire:click.self="closeModal"
         >
             {{-- Modal Container --}}
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-4 overflow-hidden">
@@ -46,13 +54,29 @@
                         </div>
 
                         {{-- Close Button --}}
-                        <button wire:click="closeModal" class="text-white/80 hover:text-white transition-colors">
+                        <button @click="{{ $landlordCloseAction }}" class="text-white/80 hover:text-white transition-colors">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
                     </div>
                 </div>
+
+                {{-- Signing Reminder Banner --}}
+                @php
+                    $landlordNeedsSignature = ($contractType === 'move-in' && !$ownerSignature)
+                        || ($contractType === 'move-out' && !$moveOutOwnerSignature);
+                    $landlordFullySigned = ($contractType === 'move-in' && $contractAgreed)
+                        || ($contractType === 'move-out' && $moveOutContractAgreed);
+                @endphp
+                @if($landlordNeedsSignature && !$landlordFullySigned)
+                    <div class="flex-shrink-0 px-4 sm:px-6 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-xs sm:text-sm text-blue-700 font-medium">Please read the contract carefully and sign at the bottom of the document.</p>
+                    </div>
+                @endif
 
                 {{-- Contract Body (Scrollable) --}}
                 <div class="flex-1 overflow-y-auto p-8 space-y-6 contract-body" style="font-size: 13px;">
@@ -128,13 +152,26 @@
                         @endif
                     </p>
                     <button
-                        wire:click="closeModal"
-                        class="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        wire:click="downloadContract"
+                        wire:loading.attr="disabled"
+                        class="bg-[#070589] hover:bg-[#050467] text-white font-bold py-2 px-4 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Close
+                        <svg wire:loading.remove wire:target="downloadContract" class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                        <svg wire:loading wire:target="downloadContract" class="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        <span wire:loading.remove wire:target="downloadContract">Download PDF</span>
+                        <span wire:loading wire:target="downloadContract">Generating...</span>
                     </button>
                 </div>
             </div>
+
+            <x-ui.modal-confirm
+                name="leave-confirm-landlord"
+                title="Leave without signing?"
+                description="This contract has not been signed yet. Are you sure you want to close it?"
+                confirmText="Leave"
+                cancelText="Stay"
+                confirmAction="closeModal"
+            />
         </div>
 
         {{-- Owner Signature Pad Modals --}}

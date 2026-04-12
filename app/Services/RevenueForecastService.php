@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Client\Response;
 use Carbon\Carbon;
 use Throwable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Database\Eloquent\Builder;
 
 class RevenueForecastService
 {
@@ -17,6 +19,7 @@ class RevenueForecastService
     private int $timeoutSeconds;
     private int $retryAttempts;
     private int $retryBaseDelayMs;
+    private int $forecastCacheTtlSeconds;
 
     public function __construct()
     {
@@ -24,12 +27,28 @@ class RevenueForecastService
         $this->timeoutSeconds = (int) env('FORECAST_API_TIMEOUT_SECONDS', 120);
         $this->retryAttempts = max(1, (int) env('FORECAST_API_RETRY_ATTEMPTS', 3));
         $this->retryBaseDelayMs = max(100, (int) env('FORECAST_API_RETRY_BASE_DELAY_MS', 400));
+        $this->forecastCacheTtlSeconds = max(60, (int) env('FORECAST_CACHE_TTL_SECONDS', 900));
     }
 
     public function generateMonthlyForecast($year = null)
     {
         if (!$year) {
             $year = Carbon::now()->year;
+        }
+
+        $year = (int) $year;
+
+        $dataSignature = $this->getTrainingDataSignature();
+        $cacheKey = $this->buildForecastCacheKey($year, $dataSignature);
+        $cachedForecast = Cache::get($cacheKey);
+
+        if (is_array($cachedForecast)) {
+            Log::info('Revenue forecast cache hit', [
+                'year' => $year,
+                'cache_key' => $cacheKey,
+            ]);
+
+            return $cachedForecast;
         }
 
         Log::info("Starting revenue forecast generation for year: {$year}");
@@ -55,14 +74,20 @@ class RevenueForecastService
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
-                return $this->buildFallbackForecast((int) $year, $fallbackReason);
+                $fallbackForecast = $this->buildFallbackForecast($year, $fallbackReason);
+                $this->cacheForecast($cacheKey, $fallbackForecast, true);
+
+                return $fallbackForecast;
             }
 
             $forecastData = $response->json();
 
             if (!isset($forecastData['success']) || !$forecastData['success']) {
                 $error = $forecastData['detail'] ?? $forecastData['error'] ?? 'Forecast failed';
-                return $this->buildFallbackForecast((int) $year, (string) $error);
+                $fallbackForecast = $this->buildFallbackForecast($year, (string) $error);
+                $this->cacheForecast($cacheKey, $fallbackForecast, true);
+
+                return $fallbackForecast;
             }
 
             Log::info("Forecast generated successfully", [
@@ -70,6 +95,8 @@ class RevenueForecastService
                 'total_annual' => $forecastData['total_annual_revenue'],
                 'data_points' => $forecastData['data_points_used'] ?? 0
             ]);
+
+            $this->cacheForecast($cacheKey, $forecastData);
 
             return $forecastData;
         } catch (\Exception $e) {
@@ -79,8 +106,46 @@ class RevenueForecastService
             ]);
 
             $fallbackReason = $e->getMessage() ?: $fallbackReason;
+            $fallbackForecast = $this->buildFallbackForecast($year, $fallbackReason);
+            $this->cacheForecast($cacheKey, $fallbackForecast, true);
 
-            return $this->buildFallbackForecast((int) $year, $fallbackReason);
+            return $fallbackForecast;
+        }
+    }
+
+    private function buildForecastCacheKey(int $year, string $signature): string
+    {
+        return "revenue_forecast:v1:year:{$year}:sig:{$signature}";
+    }
+
+    private function getTrainingDataSignature(): string
+    {
+        $summary = $this->baseCreditInflowQuery()
+            ->selectRaw('COUNT(*) as row_count, COALESCE(MAX(updated_at), MAX(created_at)) as latest_change, COALESCE(SUM(amount), 0) as total_amount, MIN(transaction_date) as min_date, MAX(transaction_date) as max_date')
+            ->first();
+
+        $rowCount = (int) ($summary->row_count ?? 0);
+        $latestChange = (string) ($summary->latest_change ?? 'none');
+        $totalAmount = number_format((float) ($summary->total_amount ?? 0), 2, '.', '');
+        $minDate = (string) ($summary->min_date ?? 'none');
+        $maxDate = (string) ($summary->max_date ?? 'none');
+
+        return sha1("{$rowCount}|{$latestChange}|{$totalAmount}|{$minDate}|{$maxDate}");
+    }
+
+    private function cacheForecast(string $cacheKey, array $forecast, bool $isFallback = false): void
+    {
+        try {
+            $ttlSeconds = $isFallback
+                ? max(60, (int) floor($this->forecastCacheTtlSeconds / 4))
+                : $this->forecastCacheTtlSeconds;
+
+            Cache::put($cacheKey, $forecast, now()->addSeconds($ttlSeconds));
+        } catch (Throwable $exception) {
+            Log::warning('Failed to cache revenue forecast result', [
+                'cache_key' => $cacheKey,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 
@@ -107,6 +172,17 @@ class RevenueForecastService
                 $this->sleepWithBackoff($attempt);
             } catch (Throwable $exception) {
                 $lastException = $exception;
+
+                if ($this->isTimeoutException($exception)) {
+                    Log::warning('Revenue forecast API timeout encountered; skipping retries', [
+                        'attempt' => $attempt,
+                        'max_attempts' => $this->retryAttempts,
+                        'timeout_seconds' => $this->timeoutSeconds,
+                        'error' => $exception->getMessage(),
+                    ]);
+
+                    throw $exception;
+                }
 
                 if (!$this->shouldRetryException($exception) || $attempt === $this->retryAttempts) {
                     throw $exception;
@@ -139,6 +215,15 @@ class RevenueForecastService
         return $exception instanceof ConnectionException || $exception instanceof RequestException;
     }
 
+    private function isTimeoutException(Throwable $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'timed out')
+            || str_contains($message, 'timeout')
+            || str_contains($message, 'cURL error 28');
+    }
+
     private function sleepWithBackoff(int $attempt): void
     {
         $exponent = max(0, $attempt - 1);
@@ -161,7 +246,7 @@ class RevenueForecastService
 
     private function buildFallbackForecast(int $year, string $reason): array
     {
-        $currentYearTotals = $this->getCurrentYearMonthlyRentTotals($year);
+        $currentYearTotals = $this->getCurrentYearMonthlyInflowTotals($year);
         $historicalAverages = $this->getHistoricalMonthlyAverages();
 
         $monthlyForecasts = [];
@@ -185,25 +270,22 @@ class RevenueForecastService
         return [
             'success' => true,
             'is_fallback' => true,
-            'warning' => 'Using fallback forecast generated from rent payment history.',
+            'warning' => 'Using fallback forecast generated from historical inflow data.',
             'error' => $reason,
             'forecast_year' => $year,
             'monthly_forecasts' => $monthlyForecasts,
             'total_annual_revenue' => round($annual, 2),
             'total_remaining_revenue' => round($annual, 2),
             'average_monthly_revenue' => round($annual / 12, 2),
-            'data_points_used' => Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
-                ->where('category', 'Rent Payment')
-                ->count(),
+            'data_points_used' => $this->baseCreditInflowQuery()->count(),
         ];
     }
 
-    private function getCurrentYearMonthlyRentTotals(int $year): array
+    private function getCurrentYearMonthlyInflowTotals(int $year): array
     {
         $monthExpr = $this->monthExpression('transaction_date');
 
-        $rows = Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
-            ->where('category', 'Rent Payment')
+        $rows = $this->baseCreditInflowQuery()
             ->whereYear('transaction_date', $year)
             ->selectRaw("{$monthExpr} as month, SUM(amount) as total")
             ->groupBy('month')
@@ -222,8 +304,7 @@ class RevenueForecastService
         $yearExpr = $this->yearExpression('transaction_date');
         $monthExpr = $this->monthExpression('transaction_date');
 
-        $rows = Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
-            ->where('category', 'Rent Payment')
+        $rows = $this->baseCreditInflowQuery()
             ->selectRaw("{$yearExpr} as year, {$monthExpr} as month, SUM(amount) as total")
             ->groupBy('year', 'month')
             ->orderBy('year')
@@ -251,7 +332,7 @@ class RevenueForecastService
 
     private function exportTransactionDataAsCsv()
     {
-        $transactions = Transaction::select([
+        $transactionQuery = $this->baseCreditInflowQuery()->select([
             'transaction_id',
             'transaction_type',
             'category',
@@ -259,12 +340,12 @@ class RevenueForecastService
             'amount',
             'reference_number'
         ])
-            ->whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
-            ->where('category', 'Rent Payment')
             ->orderBy('transaction_date')
-            ->get();
+            ->orderBy('transaction_id');
 
-        Log::info("Exporting {$transactions->count()} inflow transactions for forecasting");
+        $transactionCount = (clone $transactionQuery)->count();
+
+        Log::info("Exporting {$transactionCount} credit inflow transactions for forecasting");
 
         $output = fopen('php://temp', 'r+');
 
@@ -279,7 +360,7 @@ class RevenueForecastService
         ]);
 
         // Write data
-        foreach ($transactions as $transaction) {
+        foreach ($transactionQuery->cursor() as $transaction) {
             fputcsv($output, [
                 $transaction->transaction_id,
                 $transaction->transaction_type,
@@ -317,5 +398,10 @@ class RevenueForecastService
         }
 
         return "YEAR({$column})";
+    }
+
+    private function baseCreditInflowQuery(): Builder
+    {
+        return Transaction::query()->creditInflows();
     }
 }

@@ -11,7 +11,7 @@
         <div class="flex items-center gap-3">
             <x-ui.search-bar
                 model="search"
-                placeholder="Search by unit number..."
+                placeholder="Search by unit number or tenant name..."
                 :suggestions="$suggestions"
             />
             <x-ui.sort-dropdown model="sortBy" current="{{ $sortBy }}" />
@@ -213,7 +213,7 @@
                                                             default => 'bg-gray-100 text-gray-500',
                                                         };
                                                         $cLabel = match($cStatus) {
-                                                            'executed' => 'Executed',
+                                                            'executed' => 'Signed',
                                                             'pending_signatures' => 'Pending Signatures',
                                                             'pending_tenant' => 'Pending Tenant',
                                                             'pending_owner' => 'Pending Owner',

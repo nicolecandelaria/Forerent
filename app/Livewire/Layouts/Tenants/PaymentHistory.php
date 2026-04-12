@@ -6,6 +6,7 @@ use App\Models\Billing;
 use App\Models\BillingItem;
 use App\Models\Lease;
 use App\Models\Notification;
+use App\Models\PaymentCategory;
 use App\Models\PaymentRequest;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -43,6 +44,8 @@ class PaymentHistory extends Component
     public $paymentOwnerInfo = [];
     public $previousProofImagePath = null;
     public $resubmitRejectReason = null;
+    public $selectedPaymentCategoryId = null;
+    public $paymentCategories = [];
 
     protected function getLease()
     {
@@ -75,7 +78,7 @@ class PaymentHistory extends Component
         if ($billing) {
             $this->amountDue = $billing->to_pay;
             $this->dueDate = $billing->due_date;
-            $this->daysUntilDue = $billing->due_date ? Carbon::parse($billing->due_date)->diffInDays(now(), false) * -1 : 0;
+            $this->daysUntilDue = $billing->due_date ? (int) (Carbon::parse($billing->due_date)->diffInDays(now(), false) * -1) : 0;
             $this->paymentStatus = $billing->status;
         } else {
             $paidBilling = Billing::where('lease_id', $lease->lease_id)
@@ -140,6 +143,8 @@ class PaymentHistory extends Component
             'contact' => $owner?->contact ?? 'N/A',
         ];
 
+        $this->paymentCategories = PaymentCategory::active()->income()->orderBy('name')->get()->toArray();
+
         $this->showPaymentModal = true;
     }
 
@@ -180,12 +185,20 @@ class PaymentHistory extends Component
 
     public function submitPaymentRequest(): void
     {
+        // Get the billing to enforce full payment (no partial payments allowed)
+        $billing = collect($this->unpaidBillings)->firstWhere('billing_id', $this->selectedBillingId);
+        $requiredAmount = $billing ? (float) $billing['to_pay'] : 0;
+
         $rules = [
             'selectedBillingId' => 'required',
             'selectedPaymentMethod' => 'required|in:GCash,Maya,Bank Transfer',
             'paymentReferenceNumber' => 'required|string|max:100',
             'paymentAmountPaid' => 'required|numeric|min:1',
+            'selectedPaymentCategoryId' => 'required|exists:payment_categories,payment_category_id',
         ];
+
+        // Force the amount to the full billing amount — no partial payments
+        $this->paymentAmountPaid = $requiredAmount;
 
         if (!$this->previousProofImagePath) {
             $rules['paymentProofImage'] = 'required|image|max:10240';
@@ -196,6 +209,7 @@ class PaymentHistory extends Component
         $this->validate($rules, [
             'paymentProofImage.required' => 'Please upload your proof of payment.',
             'paymentReferenceNumber.required' => 'Please enter the reference number from your payment receipt.',
+            'selectedPaymentCategoryId.required' => 'Please select a payment category.',
         ]);
 
         $proofPath = $this->paymentProofImage
@@ -208,6 +222,7 @@ class PaymentHistory extends Component
             'billing_id' => $this->selectedBillingId,
             'lease_id' => $lease->lease_id,
             'tenant_id' => Auth::id(),
+            'payment_category_id' => $this->selectedPaymentCategoryId,
             'payment_method' => $this->selectedPaymentMethod,
             'reference_number' => $this->paymentReferenceNumber ?: null,
             'amount_paid' => $this->paymentAmountPaid,
@@ -237,7 +252,9 @@ class PaymentHistory extends Component
         $this->paymentAmountPaid = $request->amount_paid;
         $this->previousProofImagePath = $request->proof_image;
         $this->resubmitRejectReason = $request->reject_reason;
+        $this->selectedPaymentCategoryId = $request->payment_category_id;
         $this->paymentProofImage = null;
+        $this->paymentCategories = PaymentCategory::active()->income()->orderBy('name')->get()->toArray();
 
         $pendingBillingIds = PaymentRequest::where('lease_id', $lease->lease_id)
             ->where('status', 'Pending')
@@ -277,6 +294,7 @@ class PaymentHistory extends Component
         $this->paymentProofImage = null;
         $this->previousProofImagePath = null;
         $this->resubmitRejectReason = null;
+        $this->selectedPaymentCategoryId = null;
     }
 
     protected function notifyManagerOfPaymentRequest(): void

@@ -13,6 +13,7 @@ class MoveOutInspection extends Model
         'item_name',
         'condition',
         'quantity',
+        'quantity_returned',
         'remarks',
         'repair_cost',
         'replacement_cost',

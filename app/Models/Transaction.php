@@ -50,6 +50,14 @@ class Transaction extends Model
     }
 
     /**
+     * Scope for all credit inflows with case-normalized matching.
+     */
+    public function scopeCreditInflows($query)
+    {
+        return $query->whereRaw('UPPER(transaction_type) = ?', ['CREDIT']);
+    }
+
+    /**
      * Scope for debit transactions
      */
     public function scopeDebits($query)

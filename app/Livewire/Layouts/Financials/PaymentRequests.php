@@ -28,6 +28,7 @@ class PaymentRequests extends Component
     // Filters
     public $search = '';
     public $selectedMonth = '';
+    public $selectedYear = '';
     public $selectedBuilding = '';
 
     public function updatedSearch(): void
@@ -36,6 +37,11 @@ class PaymentRequests extends Component
     }
 
     public function updatedSelectedMonth(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSelectedYear(): void
     {
         $this->resetPage();
     }
@@ -53,7 +59,7 @@ class PaymentRequests extends Component
 
     public function viewRequest(int $id): void
     {
-        $request = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property', 'reviewer'])->find($id);
+        $request = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property', 'reviewer', 'paymentCategory'])->find($id);
         if (!$request) return;
 
         $this->selectedRequest = $request->toArray();
@@ -69,6 +75,7 @@ class PaymentRequests extends Component
         $this->selectedRequest['billing_period'] = $request->billing?->billing_date ? Carbon::parse($request->billing->billing_date)->format('F Y') : 'N/A';
         $this->selectedRequest['billing_amount'] = $request->billing?->to_pay ?? 0;
         $this->selectedRequest['billing_due'] = $request->billing?->due_date ? Carbon::parse($request->billing->due_date)->format('M d, Y') : 'N/A';
+        $this->selectedRequest['category_name'] = $request->paymentCategory?->name ?? '—';
 
         $this->showRejectForm = false;
         $this->rejectReasons = [];
@@ -234,13 +241,18 @@ class PaymentRequests extends Component
                 $query->whereHas('billing', fn($b) => $b->whereRaw("TO_CHAR(billing_date, 'YYYY-MM') = ?", [$this->selectedMonth]));
             }
 
+            // Year filter
+            if (!empty($this->selectedYear)) {
+                $query->whereHas('billing', fn($b) => $b->whereYear('billing_date', $this->selectedYear));
+            }
+
             // Building filter
             if (!empty($this->selectedBuilding)) {
                 $query->whereHas('lease.bed.unit.property', fn($p) => $p->where('building_name', $this->selectedBuilding));
             }
         };
 
-        $query = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property'])
+        $query = PaymentRequest::with(['billing', 'tenant', 'lease.bed.unit.property', 'paymentCategory'])
             ->tap($scopeQuery)
             ->tap($applyFilters)
             ->when($this->activeTab !== 'All', fn($q) => $q->where('status', $this->activeTab))
@@ -265,11 +277,18 @@ class PaymentRequests extends Component
             ->pluck('month_label', 'month_value')
             ->toArray();
 
+        $currentYear = (int) date('Y');
+        $yearOptions = array_combine(
+            range($currentYear, $currentYear - 4),
+            range($currentYear, $currentYear - 4)
+        );
+
         return view('livewire.layouts.financials.payment-requests', [
             'requests' => $requests,
             'counts' => $counts,
             'buildingOptions' => $buildingOptions,
             'monthOptions' => $monthOptions,
+            'yearOptions' => $yearOptions,
         ]);
     }
 }

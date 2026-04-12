@@ -20,6 +20,7 @@ class RevenueForecast extends Component
     public $warning = null;
     public $isFallback = false;
     public $dataPointsUsed = 0;
+    public $forecastLoaded = false;
 
     protected $revenueForecastService;
 
@@ -31,6 +32,15 @@ class RevenueForecast extends Component
     public function mount()
     {
         $this->forecastYear = Carbon::now()->year;
+    }
+
+    public function loadForecast()
+    {
+        if ($this->forecastLoaded) {
+            return;
+        }
+
+        $this->forecastLoaded = true;
         $this->generateForecast();
     }
 
@@ -38,6 +48,11 @@ class RevenueForecast extends Component
     public function updateYear($year)
     {
         $this->forecastYear = $year;
+
+        if (!$this->forecastLoaded) {
+            $this->forecastLoaded = true;
+        }
+
         $this->generateForecast();
     }
 
@@ -71,33 +86,48 @@ class RevenueForecast extends Component
             
         } catch (\Exception $e) {
             $this->error = $e->getMessage();
+        } finally {
+            $this->loading = false;
+            $this->dispatch('revenue-forecast-updated');
         }
-
-        $this->loading = false;
     }
 
     private function enrichForecastWithActualEarnings($forecasts)
     {
+        if (empty($forecasts)) {
+            return $forecasts;
+        }
+
+        $monthExpr = $this->transactionMonthExpression();
+        $actualByMonth = Transaction::query()
+            ->creditInflows()
+            ->whereYear('transaction_date', $this->forecastYear)
+            ->selectRaw("{$monthExpr} as month, SUM(amount) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
+
         foreach ($forecasts as &$monthForecast) {
             $monthNumber = $monthForecast['month'] ?? null;
-            
+
             if ($monthNumber) {
-                // Get actual revenue for this month
-                $startDate = Carbon::create($this->forecastYear, $monthNumber, 1)->startOfMonth();
-                $endDate = $startDate->copy()->endOfMonth();
-                
-                $actualRevenue = Transaction::whereRaw('UPPER(transaction_type) = ?', ['CREDIT'])
-                    ->where('category', 'Rent Payment')
-                    ->whereBetween('transaction_date', [$startDate, $endDate])
-                    ->sum('amount');
-                
-                $monthForecast['actual_revenue'] = $actualRevenue ?? 0;
+                $monthForecast['actual_revenue'] = (float) ($actualByMonth[$monthNumber] ?? 0);
             } else {
                 $monthForecast['actual_revenue'] = 0;
             }
         }
-        
+
         return $forecasts;
+    }
+
+    private function transactionMonthExpression(): string
+    {
+        $driver = Transaction::query()->getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return 'EXTRACT(MONTH FROM transaction_date)::int';
+        }
+
+        return 'MONTH(transaction_date)';
     }
 
     public function render()

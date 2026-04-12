@@ -45,12 +45,15 @@
         .doc-header-banner {
             background: #1a2744;
             color: #fff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             padding: 14px 20px;
             margin-bottom: 4px;
             border-bottom: 3px solid #2360E8;
+        }
+        .doc-header-banner table {
+            width: 100%;
+        }
+        .doc-header-banner table td {
+            vertical-align: middle;
         }
         .doc-header-banner .banner-left .doc-title-main {
             font-size: 15pt;
@@ -108,29 +111,24 @@
             color: #111;
         }
 
-        .field-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 6px;
+        .field-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 6px;
             font-size: 9.5pt;
         }
-        .field-row.two-col {
-            flex-wrap: wrap;
-            gap: 6px 20px;
-        }
-        .field-row.two-col > .field-row {
-            min-width: 200px;
+        .field-table td {
+            padding: 2px 0;
+            vertical-align: bottom;
         }
         .field-label {
             white-space: nowrap;
             color: #333;
-            flex-shrink: 0;
+            padding-right: 6px;
+            width: 1%;
         }
         .field-value {
             border-bottom: 0.75pt solid #333;
-            flex: 1;
-            min-width: 80px;
             padding-bottom: 1px;
             font-weight: bold;
             color: #000;
@@ -232,11 +230,16 @@
         .signature-section {
             margin-top: 24px;
         }
-        .sig-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+        .sig-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 20px;
+        }
+        .sig-table td {
+            width: 50%;
+            text-align: center;
+            vertical-align: top;
+            padding: 0 12px;
         }
         .sig-block {
             text-align: center;
@@ -252,16 +255,14 @@
             line-height: 1.4;
         }
         .sig-date-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 6px;
             margin-top: 8px;
             font-size: 9pt;
-            justify-content: center;
+            text-align: center;
         }
         .sig-date-line {
             border-bottom: 0.75pt solid #333;
             width: 120px;
+            display: inline-block;
         }
 
         .doc-footer {
@@ -316,11 +317,15 @@
 <div class="page">
 
     <div class="doc-header-banner">
-        <div class="banner-left">
-            <div class="doc-title-main">Dormitory Rental Agreement</div>
-            <div class="republic">Republic of the Philippines</div>
-        </div>
-        <div class="banner-right">Move-Out Clearance</div>
+        <table><tr>
+            <td>
+                <div class="doc-title-main">Dormitory Rental Agreement</div>
+                <div class="republic">Republic of the Philippines</div>
+            </td>
+            <td style="text-align:right;">
+                <span class="banner-right">Move-Out Clearance</span>
+            </td>
+        </tr></table>
     </div>
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
@@ -332,76 +337,44 @@
     <div class="section-heading">Section 1 — Parties</div>
 
     <div class="sub-heading">LESSOR</div>
-    <div class="field-row">
-        <span class="field-label">Business / Trade Name:</span>
-        <span class="field-value">{{ $tenant['lessor_info']['business_name'] ?? '' }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Authorized Representative:</span>
-        <span class="field-value">{{ $tenant['lessor_info']['representative'] ?? '' }}</span>
-    </div>
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Contact Number:</span>
-            <span class="field-value">{{ $tenant['lessor_info']['contact'] ?? '' }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Email Address:</span>
-            <span class="field-value">{{ $tenant['lessor_info']['email'] ?? '' }}</span>
-        </div>
-    </div>
+    <table class="field-table">
+        <tr><td class="field-label">Business / Trade Name:</td><td class="field-value">{{ $tenant['lessor_info']['business_name'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Authorized Representative:</td><td class="field-value">{{ $tenant['lessor_info']['representative'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Government ID:</td><td class="field-value">{{ $tenant['lessor_info']['government_id_type'] ?? '' }} — {{ $tenant['lessor_info']['government_id_number'] ?? '' }}</td></tr>
+    </table>
+    <table class="field-table"><tr>
+        <td class="field-label">Contact Number:</td><td class="field-value">{{ $tenant['lessor_info']['contact'] ?? '' }}</td>
+        <td class="field-label" style="padding-left:20px;">Email:</td><td class="field-value">{{ $tenant['lessor_info']['email'] ?? '' }}</td>
+    </tr></table>
 
     <div class="sub-heading">LESSEE</div>
-    <div class="field-row">
-        <span class="field-label">Full Legal Name:</span>
-        <span class="field-value">{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</span>
-    </div>
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Contact Number:</span>
-            <span class="field-value">{{ $tenant['contact_info']['contact_number'] }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Email Address:</span>
-            <span class="field-value">{{ $tenant['contact_info']['email'] }}</span>
-        </div>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Forwarding Address:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['forwarding_address'] ?? '' }}</span>
-    </div>
+    <table class="field-table">
+        <tr><td class="field-label">Full Legal Name:</td><td class="field-value">{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</td></tr>
+    </table>
+    <table class="field-table"><tr>
+        <td class="field-label">Contact Number:</td><td class="field-value">{{ $tenant['contact_info']['contact_number'] }}</td>
+        <td class="field-label" style="padding-left:20px;">Email:</td><td class="field-value">{{ $tenant['contact_info']['email'] }}</td>
+    </tr></table>
+    <table class="field-table">
+        <tr><td class="field-label">Forwarding Address:</td><td class="field-value">{{ $tenant['move_out_details']['forwarding_address'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Emergency Contact:</td><td class="field-value">{{ $tenant['personal_info']['emergency_contact_name'] ?? '' }} ({{ $tenant['personal_info']['emergency_contact_relationship'] ?? '' }}) — {{ $tenant['personal_info']['emergency_contact_number'] ?? '' }}</td></tr>
+    </table>
 
     {{-- SECTION 2 — LEASE REFERENCE --}}
     <div class="section-heading">Section 2 — Lease Reference</div>
 
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Original Move-In Date:</span>
-            <span class="field-value">{{ ($tenant['move_in_details']['move_in_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_in_details']['move_in_date'])->format('F d, Y') : '' }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Actual Move-Out Date:</span>
-            <span class="field-value">{{ ($tenant['move_out_details']['move_out_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_out_details']['move_out_date'])->format('F d, Y') : '' }}</span>
-        </div>
-    </div>
-    <div class="field-row two-col">
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Lease Start Date:</span>
-            <span class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_start_date'])->format('F d, Y') }}</span>
-        </div>
-        <div class="field-row" style="flex:1;">
-            <span class="field-label">Lease End Date:</span>
-            <span class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_end_date'])->format('F d, Y') }}</span>
-        </div>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Building / Unit / Bed:</span>
-        <span class="field-value">{{ $tenant['personal_info']['property'] }} / {{ $tenant['personal_info']['unit'] }} / {{ $tenant['rent_details']['bed_number'] }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Reason for Vacating:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['reason_for_vacating'] ?? '' }}</span>
-    </div>
+    <table class="field-table"><tr>
+        <td class="field-label">Original Move-In Date:</td><td class="field-value">{{ ($tenant['move_in_details']['move_in_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_in_details']['move_in_date'])->format('F d, Y') : '' }}</td>
+        <td class="field-label" style="padding-left:20px;">Actual Move-Out Date:</td><td class="field-value">{{ ($tenant['move_out_details']['move_out_date'] ?? null) ? \Carbon\Carbon::parse($tenant['move_out_details']['move_out_date'])->format('F d, Y') : '' }}</td>
+    </tr></table>
+    <table class="field-table"><tr>
+        <td class="field-label">Lease Start Date:</td><td class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_start_date'])->format('F d, Y') }}</td>
+        <td class="field-label" style="padding-left:20px;">Lease End Date:</td><td class="field-value">{{ \Carbon\Carbon::parse($tenant['rent_details']['lease_end_date'])->format('F d, Y') }}</td>
+    </tr></table>
+    <table class="field-table">
+        <tr><td class="field-label">Building / Unit / Floor / Bed:</td><td class="field-value">{{ $tenant['personal_info']['property'] }} / {{ $tenant['personal_info']['unit'] }} / Floor {{ $tenant['rent_details']['floor'] ?? '—' }} / Bed {{ $tenant['rent_details']['bed_number'] }}</td></tr>
+        <tr><td class="field-label">Reason for Vacating:</td><td class="field-value">{{ $tenant['move_out_details']['reason_for_vacating'] ?? '' }}</td></tr>
+    </table>
 
     {{-- SECTION 3 — MOVE-OUT ROOM CONDITION INSPECTION --}}
     <div class="section-heading">Section 3 — Move-Out Room Condition Inspection</div>
@@ -428,13 +401,17 @@
                 $moveOutItem = collect($moveOutChecklist)->firstWhere('item_name', $itemName);
                 $moveInCond = $moveInItem['condition'] ?? '';
                 $moveOutCond = $moveOutItem['condition'] ?? '';
-                $damageFound = $moveInCond && $moveOutCond && $moveInCond !== $moveOutCond && $moveOutCond !== 'good';
+
+                $conditionWorsened = $moveInCond && $moveOutCond && $moveInCond !== $moveOutCond && $moveOutCond !== 'good';
+                $noMoveInButDamaged = !$moveInCond && in_array($moveOutCond, ['damaged', 'poor', 'missing']);
+                $damageFound = $conditionWorsened || $noMoveInButDamaged;
+
                 $repairCost = (float) ($moveOutItem['repair_cost'] ?? 0);
                 if ($damageFound) $totalRepairCost += $repairCost;
             @endphp
             <tr class="{{ $damageFound ? 'damage-row' : '' }}">
                 <td style="font-weight:500;">{{ $itemName }}</td>
-                <td class="check-cell" style="text-transform:capitalize;">{{ $moveInCond }}</td>
+                <td class="check-cell" style="text-transform:capitalize; {{ !$moveInCond && $moveOutCond ? 'color:#b45309; font-style:italic;' : '' }}">{{ $moveInCond ?: 'Not recorded' }}</td>
                 <td class="check-cell" style="text-transform:capitalize; {{ $damageFound ? 'color:#c0392b; font-weight:bold;' : '' }}">{{ $moveOutCond }}</td>
                 <td class="check-cell" style="{{ $damageFound ? 'color:#c0392b; font-weight:bold;' : '' }}">{{ $damageFound ? 'Yes' : ($moveOutCond ? 'No' : '') }}</td>
                 <td style="text-align:right;">{{ $damageFound && $repairCost > 0 ? '₱ ' . number_format($repairCost, 2) : '' }}</td>
@@ -455,11 +432,15 @@
 <div class="page">
 
     <div class="doc-header-banner">
-        <div class="banner-left">
-            <div class="doc-title-main">Dormitory Rental Agreement</div>
-            <div class="republic">Republic of the Philippines | Move-Out Clearance</div>
-        </div>
-        <div class="banner-right">Page 2</div>
+        <table><tr>
+            <td>
+                <div class="doc-title-main">Dormitory Rental Agreement</div>
+                <div class="republic">Republic of the Philippines | Move-Out Clearance</div>
+            </td>
+            <td style="text-align:right;">
+                <span class="banner-right">Page 2</span>
+            </td>
+        </tr></table>
     </div>
     <div class="confidential-banner">This document is confidential and intended solely for the parties named herein.</div>
 
@@ -470,8 +451,9 @@
         <thead>
         <tr>
             <th>Item</th>
-            <th style="text-align:center;">Qty</th>
-            <th style="text-align:center;">Returned?</th>
+            <th style="text-align:center;">Qty Issued</th>
+            <th style="text-align:center;">Qty Returned</th>
+            <th style="text-align:center;">Status</th>
             <th>Condition</th>
             <th style="text-align:right;">Replacement Cost</th>
         </tr>
@@ -481,21 +463,32 @@
         @foreach($returnItemNames as $itemName)
             @php
                 $returned = collect($itemsReturned)->firstWhere('item_name', $itemName);
+                $issuedQty = (int) ($returned['quantity'] ?? 0);
+                $returnedQty = (int) ($returned['quantity_returned'] ?? 0);
                 $isReturned = $returned && ($returned['is_returned'] ?? false);
+                $isPartial = $isReturned && $issuedQty > 0 && $returnedQty < $issuedQty;
                 $condition = $returned['condition'] ?? '';
                 $replacementCost = (float) ($returned['replacement_cost'] ?? 0);
-                if (!$isReturned && $returned) $totalReplacementCost += $replacementCost;
+                if ((!$isReturned || $isPartial) && $returned) $totalReplacementCost += $replacementCost;
+
+                $statusLabel = '';
+                if ($returned) {
+                    if (!$isReturned) $statusLabel = 'Not Returned';
+                    elseif ($isPartial) $statusLabel = 'Partial';
+                    else $statusLabel = 'Complete';
+                }
             @endphp
             <tr>
                 <td style="font-weight:500;">{{ $itemName }}</td>
-                <td style="text-align:center;">{{ $returned['quantity'] ?? '' }}</td>
-                <td style="text-align:center;">{{ $isReturned ? 'Yes' : ($returned ? 'No' : '') }}</td>
+                <td style="text-align:center;">{{ $issuedQty ?: '' }}</td>
+                <td style="text-align:center;">{{ $returned ? $returnedQty : '' }}</td>
+                <td style="text-align:center; {{ (!$isReturned && $returned) ? 'color:#c0392b; font-weight:bold;' : ($isPartial ? 'color:#b45309; font-weight:bold;' : '') }}">{{ $statusLabel }}</td>
                 <td>{{ $condition }}</td>
-                <td style="text-align:right;">{{ (!$isReturned && $returned && $replacementCost > 0) ? '₱ ' . number_format($replacementCost, 2) : '' }}</td>
+                <td style="text-align:right;">{{ ((!$isReturned || $isPartial) && $returned && $replacementCost > 0) ? '₱ ' . number_format($replacementCost, 2) : '' }}</td>
             </tr>
         @endforeach
         @if($totalReplacementCost > 0)
-        <tr><td colspan="4" style="font-weight:bold; text-align:right;">Total Replacement Cost</td><td style="text-align:right; font-weight:bold;">₱ {{ number_format($totalReplacementCost, 2) }}</td></tr>
+        <tr><td colspan="5" style="font-weight:bold; text-align:right;">Total Replacement Cost</td><td style="text-align:right; font-weight:bold;">₱ {{ number_format($totalReplacementCost, 2) }}</td></tr>
         @endif
         </tbody>
     </table>
@@ -509,7 +502,8 @@
 
     @php
         $deductions = $depositRefund['deductions'] ?? [];
-        $refundAmount = $depositRefund['refund_amount'] ?? null;
+        $refundAmount = $depositRefund['amount'] ?? $depositRefund['refund_amount'] ?? null;
+        $interestEarned = (float) ($depositRefund['interest_earned'] ?? 0);
         $totalDeductions = collect($deductions)->sum('amount');
     @endphp
     <table class="payment-table" style="margin-top:8px;">
@@ -524,29 +518,31 @@
             <td><strong>Original Security Deposit Held</strong></td>
             <td class="right"><strong>&#8369; {{ number_format($deposit, 2) }}</strong></td>
         </tr>
+        @if($interestEarned > 0)
+        <tr>
+            <td style="color:#166534;">(+) Deposit Interest Earned (RA 9653 IRR §7b)</td>
+            <td class="right" style="color:#166534;">₱ {{ number_format($interestEarned, 2) }}</td>
+        </tr>
+        @endif
         @forelse($deductions as $deduction)
         <tr>
             <td>(-) {{ $deduction['label'] }}</td>
-            <td class="right">{{ (float) $deduction['amount'] > 0 ? '(₱ ' . number_format($deduction['amount'], 2) . ')' : 'TBD' }}</td>
+            <td class="right" style="{{ (float) $deduction['amount'] > 0 ? 'color:#c0392b;' : 'color:#999;' }}">{{ (float) $deduction['amount'] > 0 ? '(₱ ' . number_format($deduction['amount'], 2) . ')' : 'TBD' }}</td>
         </tr>
         @empty
         <tr><td colspan="2" style="color:#999;">No deductions</td></tr>
         @endforelse
         <tr class="total-row">
             <td><strong>NET DEPOSIT REFUND</strong></td>
-            <td class="right"><strong>&#8369; {{ $refundAmount !== null ? number_format($refundAmount, 2) : number_format(max(0, $deposit - $totalDeductions), 2) }}</strong></td>
+            <td class="right"><strong>&#8369; {{ $refundAmount !== null ? number_format($refundAmount, 2) : number_format(max(0, $deposit - $totalDeductions + $interestEarned), 2) }}</strong></td>
         </tr>
         </tbody>
     </table>
 
-    <div class="field-row" style="margin-top:10px;">
-        <span class="field-label">Refund Method:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['deposit_refund_method'] ?? '' }}</span>
-    </div>
-    <div class="field-row">
-        <span class="field-label">Account Name / Number:</span>
-        <span class="field-value">{{ $tenant['move_out_details']['deposit_refund_account'] ?? '' }}</span>
-    </div>
+    <table class="field-table" style="margin-top:10px;">
+        <tr><td class="field-label">Refund Method:</td><td class="field-value">{{ $tenant['move_out_details']['deposit_refund_method'] ?? '' }}</td></tr>
+        <tr><td class="field-label">Account Name / Number:</td><td class="field-value">{{ $tenant['move_out_details']['deposit_refund_account'] ?? '' }}</td></tr>
+    </table>
 
     {{-- SECTION 6 — CLEARANCE CERTIFICATION --}}
     <div class="section-heading">Section 6 — Clearance Certification</div>
@@ -554,22 +550,16 @@
     <p style="font-size:8.5pt; color:#333; margin-bottom:5px;">Both parties hereby certify the following:</p>
     <ul class="policy-list">
         <li>The joint move-out inspection has been completed and all findings are accurately recorded in this Agreement.</li>
-        <li>All outstanding balances have been settled in full or will be deducted from the security deposit as agreed.</li>
-        <li>All keys, access cards, and borrowed items have been returned or accounted for above.</li>
-        <li>The Lessee has vacated the premises and removed all personal belongings.</li>
+        <li>All outstanding balances have been settled in full or will be deducted from the security deposit as agreed. <strong>If the total outstanding balance exceeds the security deposit, the Lessee remains liable for the deficit and shall settle the remaining amount within fifteen (15) calendar days from the date of this clearance.</strong></li>
+        <li>A final utility meter reading (electricity and water) has been conducted as of the move-out date. Any remaining utility charges will be included in the outstanding balances above.</li>
+        <li>All keys, access cards, Wi-Fi credentials, and borrowed items have been returned or accounted for above.</li>
+        <li>The Lessee has vacated the premises and removed all personal belongings. Any items left behind may be coordinated for retrieval through the messaging system within a reasonable period.</li>
         <li>The Lessor agrees to process and release the deposit refund within thirty (30) calendar days from the date of this clearance.</li>
         <li>Both parties release each other from any further claims related to this lease, except as specified herein.</li>
     </ul>
 
-    {{-- SECTION 7 — GOVERNING LAW --}}
-    <div class="section-heading">Section 7 — Governing Law</div>
-
-    <p style="font-size:9pt; color:#222; line-height:1.6; text-align:justify;">
-        This Agreement is governed by the laws of the Republic of the Philippines, including <em>Republic Act No. 9653 (Rent Control Act of 2009)</em>. Any dispute shall first be resolved through amicable negotiation, then through Barangay mediation, and thereafter through the proper courts of competent jurisdiction.
-    </p>
-
-    {{-- SECTION 8 — SIGNATURES --}}
-    <div class="section-heading">Section 8 — Agreement and Signatures</div>
+    {{-- SECTION 7 — SIGNATURES --}}
+    <div class="section-heading">Section 7 — Agreement and Signatures</div>
 
     <p style="font-size:9pt; color:#222; line-height:1.55; margin-bottom:8px; text-align:justify;">
         By signing below, all parties confirm that the move-out inspection has been conducted, all balances have been accounted for, and they voluntarily agree to the deposit settlement terms stated herein.
@@ -583,79 +573,81 @@
         @endif
 
         {{-- Owner and Tenant signatures --}}
-        <div class="sig-grid">
-            <div class="sig-block">
-                @if(!empty($ownerSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Owner Signature">
-                    </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $tenant['lessor_info']['representative'] ?? '' }}</strong><br>
-                    Lessor / Property Owner
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($ownerSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $ownerSignedAt }}</span>
+        <table class="sig-table">
+            <tr>
+                <td>
+                    @if(!empty($ownerSignatureBase64))
+                        <div style="height:60px; text-align:center; margin-bottom:4px;">
+                            <img src="{{ $ownerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Owner Signature">
+                        </div>
                     @else
-                        <div class="sig-date-line"></div>
+                        <div class="sig-line"></div>
                     @endif
-                </div>
-            </div>
-            <div class="sig-block">
-                @if(!empty($tenantSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
+                    <div class="sig-label">
+                        <strong>{{ $tenant['lessor_info']['representative'] ?? '' }}</strong><br>
+                        Lessor / Property Owner
                     </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
-                    Tenant / Lessee
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($tenantSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
+                    <div class="sig-date-row">
+                        <span>Date:</span>
+                        @if(!empty($ownerSignedAt))
+                            <span style="font-size:8.5pt; margin-left:4px;">{{ $ownerSignedAt }}</span>
+                        @else
+                            <span class="sig-date-line"></span>
+                        @endif
+                    </div>
+                </td>
+                <td>
+                    @if(!empty($tenantSignatureBase64))
+                        <div style="height:60px; text-align:center; margin-bottom:4px;">
+                            <img src="{{ $tenantSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Tenant Signature">
+                        </div>
                     @else
-                        <div class="sig-date-line"></div>
+                        <div class="sig-line"></div>
                     @endif
-                </div>
-            </div>
-        </div>
+                    <div class="sig-label">
+                        <strong>{{ $tenant['personal_info']['first_name'] }} {{ $tenant['personal_info']['last_name'] }}</strong><br>
+                        Tenant / Lessee
+                    </div>
+                    <div class="sig-date-row">
+                        <span>Date:</span>
+                        @if(!empty($tenantSignedAt))
+                            <span style="font-size:8.5pt; margin-left:4px;">{{ $tenantSignedAt }}</span>
+                        @else
+                            <span class="sig-date-line"></span>
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        </table>
 
         {{-- Manager Witness signature --}}
         <p style="font-size:9pt; color:#333; margin: 16px 0 8px; font-weight:bold;">Witnessed by:</p>
-        <div class="sig-grid">
-            <div class="sig-block">
-                @if(!empty($managerSignatureBase64))
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">
-                        <img src="{{ $managerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Manager Witness Signature">
-                    </div>
-                @else
-                    <div class="sig-line"></div>
-                @endif
-                <div class="sig-label">
-                    <strong>{{ $managerName ?? 'Unit Manager' }}</strong><br>
-                    Unit Manager / Witness
-                </div>
-                <div class="sig-date-row">
-                    <span>Date:</span>
-                    @if(!empty($managerSignedAt))
-                        <span style="font-size:8.5pt; margin-left:4px;">{{ $managerSignedAt }}</span>
+        <table class="sig-table">
+            <tr>
+                <td>
+                    @if(!empty($managerSignatureBase64))
+                        <div style="height:60px; text-align:center; margin-bottom:4px;">
+                            <img src="{{ $managerSignatureBase64 }}" style="max-height:55px; max-width:100%;" alt="Manager Witness Signature">
+                        </div>
                     @else
-                        <div class="sig-date-line"></div>
+                        <div class="sig-line"></div>
                     @endif
-                </div>
-            </div>
-            <div class="sig-block">
-                {{-- Empty witness 2 slot --}}
-            </div>
-        </div>
+                    <div class="sig-label">
+                        <strong>{{ $managerName ?? 'Unit Manager' }}</strong><br>
+                        Unit Manager / Witness
+                    </div>
+                    <div class="sig-date-row">
+                        <span>Date:</span>
+                        @if(!empty($managerSignedAt))
+                            <span style="font-size:8.5pt; margin-left:4px;">{{ $managerSignedAt }}</span>
+                        @else
+                            <span class="sig-date-line"></span>
+                        @endif
+                    </div>
+                </td>
+                <td></td>
+            </tr>
+        </table>
 
         <p style="font-size:8.5pt; color:#555; text-align:center; margin-top:18px; font-style:italic;">
             This Agreement is executed in two (2) original copies — one for the Lessor and one for the Lessee.
