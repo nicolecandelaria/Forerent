@@ -35,6 +35,9 @@ class AddPropertyModal extends Component
     #[Validate('required|string')]
     public $description = '';
 
+    /** Deposit interest rate (annual %, based on owner's depository bank savings rate) */
+    public $depositInterestRate = '';
+
     /** File uploads */
     public $propertyPhotos = [];
     public $newPhotos = [];
@@ -43,6 +46,9 @@ class AddPropertyModal extends Component
     public $inspectionReport = null;
     public $barangayClearance = null;
     public $occupancyPermit = null;
+    public $titleTct = null;
+    public $taxDeclaration = null;
+    public $transferCertificate = null;
 
     /** Existing documents for edit mode */
     public $existingPhotos = [];
@@ -64,18 +70,37 @@ class AddPropertyModal extends Component
 
     protected function rules()
     {
-        return [
+        $hasExistingPhotos = count($this->existingPhotos) > 0;
+        $photoRule = $hasExistingPhotos ? 'nullable' : 'required';
+
+        $documentFields = ['businessPermit', 'bir2303', 'inspectionReport', 'barangayClearance', 'occupancyPermit', 'titleTct', 'taxDeclaration', 'transferCertificate'];
+        $categoryMap = [
+            'businessPermit' => 'business_permit',
+            'bir2303' => 'bir_2303',
+            'inspectionReport' => 'inspection_report',
+            'barangayClearance' => 'barangay_clearance',
+            'occupancyPermit' => 'occupancy_permit',
+            'titleTct' => 'title_tct',
+            'taxDeclaration' => 'tax_declaration',
+            'transferCertificate' => 'transfer_certificate',
+        ];
+
+        $rules = [
             'buildingName' => 'required|string|max:255',
             'address' => 'required|string',
             'description' => 'required|string',
-            'propertyPhotos.*' => 'nullable|image|max:10240',
+            'propertyPhotos' => $hasExistingPhotos ? 'nullable|array' : 'required|array|min:1',
+            'propertyPhotos.*' => 'image|max:10240',
             'newPhotos.*' => 'nullable|image|max:10240',
-            'businessPermit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'bir2303' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'inspectionReport' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'barangayClearance' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'occupancyPermit' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ];
+
+        foreach ($documentFields as $field) {
+            $hasExisting = collect($this->existingDocuments)->contains('category', $categoryMap[$field]);
+            $docRule = $hasExisting ? 'nullable' : 'required';
+            $rules[$field] = $docRule . '|file|mimes:pdf,jpg,jpeg,png|max:10240';
+        }
+
+        return $rules;
     }
 
     protected function messages()
@@ -84,18 +109,34 @@ class AddPropertyModal extends Component
             'buildingName.required' => 'Property name is required.',
             'address.required' => 'Address is required.',
             'description.required' => 'Description is required.',
+            'propertyPhotos.required' => 'At least one property photo is required.',
+            'propertyPhotos.min' => 'At least one property photo is required.',
             'propertyPhotos.*.max' => 'Each photo must be under 10MB.',
             'propertyPhotos.*.image' => 'Only image files are allowed.',
+            'businessPermit.required' => 'Business Permit is required.',
             'businessPermit.mimes' => 'Only PDF, JPG, PNG files are allowed.',
             'businessPermit.max' => 'File must be under 10MB.',
+            'bir2303.required' => 'BIR 2303 is required.',
             'bir2303.mimes' => 'Only PDF, JPG, PNG files are allowed.',
             'bir2303.max' => 'File must be under 10MB.',
+            'inspectionReport.required' => 'Inspection Report is required.',
             'inspectionReport.mimes' => 'Only PDF, JPG, PNG files are allowed.',
             'inspectionReport.max' => 'File must be under 10MB.',
+            'barangayClearance.required' => 'Barangay Clearance is required.',
             'barangayClearance.mimes' => 'Only PDF, JPG, PNG files are allowed.',
             'barangayClearance.max' => 'File must be under 10MB.',
+            'occupancyPermit.required' => 'Occupancy Permit is required.',
             'occupancyPermit.mimes' => 'Only PDF, JPG, PNG files are allowed.',
             'occupancyPermit.max' => 'File must be under 10MB.',
+            'titleTct.required' => 'Title / TCT is required.',
+            'titleTct.mimes' => 'Only PDF, JPG, PNG files are allowed.',
+            'titleTct.max' => 'File must be under 10MB.',
+            'taxDeclaration.required' => 'Tax Declaration is required.',
+            'taxDeclaration.mimes' => 'Only PDF, JPG, PNG files are allowed.',
+            'taxDeclaration.max' => 'File must be under 10MB.',
+            'transferCertificate.required' => 'Transfer Certificate is required.',
+            'transferCertificate.mimes' => 'Only PDF, JPG, PNG files are allowed.',
+            'transferCertificate.max' => 'File must be under 10MB.',
         ];
     }
 
@@ -116,12 +157,13 @@ class AddPropertyModal extends Component
             $this->buildingName = $property->building_name;
             $this->address = $property->address;
             $this->description = $property->prop_description;
+            $this->depositInterestRate = $property->getContractSetting('deposit_interest_rate', '');
 
             $this->existingPhotos = $property->documents
                 ->where('category', 'property_photo')
                 ->map(fn($doc) => [
                     'id' => $doc->id,
-                    'url' => Storage::url($doc->file_path),
+                    'url' => Storage::disk('public')->url($doc->file_path),
                     'name' => $doc->original_name,
                 ])->values()->toArray();
 
@@ -131,7 +173,7 @@ class AddPropertyModal extends Component
                     'id' => $doc->id,
                     'category' => $doc->category,
                     'name' => $doc->original_name,
-                    'url' => Storage::url($doc->file_path),
+                    'url' => Storage::disk('public')->url($doc->file_path),
                 ])->values()->toArray();
 
             $this->isOpen = true;
@@ -143,6 +185,9 @@ class AddPropertyModal extends Component
     public function updatedInspectionReport(): void { $this->resetValidation('inspectionReport'); }
     public function updatedBarangayClearance(): void { $this->resetValidation('barangayClearance'); }
     public function updatedOccupancyPermit(): void { $this->resetValidation('occupancyPermit'); }
+    public function updatedTitleTct(): void { $this->resetValidation('titleTct'); }
+    public function updatedTaxDeclaration(): void { $this->resetValidation('taxDeclaration'); }
+    public function updatedTransferCertificate(): void { $this->resetValidation('transferCertificate'); }
 
     public function updatedNewPhotos(): void
     {
@@ -208,10 +253,18 @@ class AddPropertyModal extends Component
             if ($this->editingPropertyId) {
                 $property = Property::find($this->editingPropertyId);
                 if ($property) {
+                    $updatedSettings = $property->contract_settings ?? [];
+                    if (is_numeric($this->depositInterestRate) && (float) $this->depositInterestRate > 0) {
+                        $updatedSettings['deposit_interest_rate'] = (float) $this->depositInterestRate;
+                    } else {
+                        unset($updatedSettings['deposit_interest_rate']);
+                    }
+
                     $property->update([
                         'building_name' => $this->buildingName,
                         'address' => $this->address,
                         'prop_description' => $this->description,
+                        'contract_settings' => !empty($updatedSettings) ? $updatedSettings : null,
                     ]);
 
                     // Remove documents marked for deletion
@@ -231,11 +284,17 @@ class AddPropertyModal extends Component
                     );
                 }
             } else {
+                $contractSettings = [];
+                if (is_numeric($this->depositInterestRate) && (float) $this->depositInterestRate > 0) {
+                    $contractSettings['deposit_interest_rate'] = (float) $this->depositInterestRate;
+                }
+
                 $property = Property::create([
                     'owner_id' => Auth::id(),
                     'building_name' => $this->buildingName,
                     'address' => $this->address,
                     'prop_description' => $this->description,
+                    'contract_settings' => !empty($contractSettings) ? $contractSettings : null,
                 ]);
 
                 $this->storeFiles($property);
@@ -283,6 +342,9 @@ class AddPropertyModal extends Component
             'inspectionReport' => ['category' => 'inspection_report', 'visibility' => 'owner_manager'],
             'barangayClearance' => ['category' => 'barangay_clearance', 'visibility' => 'owner_manager'],
             'occupancyPermit' => ['category' => 'occupancy_permit', 'visibility' => 'all'],
+            'titleTct' => ['category' => 'title_tct', 'visibility' => 'owner_manager'],
+            'taxDeclaration' => ['category' => 'tax_declaration', 'visibility' => 'owner_manager'],
+            'transferCertificate' => ['category' => 'transfer_certificate', 'visibility' => 'owner_manager'],
         ];
 
         foreach ($documentFields as $field => $meta) {
@@ -316,6 +378,7 @@ class AddPropertyModal extends Component
             'buildingName',
             'address',
             'description',
+            'depositInterestRate',
             'editingPropertyId',
             'propertyPhotos',
             'newPhotos',
@@ -324,6 +387,9 @@ class AddPropertyModal extends Component
             'inspectionReport',
             'barangayClearance',
             'occupancyPermit',
+            'titleTct',
+            'taxDeclaration',
+            'transferCertificate',
             'existingPhotos',
             'existingDocuments',
             'removedDocumentIds',

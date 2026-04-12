@@ -5,36 +5,78 @@ namespace App\Livewire\Layouts\Financials;
 use App\Models\Billing;
 use App\Models\BillingItem;
 use App\Models\Lease;
+use App\Models\Property;
 use App\Models\Unit;
 use App\Models\UtilityBill;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class UtilityBillEntry extends Component
 {
-    use WithPagination;
+    use WithPagination, \App\Livewire\Concerns\WithNotifications;
 
+    public $isOpen = false;
+    public $selectedBuilding = null;
     public $selectedUnit = null;
     public $utilityType = 'electricity';
     public $billingPeriod = '';
     public $totalAmount = '';
     public $tenantCount = 0;
     public $perTenantAmount = 0;
-    public $showConfirmation = false;
+    public $hasProration = false;
+    public $tenantShares = [];
 
     protected $rules = [
         'selectedUnit'  => 'required|exists:units,unit_id',
         'utilityType'   => 'required|in:electricity,water',
         'billingPeriod' => 'required|date',
-        'totalAmount'   => 'required|numeric|min:1',
+        'totalAmount'   => 'required|numeric|min:1|max:999999.99',
+    ];
+
+    protected $messages = [
+        'totalAmount.required' => 'Please enter the bill amount.',
+        'totalAmount.min'      => 'Amount must be at least ₱1.00.',
+        'totalAmount.max'      => 'Amount cannot exceed ₱999,999.99.',
+        'totalAmount.numeric'  => 'Please enter a valid number.',
+        'selectedUnit.required' => 'Please select a unit.',
+        'billingPeriod.required' => 'Please select a billing period.',
     ];
 
     public function mount()
     {
         $this->billingPeriod = Carbon::now()->startOfMonth()->format('Y-m');
+    }
+
+    #[On('open-utility-bill-modal')]
+    public function open()
+    {
+        $this->resetForm();
+        $this->isOpen = true;
+    }
+
+    public function close()
+    {
+        $this->resetForm();
+        $this->resetValidation();
+        $this->isOpen = false;
+    }
+
+    public function resetForm()
+    {
+        $this->reset(['selectedBuilding', 'selectedUnit', 'totalAmount', 'tenantCount', 'perTenantAmount', 'hasProration', 'tenantShares']);
+        $this->utilityType = 'electricity';
+        $this->billingPeriod = Carbon::now()->startOfMonth()->format('Y-m');
+    }
+
+    public function updatedSelectedBuilding()
+    {
+        $this->selectedUnit = null;
+        $this->tenantCount = 0;
+        $this->perTenantAmount = 0;
     }
 
     public function updatedSelectedUnit()
@@ -49,24 +91,74 @@ class UtilityBillEntry extends Component
 
     public function calculateSplit()
     {
-        if (!$this->selectedUnit || !$this->totalAmount) {
+        if (!$this->selectedUnit) {
             $this->tenantCount = 0;
             $this->perTenantAmount = 0;
+            $this->hasProration = false;
+            $this->tenantShares = [];
             return;
         }
 
-        // Count active tenants in the selected unit
-        $this->tenantCount = Lease::where('status', 'Active')
-            ->whereHas('bed', function ($q) {
-                $q->where('unit_id', $this->selectedUnit);
-            })
-            ->count();
+        $leases = Lease::where('status', 'Active')
+            ->whereHas('bed', fn($q) => $q->where('unit_id', $this->selectedUnit))
+            ->get();
 
-        if ($this->tenantCount > 0 && is_numeric($this->totalAmount) && $this->totalAmount > 0) {
-            $this->perTenantAmount = round((float)$this->totalAmount / $this->tenantCount, 2);
-        } else {
+        $this->tenantCount = $leases->count();
+
+        if ($this->tenantCount === 0 || !is_numeric($this->totalAmount) || $this->totalAmount <= 0) {
             $this->perTenantAmount = 0;
+            $this->hasProration = false;
+            $this->tenantShares = [];
+            return;
         }
+
+        $total = (float) $this->totalAmount;
+        $periodDate = Carbon::parse($this->billingPeriod . '-01');
+        $periodStart = $periodDate->copy()->startOfMonth();
+        $periodEnd = $periodDate->copy()->endOfMonth();
+        $totalDaysInMonth = $periodStart->diffInDays($periodEnd) + 1;
+
+        // Calculate weighted shares based on days occupied (Contract Section 4/10 proration)
+        $shares = [];
+        $totalWeight = 0;
+        $allFullMonth = true;
+
+        foreach ($leases as $lease) {
+            $moveIn = Carbon::parse($lease->move_in);
+            $occupancyStart = $moveIn->gt($periodStart) ? $moveIn : $periodStart;
+            $daysOccupied = $occupancyStart->diffInDays($periodEnd) + 1;
+            $daysOccupied = min($daysOccupied, $totalDaysInMonth);
+
+            if ($daysOccupied < $totalDaysInMonth) {
+                $allFullMonth = false;
+            }
+
+            $weight = $daysOccupied / $totalDaysInMonth;
+            $shares[$lease->lease_id] = [
+                'weight' => $weight,
+                'days' => $daysOccupied,
+                'total_days' => $totalDaysInMonth,
+            ];
+            $totalWeight += $weight;
+        }
+
+        // Normalize so full amount is distributed
+        $this->tenantShares = [];
+        foreach ($shares as $leaseId => $data) {
+            $normalizedWeight = $totalWeight > 0 ? $data['weight'] / $totalWeight : 0;
+            $amount = round($total * $normalizedWeight, 2);
+            $this->tenantShares[$leaseId] = [
+                'amount' => $amount,
+                'days' => $data['days'],
+                'total_days' => $data['total_days'],
+            ];
+        }
+
+        $this->hasProration = !$allFullMonth;
+        // Display average per-tenant for the UI preview
+        $this->perTenantAmount = $allFullMonth
+            ? round($total / $this->tenantCount, 2)
+            : round($total / $this->tenantCount, 2);
     }
 
     public function confirmSave()
@@ -75,11 +167,11 @@ class UtilityBillEntry extends Component
         $this->calculateSplit();
 
         if ($this->tenantCount === 0) {
-            $this->dispatch('show-toast', ['message' => 'No active tenants in this unit.', 'type' => 'error']);
+            $this->notifyError('No Active Tenants', 'Cannot split utility bill for this unit.');
             return;
         }
 
-        $this->showConfirmation = true;
+        $this->dispatch('open-modal', 'confirm-utility-split');
     }
 
     public function save()
@@ -88,12 +180,19 @@ class UtilityBillEntry extends Component
         $this->calculateSplit();
 
         if ($this->tenantCount === 0) {
-            $this->dispatch('show-toast', ['message' => 'No active tenants in this unit.', 'type' => 'error']);
+            $this->notifyError('No Active Tenants', 'Cannot split utility bill for this unit.');
             return;
         }
 
+        // Get unit label for toast before resetting
+        $unit = Unit::with('property')->find($this->selectedUnit);
+        $unitLabel = $unit ? $unit->property->building_name . ' — Unit ' . $unit->unit_number : 'Unknown';
+        $utilityLabel = ucfirst($this->utilityType);
+        $amountLabel = '₱' . number_format((float)$this->totalAmount, 2);
+
         $periodDate = Carbon::parse($this->billingPeriod . '-01')->startOfMonth();
 
+        try {
         DB::transaction(function () use ($periodDate) {
             // Create UtilityBill record
             UtilityBill::create([
@@ -114,11 +213,23 @@ class UtilityBillEntry extends Component
                 ->get();
 
             $chargeType = $this->utilityType === 'electricity' ? 'electricity_share' : 'water_share';
-            $description = $this->utilityType === 'electricity'
-                ? "Electricity Share (Meralco ₱" . number_format($this->totalAmount, 2) . " ÷ {$this->tenantCount} tenants)"
-                : "Water Share (₱" . number_format($this->totalAmount, 2) . " ÷ {$this->tenantCount} tenants)";
 
             foreach ($leases as $lease) {
+                // Use prorated share if available, otherwise equal split
+                $share = $this->tenantShares[$lease->lease_id] ?? null;
+                $tenantAmount = $share ? $share['amount'] : $this->perTenantAmount;
+
+                // Build description with proration info
+                if ($share && $share['days'] < $share['total_days']) {
+                    $description = $this->utilityType === 'electricity'
+                        ? "Electricity Share (₱" . number_format($this->totalAmount, 2) . " — {$share['days']}/{$share['total_days']} days)"
+                        : "Water Share (₱" . number_format($this->totalAmount, 2) . " — {$share['days']}/{$share['total_days']} days)";
+                } else {
+                    $description = $this->utilityType === 'electricity'
+                        ? "Electricity Share (Meralco ₱" . number_format($this->totalAmount, 2) . " ÷ {$this->tenantCount} tenants)"
+                        : "Water Share (₱" . number_format($this->totalAmount, 2) . " ÷ {$this->tenantCount} tenants)";
+                }
+
                 // Find the current month's billing for this lease
                 $billing = Billing::where('lease_id', $lease->lease_id)
                     ->where('billing_type', 'monthly')
@@ -136,13 +247,13 @@ class UtilityBillEntry extends Component
                         // Update existing
                         $oldAmount = $existing->amount;
                         $existing->update([
-                            'amount'      => $this->perTenantAmount,
+                            'amount'      => $tenantAmount,
                             'description' => $description,
                         ]);
                         // Update billing total
                         $billing->update([
-                            'to_pay' => $billing->to_pay - $oldAmount + $this->perTenantAmount,
-                            'amount' => $billing->amount - $oldAmount + $this->perTenantAmount,
+                            'to_pay' => $billing->to_pay - $oldAmount + $tenantAmount,
+                            'amount' => $billing->amount - $oldAmount + $tenantAmount,
                         ]);
                     } else {
                         // Create new billing item
@@ -151,47 +262,65 @@ class UtilityBillEntry extends Component
                             'charge_category' => 'recurring',
                             'charge_type'     => $chargeType,
                             'description'     => $description,
-                            'amount'          => $this->perTenantAmount,
+                            'amount'          => $tenantAmount,
                         ]);
 
                         // Update billing total
                         $billing->update([
-                            'to_pay' => $billing->to_pay + $this->perTenantAmount,
-                            'amount' => $billing->amount + $this->perTenantAmount,
+                            'to_pay' => $billing->to_pay + $tenantAmount,
+                            'amount' => $billing->amount + $tenantAmount,
                         ]);
                     }
                 }
             }
         });
 
-        $this->dispatch('show-toast', ['message' => ucfirst($this->utilityType) . ' bill split and applied to ' . $this->tenantCount . ' tenants.']);
-        $this->reset(['selectedUnit', 'totalAmount', 'tenantCount', 'perTenantAmount', 'showConfirmation']);
-        $this->billingPeriod = Carbon::now()->startOfMonth()->format('Y-m');
+        $this->dispatch('close-modal', 'confirm-utility-split');
+        $this->notifySuccess(
+            'Utility Bill Applied',
+            "{$utilityLabel} bill of {$amountLabel} for {$unitLabel} split among {$this->tenantCount} tenant(s)."
+        );
+        $this->resetForm();
+        $this->isOpen = false;
+        } catch (\Exception $e) {
+            $this->dispatch('close-modal', 'confirm-utility-split');
+            $this->notifyError(
+                'Utility Bill Failed',
+                "Failed to apply {$utilityLabel} bill of {$amountLabel} for {$unitLabel}."
+            );
+        }
     }
 
     public function render()
     {
-        // Get units managed by current user
-        $units = Unit::where('manager_id', Auth::id())
-            ->with('property')
+        // Get buildings that have units managed by current user with active tenants
+        $buildings = Property::whereHas('units', function ($q) {
+                $q->where('manager_id', Auth::id())
+                  ->whereHas('beds.leases', fn ($l) => $l->where('status', 'Active'));
+            })
             ->get()
-            ->map(fn ($unit) => [
-                'id'    => $unit->unit_id,
-                'label' => $unit->property->building_name . ' — Unit ' . $unit->unit_number,
+            ->map(fn ($p) => [
+                'id'    => $p->property_id,
+                'label' => $p->building_name,
             ]);
 
-        // Recent utility bills
-        $recentBills = UtilityBill::whereHas('unit', function ($q) {
-                $q->where('manager_id', Auth::id());
-            })
-            ->with('unit.property')
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+        // Get units filtered by selected building, only those with active tenants
+        $units = collect();
+        if ($this->selectedBuilding) {
+            $units = Unit::where('manager_id', Auth::id())
+                ->where('property_id', $this->selectedBuilding)
+                ->whereHas('beds.leases', fn ($q) => $q->where('status', 'Active'))
+                ->with('property')
+                ->get()
+                ->map(fn ($unit) => [
+                    'id'    => $unit->unit_id,
+                    'label' => 'Unit ' . $unit->unit_number,
+                ]);
+        }
 
         return view('livewire.layouts.financials.utility-bill-entry', [
-            'units'       => $units,
-            'recentBills' => $recentBills,
+            'buildings' => $buildings,
+            'units'     => $units,
         ]);
     }
 }

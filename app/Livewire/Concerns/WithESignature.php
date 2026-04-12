@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Models\ContractAuditLog;
 use App\Models\Lease;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 trait WithESignature
@@ -20,9 +22,11 @@ trait WithESignature
         $imageData = base64_decode($imageData);
 
         $filename = "signatures/{$filenamePrefix}_" . time() . '.png';
-        Storage::disk('public')->put($filename, $imageData);
+        Storage::disk('local')->put($filename, $imageData);
 
         if ($oldSignaturePath) {
+            // Clean up from both disks during migration period
+            Storage::disk('local')->delete($oldSignaturePath);
             Storage::disk('public')->delete($oldSignaturePath);
         }
 
@@ -32,11 +36,13 @@ trait WithESignature
     /**
      * Save a signature to a lease for a given contract type and role.
      *
-     * @param Lease  $lease        The lease to update
+     * Signing order: owner (1st) → manager/witness (2nd) → tenant (3rd)
+     *
+     * @param Lease  $lease         The lease to update
      * @param string $signatureData Base64 encoded signature image
-     * @param string $role         'tenant' or 'owner'
-     * @param string $type         'movein' or 'moveout'
-     * @return array{signature: string, signedAt: string} The saved signature path and formatted date
+     * @param string $role          'owner', 'manager', or 'tenant'
+     * @param string $type          'movein' or 'moveout'
+     * @return array{signature: string, signedAt: string, agreed: bool}
      */
     protected function saveLeaseSignature(
         Lease $lease,
@@ -44,14 +50,30 @@ trait WithESignature
         string $role,
         string $type = 'movein'
     ): array {
-        $prefix = $type === 'moveout' ? 'moveout_' : '';
         $dbPrefix = $type === 'moveout' ? 'moveout_' : '';
-        $sigField = $dbPrefix . ($role === 'tenant' ? 'tenant_signature' : 'owner_signature');
-        $dateField = $dbPrefix . ($role === 'tenant' ? 'tenant_signed_at' : 'owner_signed_at');
-        $ipField = $dbPrefix . ($role === 'tenant' ? 'tenant_signed_ip' : 'owner_signed_ip');
+
+        // Map role to DB field names
+        $sigField = $dbPrefix . match ($role) {
+            'tenant' => 'tenant_signature',
+            'manager' => 'manager_signature',
+            default => 'owner_signature',
+        };
+        $dateField = $dbPrefix . match ($role) {
+            'tenant' => 'tenant_signed_at',
+            'manager' => 'manager_signed_at',
+            default => 'owner_signed_at',
+        };
+        $ipField = $dbPrefix . match ($role) {
+            'tenant' => 'tenant_signed_ip',
+            'manager' => 'manager_signed_ip',
+            default => 'owner_signed_ip',
+        };
+
         $agreedField = $dbPrefix . 'contract_agreed';
-        $tenantSigField = $dbPrefix . 'tenant_signature';
         $ownerSigField = $dbPrefix . 'owner_signature';
+        $managerSigField = $dbPrefix . 'manager_signature';
+        $tenantSigField = $dbPrefix . 'tenant_signature';
+        $statusField = $type === 'moveout' ? 'moveout_contract_status' : 'contract_status';
 
         $filename = $this->processAndStoreSignature(
             $signatureData,
@@ -59,23 +81,91 @@ trait WithESignature
             $lease->$sigField
         );
 
-        $lease->update([
-            $sigField => $filename,
-            $dateField => now(),
-            $ipField => request()->ip(),
-        ]);
+        // Use a transaction with row lock to prevent race condition
+        $agreed = DB::transaction(function () use (
+            $lease, $filename, $sigField, $dateField, $ipField,
+            $agreedField, $ownerSigField, $managerSigField, $tenantSigField,
+            $statusField, $role, $type
+        ) {
+            $locked = Lease::where('lease_id', $lease->lease_id)->lockForUpdate()->first();
+
+            $locked->update([
+                $sigField => $filename,
+                $dateField => now(),
+                $ipField => request()->ip(),
+            ]);
+
+            $locked->refresh();
+
+            // Check if all three signatures exist
+            $allSigned = $locked->$ownerSigField && $locked->$managerSigField && $locked->$tenantSigField;
+
+            // Auto-transition contract status based on signing order:
+            // owner (1st) → manager (2nd) → tenant (3rd)
+            if ($allSigned) {
+                $locked->update([
+                    $agreedField => true,
+                    $statusField => 'executed',
+                ]);
+            } elseif ($locked->$statusField !== 'executed') {
+                if ($role === 'owner') {
+                    // Owner signed → waiting for manager witness
+                    $locked->update([$statusField => 'pending_manager']);
+                } elseif ($role === 'manager') {
+                    // Manager signed → waiting for tenant
+                    $locked->update([$statusField => 'pending_tenant']);
+                } elseif ($role === 'tenant') {
+                    // Tenant signed but others missing (shouldn't normally happen with enforced order)
+                    if (!$locked->$ownerSigField) {
+                        $locked->update([$statusField => 'pending_owner']);
+                    } elseif (!$locked->$managerSigField) {
+                        $locked->update([$statusField => 'pending_manager']);
+                    }
+                }
+            }
+
+            // Build contract content hash for tamper-proof audit trail (RA 8792 compliance)
+            $contractDataForHash = json_encode([
+                'lease_id' => $locked->lease_id,
+                'tenant_id' => $locked->tenant_id,
+                'bed_id' => $locked->bed_id,
+                'contract_rate' => $locked->contract_rate,
+                'security_deposit' => $locked->security_deposit,
+                'start_date' => $locked->start_date?->format('Y-m-d'),
+                'end_date' => $locked->end_date?->format('Y-m-d'),
+                'term' => $locked->term,
+            ]);
+            $contentHash = hash('sha256', $contractDataForHash);
+
+            // Audit log with full device fingerprint
+            ContractAuditLog::log($locked->lease_id, "{$type}_signature_{$role}", [
+                'field_changed' => $sigField,
+                'new_value' => $filename,
+                'metadata' => [
+                    'contract_type' => $type,
+                    'role' => $role,
+                    'ip' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'content_hash' => $contentHash,
+                    'all_signed' => $allSigned,
+                ],
+            ]);
+
+            if ($allSigned) {
+                ContractAuditLog::log($locked->lease_id, "{$type}_contract_executed", [
+                    'metadata' => ['contract_type' => $type],
+                ]);
+            }
+
+            return $allSigned;
+        });
 
         $lease->refresh();
-
-        // Check if both signatures exist for this contract type
-        if ($lease->$tenantSigField && $lease->$ownerSigField) {
-            $lease->update([$agreedField => true]);
-        }
 
         return [
             'signature' => $filename,
             'signedAt' => now()->format('M d, Y h:i A'),
-            'agreed' => (bool) ($lease->$tenantSigField && $lease->$ownerSigField),
+            'agreed' => $agreed,
         ];
     }
 }

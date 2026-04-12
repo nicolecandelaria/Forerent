@@ -1,30 +1,28 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\Request;
-use Laravel\Fortify\Features;
-use Livewire\Volt\Volt;
-use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\SettingsProfileController;
+use App\Livewire\Auth\ForgotPassword;
 use App\Models\Property;
 use App\Models\Unit;
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 // Import the Forgot Password Component
-use App\Livewire\Auth\ForgotPassword;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 // ─── LANDING PAGE (public, no auth required) ────────────────────────────────
 Route::get('/', function (Request $request) {
     // Build property data with unit options for cascading dropdowns
     $properties = Property::with(['units' => function ($q) {
-        $q->select('unit_id', 'property_id', 'occupants', 'room_type', 'price');
+        $q->select('unit_id', 'property_id', 'occupants', 'room_cap', 'price');
     }])->get();
 
-    $propertyData = $properties->map(fn($p) => [
-        'address'    => $p->address,
-        'unitTypes'  => $p->units->pluck('occupants')->unique()->values(),
-        'roomTypes'  => $p->units->pluck('room_type')->filter()->unique()->values(),
-        'prices'     => $p->units->pluck('price')->sort()->values(),
+    $propertyData = $properties->map(fn ($p) => [
+        'address' => $p->address,
+        'unitTypes' => $p->units->pluck('occupants')->unique()->values(),
+        'roomTypes' => $p->units->pluck('room_type')->filter()->unique()->values(),
+        'prices' => $p->units->pluck('price')->sort()->values(),
     ])->values();
 
     $addresses = $properties->pluck('address')->sort()->values();
@@ -34,11 +32,11 @@ Route::get('/', function (Request $request) {
 
     if ($hasSearch) {
         $query = Unit::query()
-            ->whereHas('beds', fn($q) => $q->where('status', 'Vacant'))
-            ->with(['property.photos', 'beds' => fn($q) => $q->where('status', 'Vacant')]);
+            ->whereHas('beds', fn ($q) => $q->where('status', 'Vacant'))
+            ->with(['property.photos', 'beds' => fn ($q) => $q->where('status', 'Vacant')]);
 
         if ($request->filled('address')) {
-            $query->whereHas('property', fn($q) => $q->where('address', $request->address));
+            $query->whereHas('property', fn ($q) => $q->where('address', $request->address));
         }
         if ($request->filled('unit_type')) {
             $query->where('occupants', $request->unit_type);
@@ -53,7 +51,7 @@ Route::get('/', function (Request $request) {
             }
         }
         if ($request->filled('furnishing')) {
-            $query->where('room_type', $request->furnishing);
+            $query->where('furnishing', $request->furnishing);
         }
 
         $units = $query->paginate(12)->withQueryString();
@@ -63,10 +61,16 @@ Route::get('/', function (Request $request) {
 })->name('landing');
 
 Route::get('/privacy-policy', function () {
+    if (session()->has('terms_pending_user_id')) {
+        session(['terms_has_read_privacy' => true]);
+    }
     return view('users.privacy-policy');
 })->name('privacy-policy');
 
 Route::get('/terms-of-service', function () {
+    if (session()->has('terms_pending_user_id')) {
+        session(['terms_has_read_terms' => true]);
+    }
     return view('users.terms-of-service');
 })->name('terms-of-service');
 
@@ -80,9 +84,9 @@ Route::get('/home', function () {
 
     return match ($user->role) {
         'landlord' => redirect()->route('landlord.dashboard'),
-        'manager'  => redirect()->route('manager.dashboard'),
-        'tenant'   => redirect()->route('tenant.dashboard'),
-        default    => redirect()->route('login'),
+        'manager' => redirect()->route('manager.dashboard'),
+        'tenant' => redirect()->route('tenant.dashboard'),
+        default => redirect()->route('login'),
     };
 })->middleware('auth')->name('home');
 
@@ -97,6 +101,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/property', [PropertyController::class, 'index'])->name('properties.index');
     Route::get('/properties/create', [PropertyController::class, 'create'])->name('properties.create');
+    Route::get('/secure/file/{path}', [\App\Http\Controllers\SecureFileController::class, 'serve'])
+        ->where('path', '.*')
+        ->name('secure.file');
 });
 
 Route::get('/revenue', function () {
@@ -130,8 +137,24 @@ Route::get('/settings', function () {
     return view('users.settings');
 })->middleware('auth')->name('settings');
 
-require __DIR__ . '/auth.php';
-require __DIR__ . '/modules/landing.php';
-require __DIR__ . '/modules/landlord.php';
-require __DIR__ . '/modules/manager.php';
-require __DIR__ . '/modules/tenant.php';
+Route::post('/settings/profile', [SettingsProfileController::class, 'update'])
+    ->middleware('auth')
+    ->name('settings.profile.update');
+
+require __DIR__.'/auth.php';
+require __DIR__.'/modules/landing.php';
+require __DIR__.'/modules/landlord.php';
+require __DIR__.'/modules/manager.php';
+require __DIR__.'/modules/tenant.php';
+
+// ─── SYSTEM MAINTENANCE (Temporary for Free Tier) ───────────────────────────
+Route::get('/clear-system-cache', function () {
+    // This wipes the application cache
+    Artisan::call('cache:clear');
+    // This wipes the configuration cache
+    Artisan::call('config:clear');
+    // This wipes the route cache
+    Artisan::call('route:clear');
+
+    return 'ForeRent system cache has been successfully cleared! You can now check the Forecast pages.';
+});

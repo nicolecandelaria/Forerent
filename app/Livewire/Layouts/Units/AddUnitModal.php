@@ -6,6 +6,8 @@ use App\Livewire\Concerns\WithNotifications;
 use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -14,9 +16,13 @@ class AddUnitModal extends Component
     use WithNotifications;
 
     public $isOpen = false;
+
     public $modalId;
+
     public $editingUnitId = null;
+
     public $editingUnitNumber = null;
+
     public $currentStep = 1;
 
     public $steps = [
@@ -41,8 +47,10 @@ class AddUnitModal extends Component
 
     public $room_cap;
 
-    public $unit_cap;      
-    public $m_f;          
+    public $unit_cap;
+
+    public $m_f;
+
     public $room_type;
 
     public $model_amenities = [];
@@ -220,7 +228,7 @@ class AddUnitModal extends Component
         $dataForModel = array_merge($dataForModel, $this->model_amenities);
 
         try {
-            $response = Http::timeout(5)->post('http://price_api:8000/predict', $dataForModel);
+            $response = Http::post(env('PRICE_API_URL') . '/predict', $dataForModel);
             if ($response->successful()) {
                 $this->predicted_price = $response->json('predicted_price');
             } else {
@@ -240,7 +248,7 @@ class AddUnitModal extends Component
     {
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->dispatch('scroll-to-error');
             throw $e;
         }
@@ -253,6 +261,9 @@ class AddUnitModal extends Component
     {
 
         try {
+            $savedUnitId = null;
+            $savedPropertyId = (int) $this->property_id;
+
             if (auth()->user()->role === 'manager' && ! $this->editingUnitId) {
                 $this->notifyError(
                     'Authorization Failed',
@@ -280,6 +291,7 @@ class AddUnitModal extends Component
                 $unit = Unit::find($this->editingUnitId);
                 if ($unit) {
                     $unit->update($data);
+                    $savedUnitId = $unit->unit_id;
                     $this->notifySuccess(
                         'Unit #'.$unit->unit_id.' Updated Successfully!',
                         'Unit details have been updated.'
@@ -289,6 +301,7 @@ class AddUnitModal extends Component
                 $newUnit = Unit::create(array_merge($data, [
                     'unit_number' => $this->generateUniqueUnitNumber($this->property_id, $this->floor_number),
                 ]));
+                $savedUnitId = $newUnit->unit_id;
                 $this->notifySuccess(
                     'Unit #'.$newUnit->unit_id.' Created Successfully!',
                     'New unit has been added to your property.'
@@ -296,9 +309,9 @@ class AddUnitModal extends Component
             }
 
             $this->close();
-            $this->dispatch('refresh-unit-list');
+            $this->dispatch('refresh-unit-list', buildingId: $savedPropertyId, unitId: $savedUnitId);
         } catch (\Exception $e) {
-            \Log::error('Failed to save unit: ' . $e->getMessage(), [
+            Log::error('Failed to save unit: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'data' => $data ?? [],
             ]);

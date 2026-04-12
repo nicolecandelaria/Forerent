@@ -10,12 +10,12 @@
             {{-- Search --}}
             <x-ui.search-bar
                 model="search"
-                placeholder="Search..."
+                placeholder="Search by tenant name or building..."
                 :suggestions="$suggestions"
             />
 
             {{-- Month Filter --}}
-            <x-dropdown label="{{ $monthOptions[$selectedMonth] ?? 'Month' }}">
+            <x-dropdown label="{{ $monthOptions[$selectedMonth] ?? 'Month' }}" tooltip="Filter receipts by month">
                 <x-dropdown-item wire:click="$set('selectedMonth', null)" @click="open = false">
                     All Months
                 </x-dropdown-item>
@@ -30,8 +30,24 @@
                 @endforeach
             </x-dropdown>
 
+            {{-- Year Filter --}}
+            <x-dropdown label="{{ $selectedYear ?? 'Year' }}" tooltip="Filter receipts by year">
+                <x-dropdown-item wire:click="$set('selectedYear', null)" @click="open = false">
+                    All Years
+                </x-dropdown-item>
+                @foreach ($yearOptions as $value => $label)
+                    <x-dropdown-item
+                        wire:click="$set('selectedYear', {{ $value }})"
+                        @click="open = false"
+                        :active="$selectedYear == $value"
+                    >
+                        {{ $label }}
+                    </x-dropdown-item>
+                @endforeach
+            </x-dropdown>
+
             {{-- Building Filter --}}
-            <x-dropdown label="{{ $selectedBuilding ?? 'Building' }}">
+            <x-dropdown label="{{ $selectedBuilding ? Str::before($selectedBuilding, ' ') . '...' : 'Building' }}" tooltip="Filter receipts by building">
                 <x-dropdown-item wire:click="$set('selectedBuilding', null)" @click="open = false">
                     All Buildings
                 </x-dropdown-item>
@@ -82,21 +98,25 @@
                         </x-ui.td>
 
                         <x-ui.td class="text-center" @click.stop>
-                            <div class="inline-flex items-center gap-2 min-w-[180px] justify-start">
-                                <button
-                                    wire:click.stop="viewReceipt({{ $payment->billing_id }})"
-                                    class="inline-flex items-center px-3 py-1 border border-[#0906ae] text-[#0906ae] rounded-md text-xs font-bold hover:bg-blue-50 transition-colors"
-                                >
-                                    View
-                                </button>
-
-                                @if($payment->status !== 'Paid')
+                            <div class="inline-flex items-center gap-2 min-w-[180px] {{ auth()->user()->role === 'landlord' ? 'justify-center' : 'justify-start' }}">
+                                <flux:tooltip :content="'View payment receipt and details'" position="bottom">
                                     <button
-                                        wire:click.stop="confirmPayment({{ $payment->billing_id }})"
-                                        class="inline-flex items-center px-3 py-1 bg-[#070589] text-white rounded-md text-xs font-bold hover:bg-[#000060] transition-colors"
+                                        wire:click.stop="viewReceipt({{ $payment->billing_id }})"
+                                        class="inline-flex items-center px-3 py-1 border border-[#0906ae] text-[#0906ae] rounded-md text-xs font-bold hover:bg-blue-50 transition-colors"
                                     >
-                                        Mark As Paid
+                                        View
                                     </button>
+                                </flux:tooltip>
+
+                                @if($payment->status !== 'Paid' && auth()->user()->role !== 'landlord')
+                                    <flux:tooltip :content="'Confirm this payment has been received'" position="bottom">
+                                        <button
+                                            wire:click.stop="confirmPayment({{ $payment->billing_id }})"
+                                            class="inline-flex items-center px-3 py-1 bg-[#070589] text-white rounded-md text-xs font-bold hover:bg-[#000060] transition-colors"
+                                        >
+                                            Mark As Paid
+                                        </button>
+                                    </flux:tooltip>
                                 @endif
                             </div>
                         </x-ui.td>

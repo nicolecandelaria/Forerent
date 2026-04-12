@@ -14,15 +14,17 @@
                                 {{ $managerId ? 'Update manager information and property assignments.' : 'Create an account for the new property manager.' }}
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            x-on:click="$dispatch('open-modal', 'discard-manager-confirmation')"
-                            class="text-white hover:text-blue-200 transition-colors focus:outline-none">
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            <span class="sr-only">Close modal</span>
-                        </button>
+                        <flux:tooltip :content="'Close manager form without saving'" position="bottom">
+                            <button
+                                type="button"
+                                x-on:click="$dispatch('open-modal', 'discard-manager-confirmation')"
+                                class="text-white hover:text-blue-200 transition-colors focus:outline-none">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <span class="sr-only">Close modal</span>
+                            </button>
+                        </flux:tooltip>
                     </div>
                 </div>
 
@@ -148,15 +150,16 @@
                                             wire:model.defer="userForm.phoneNumber"
                                             type="tel"
                                             id="phone-{{ $modalId }}"
-                                            class="block pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] pr-2.5 pl-16"
-                                            placeholder="9876543210"
-                                            maxlength="10"
+                                            class="block pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#0030C5] pr-2.5 pl-20"
+                                            placeholder="876543210"
+                                            maxlength="9"
                                             inputmode="numeric"
                                             pattern="[0-9]*"
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                                         />
 
                                         <div class="absolute top-4 left-0 px-3 flex items-center space-x-2 pointer-events-none">
-                                            <span class="text-sm text-gray-500">+63</span>
+                                            <span class="text-sm text-gray-500">+63 9</span>
                                             <span class="border-l border-gray-300 h-5"></span>
                                         </div>
 
@@ -260,17 +263,28 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Unit Number</label>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="block text-sm font-medium text-gray-700">Unit Number</label>
+                                        <span class="text-xs font-medium {{ $this->totalSelectedUnits >= \App\Livewire\Layouts\Managers\AddManagerModal::MAX_UNITS_PER_MANAGER ? 'text-red-600' : 'text-gray-500' }}">
+                                            {{ $this->totalSelectedUnits }} / {{ \App\Livewire\Layouts\Managers\AddManagerModal::MAX_UNITS_PER_MANAGER }} units
+                                        </span>
+                                    </div>
                                     <div class="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto bg-white">
                                         @if(count($availableUnits) > 0)
                                             <div class="grid grid-cols-2 gap-3">
                                                 @foreach($availableUnits as $unit)
-                                                    <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                                    @php
+                                                        $isChecked = in_array((string) $unit['id'], $selectedUnits);
+                                                        $atLimit = $this->totalSelectedUnits >= \App\Livewire\Layouts\Managers\AddManagerModal::MAX_UNITS_PER_MANAGER;
+                                                        $isDisabled = !$isChecked && $atLimit;
+                                                    @endphp
+                                                    <label class="flex items-center space-x-2 p-2 rounded {{ $isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50' }}">
                                                         <input
                                                             type="checkbox"
                                                             wire:model.live="selectedUnits"
                                                             value="{{ $unit['id'] }}"
                                                             class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                                            {{ $isDisabled ? 'disabled' : '' }}
                                                         />
                                                         <span class="text-sm text-gray-900">{{ $unit['number'] }}</span>
                                                     </label>

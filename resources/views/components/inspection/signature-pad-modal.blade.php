@@ -68,7 +68,7 @@
     >
         <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl">
             {{-- Header --}}
-            <div class="bg-gradient-to-r from-[#070589] to-[#2360E8] text-white p-5 flex items-center justify-between">
+            <div class="bg-gradient-to-r from-[#070589] to-[#2360E8] text-white p-5 rounded-t-2xl flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-bold">{{ $title }}</h2>
                     <p class="text-xs text-blue-200 mt-0.5">{{ $subtitle }}</p>
@@ -87,7 +87,7 @@
                     </div>
                     <div>
                         <p class="text-xs font-bold text-gray-800">{{ $signerName }}</p>
-                        <p class="text-[10px] text-gray-500">Signing as {{ $signerRole }}</p>
+                        <p class="text-[11px] text-gray-500">Signing as {{ $signerRole }}</p>
                     </div>
                 </div>
             </div>
@@ -103,14 +103,14 @@
                     ></canvas>
                     <div class="absolute bottom-10 left-8 right-8 border-b border-dashed border-gray-200 pointer-events-none"></div>
                     <div class="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
-                        <span class="text-[9px] text-gray-300 uppercase tracking-wider" x-show="isEmpty">Sign here</span>
+                        <span class="text-[11px] text-gray-300 uppercase tracking-wider" x-show="isEmpty">Sign here</span>
                     </div>
                 </div>
             </div>
 
             {{-- Legal notice --}}
             <div class="px-5 pb-3">
-                <p class="text-[10px] text-gray-400 leading-relaxed">{{ $legalText }}</p>
+                <p class="text-[11px] text-gray-400 leading-relaxed">{{ $legalText }}</p>
             </div>
 
             {{-- Actions --}}

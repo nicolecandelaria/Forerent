@@ -2,13 +2,15 @@
 
 namespace App\Livewire\Layouts\Dashboard;
 
+use Livewire\Component;
+use Livewire\Attributes\Layout;
+use Carbon\Carbon;
+use App\Models\Lease;
+use App\Models\Transaction;
 use App\Models\Billing;
 use App\Models\MaintenanceLog;
-use App\Models\Transaction;
 use App\Models\Unit;
-use Carbon\Carbon;
-use Livewire\Attributes\Layout;
-use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
 
 class Dashboard extends Component
 {
@@ -63,6 +65,14 @@ class Dashboard extends Component
 
     public $vacantUnits = 0;
 
+    public $prevTotalUnits = 0;
+    public $prevFullyBookedUnits = 0;
+    public $prevAvailableUnits = 0;
+    public $prevVacantUnits = 0;
+
+    public $pendingContracts = [];
+    public $pendingContractsCount = 0;
+
     public function mount()
     {
         $this->selectedDate = Carbon::today();
@@ -71,6 +81,7 @@ class Dashboard extends Component
         $this->loadPropertyUnitStats();
         $this->loadFinancialData();
         $this->loadMonthlyData();
+        $this->loadPendingContracts();
     }
 
     private function loadPropertyUnitStats(): void
@@ -109,12 +120,48 @@ class Dashboard extends Component
         $this->vacantUnits = Unit::whereDoesntHave('beds', function ($bedQuery) use ($activeLeaseConstraint) {
             $bedQuery->whereHas('leases', $activeLeaseConstraint);
         })->count();
+
+        // Previous month stats for comparison
+        $prevDate = Carbon::today()->subMonth()->endOfMonth();
+        $prevLeaseConstraint = function ($query) use ($prevDate) {
+            $query->where('status', 'Active')
+                ->where(function ($q) use ($prevDate) {
+                    $q->whereNull('move_out')
+                        ->orWhereDate('move_out', '>', $prevDate);
+                })
+                ->where(function ($q) use ($prevDate) {
+                    $q->whereNull('end_date')
+                        ->orWhereDate('end_date', '>=', $prevDate);
+                })
+                ->whereDate('start_date', '<=', $prevDate);
+        };
+
+        $this->prevTotalUnits = Unit::count();
+
+        $this->prevFullyBookedUnits = Unit::whereHas('beds')
+            ->whereDoesntHave('beds', function ($bedQuery) use ($prevLeaseConstraint) {
+                $bedQuery->whereDoesntHave('leases', $prevLeaseConstraint);
+            })
+            ->count();
+
+        $this->prevAvailableUnits = Unit::whereHas('beds', function ($bedQuery) use ($prevLeaseConstraint) {
+            $bedQuery->whereHas('leases', $prevLeaseConstraint);
+        })->whereHas('beds', function ($bedQuery) use ($prevLeaseConstraint) {
+            $bedQuery->whereDoesntHave('leases', $prevLeaseConstraint);
+        })->count();
+
+        $this->prevVacantUnits = Unit::whereDoesntHave('beds', function ($bedQuery) use ($prevLeaseConstraint) {
+            $bedQuery->whereHas('leases', $prevLeaseConstraint);
+        })->count();
     }
 
     public function updatedRentSummaryMonth(): void
     {
         $this->loadFinancialData();
-        $this->dispatch('dashboard-refresh-charts');
+        $this->dispatch('dashboard-refresh-charts', [
+            'collected' => $this->totalRentCollected,
+            'uncollected' => $this->totalUncollectedRent,
+        ]);
     }
 
     private function initializeRentSummaryMonthFilter(): void
@@ -149,8 +196,9 @@ class Dashboard extends Component
         $summaryMonth = $this->resolveRentSummaryMonth();
         $this->rentSummaryPeriodLabel = $summaryMonth->format('F Y');
 
-        // Collected rent is based on the selected summary month.
-        $this->totalRentCollected = Transaction::where('transaction_type', 'Credit')
+        // Keep this rent-specific for the rent collection donut.
+        $this->totalRentCollected = Transaction::query()
+            ->creditInflows()
             ->where('category', 'Rent Payment')
             ->whereYear('transaction_date', $summaryMonth->year)
             ->whereMonth('transaction_date', $summaryMonth->month)
@@ -165,9 +213,12 @@ class Dashboard extends Component
             ->whereMonth('billing_date', $summaryMonth->month)
             ->sum('to_pay');
 
-        // Total Income should show amount actually collected (same as collected rent)
-        // additional uncollected rent is only used for the "target"/total figure.
-        $this->totalIncome = $this->totalRentCollected;
+        // Total income/revenue uses all credit inflows for the selected month.
+        $this->totalIncome = Transaction::query()
+            ->creditInflows()
+            ->whereYear('transaction_date', $summaryMonth->year)
+            ->whereMonth('transaction_date', $summaryMonth->month)
+            ->sum('amount');
 
         // If you still have real transaction data available, you could override
         // the above by uncommenting the following block:
@@ -182,11 +233,11 @@ class Dashboard extends Component
         }
         */
 
-        // Revenue Current is simply what has already been collected
-        $this->revenueCurrent = $this->totalRentCollected;
+        // Revenue current reflects realized inflows this month.
+        $this->revenueCurrent = $this->totalIncome;
 
-        // Revenue Target should reflect the grand total (collected + uncollected)
-        $this->revenueTarget = $this->totalRentCollected + $this->totalUncollectedRent;
+        // Revenue target combines realized inflows and outstanding rent billings.
+        $this->revenueTarget = $this->totalIncome + $this->totalUncollectedRent;
 
         // Calculate Total Expenses (maintenance costs for current month)
         $this->expensesCurrent = MaintenanceLog::sum('cost');
@@ -228,6 +279,13 @@ class Dashboard extends Component
     private function loadMonthlyData()
     {
         $year = Carbon::now()->year;
+        $driver = Transaction::query()->getConnection()->getDriverName();
+        $transactionMonthExpr = $driver === 'pgsql'
+            ? 'EXTRACT(MONTH FROM transaction_date)::int'
+            : 'MONTH(transaction_date)';
+        $maintenanceMonthExpr = $driver === 'pgsql'
+            ? 'EXTRACT(MONTH FROM completion_date)::int'
+            : 'MONTH(completion_date)';
 
         // Initialize monthly arrays
         $this->monthlyLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -235,30 +293,65 @@ class Dashboard extends Component
         $this->monthlyExpenses = array_fill(0, 12, 0);
         $this->monthlyRentCollected = array_fill(0, 12, 0);
 
-        // Get monthly revenue from credit transactions.
-        $monthlyBillings = Transaction::where('transaction_type', 'Credit')
-            ->where('category', 'Rent Payment')
+        // Monthly revenue trend uses all credit inflows.
+        $monthlyInflows = Transaction::query()
+            ->creditInflows()
             ->whereYear('transaction_date', $year)
-            ->selectRaw('MONTH(transaction_date) as month, SUM(amount) as total')
+            ->selectRaw("{$transactionMonthExpr} as month, SUM(amount) as total")
             ->groupBy('month')
             ->get();
 
-        foreach ($monthlyBillings as $billing) {
-            $this->monthlyRevenue[$billing->month - 1] = $billing->total;
-            $this->monthlyRentCollected[$billing->month - 1] = $billing->total;
+        foreach ($monthlyInflows as $inflow) {
+            $this->monthlyRevenue[$inflow->month - 1] = $inflow->total;
         }
 
-        // Keep revenue as per-month totals (no cumulative carry-over).
+        // Keep rent-collected series rent-specific for rent-focused components.
+        $monthlyRentCollected = Transaction::query()
+            ->creditInflows()
+            ->where('category', 'Rent Payment')
+            ->whereYear('transaction_date', $year)
+            ->selectRaw('EXTRACT(MONTH FROM transaction_date) as month, SUM(amount) as total')->groupBy('month')
+            ->get();
 
-        // Get monthly expenses (maintenance logs)
+        foreach ($monthlyRentCollected as $rent) {
+            $this->monthlyRentCollected[$rent->month - 1] = $rent->total;
+        }
+
+        // 2. Get monthly expenses (Maintenance Logs - FIXED FOR POSTGRES)
         $monthlyExpensesData = MaintenanceLog::whereYear('completion_date', $year)
-            ->selectRaw('MONTH(completion_date) as month, SUM(cost) as total')
+            ->selectRaw('EXTRACT(MONTH FROM completion_date) as month, SUM(cost) as total')
             ->groupBy('month')
             ->get();
 
         foreach ($monthlyExpensesData as $expense) {
             $this->monthlyExpenses[$expense->month - 1] = $expense->total;
         }
+    }
+
+    private function loadPendingContracts(): void
+    {
+        $user = Auth::user();
+
+        $query = Lease::whereHas('bed.unit.property', fn($q) => $q->where('owner_id', $user->user_id))
+            ->where(fn($q) => $q->whereNull('contract_status')->orWhere('contract_status', '!=', 'executed'))
+            ->where('status', 'Active')
+            ->with(['tenant', 'bed.unit.property'])
+            ->latest('start_date');
+
+        $this->pendingContractsCount = $query->count();
+        $this->pendingContracts = $query->take(5)->get()->map(function ($lease) {
+            $sigCount = collect([$lease->owner_signature, $lease->manager_signature, $lease->tenant_signature])->filter()->count();
+            return [
+                'lease_id' => $lease->lease_id,
+                'tenant_name' => ($lease->tenant?->first_name ?? '') . ' ' . ($lease->tenant?->last_name ?? ''),
+                'tenant_initial' => strtoupper(substr($lease->tenant?->first_name ?? '?', 0, 1)),
+                'property' => $lease->bed?->unit?->property?->building_name,
+                'unit' => $lease->bed?->unit?->unit_number,
+                'contract_status' => $lease->contract_status ?? 'draft',
+                'needs_owner_sign' => !$lease->owner_signature,
+                'sig_count' => $sigCount,
+            ];
+        })->toArray();
     }
 
     #[Layout('layouts.app')]

@@ -3,109 +3,90 @@
 namespace App\Livewire\Layouts;
 
 use Livewire\Component;
+use Livewire\Attributes\On;
 use App\Models\Unit;
-use App\Models\Bed;
 
 class PropertyWidgets extends Component
 {
-    // Unit Status Data
-    public int $totalUnits = 0;
-    public int $occupied = 0;
+    // Bed Status Data
+    public int $totalBeds = 0;
+    public int $occupiedBeds = 0;
     public int $occupiedPercent = 0;
-    public int $vacant = 0;
-    public int $vacantPercent = 0;
-    public int $moveInReady = 0;
-    public int $moveInReadyPercent = 0;
+    public int $availableBeds = 0;
+    public int $availablePercent = 0;
     public float $occupancyRate = 0.0;
-    public int $availableUnits = 0;
 
-    // Donut chart data
-    public array $unitStatusData = [];
+    // Unit count for reference
+    public int $totalUnits = 0;
 
-    public function mount()
+    public ?int $selectedBuildingId = null;
+
+    public function mount($initialBuildingId = null)
     {
-        $this->loadUnitStats();
+        if ($initialBuildingId) {
+            $this->selectedBuildingId = $initialBuildingId;
+            $this->loadBedStats();
+        }
     }
 
-    private function loadUnitStats()
+    #[On('buildingSelected')]
+    public function onBuildingSelected($buildingId): void
     {
-        // Calculate unit status based on active leases in beds
-        $this->totalUnits = Unit::count();
+        $this->selectedBuildingId = $buildingId;
+        $this->loadBedStats();
+    }
 
-        // Get units with their beds and active leases
-        $units = Unit::with(['beds.leases' => function($query) {
+    private function loadBedStats()
+    {
+        $query = Unit::with(['beds.leases' => function($query) {
             $query->where('status', 'Active');
-        }])->get();
+        }]);
 
-        $occupiedUnits = 0;
-        $vacantUnits = 0;
-        $moveInReadyUnits = 0;
+        if ($this->selectedBuildingId) {
+            $query->where('property_id', $this->selectedBuildingId);
+        }
+
+        $units = $query->get();
+
+        $this->totalUnits = $units->count();
+        $totalBeds = 0;
+        $occupiedBeds = 0;
 
         foreach ($units as $unit) {
-            $hasAnyActiveLease = false;
-            $allBedsOccupied = true;
-            $totalBeds = $unit->beds->count();
-            
-            if ($totalBeds === 0) {
-                $vacantUnits++;
-                continue;
-            }
-
             foreach ($unit->beds as $bed) {
+                $totalBeds++;
                 if ($bed->leases->isNotEmpty()) {
-                    $hasAnyActiveLease = true;
-                } else {
-                    $allBedsOccupied = false;
+                    $occupiedBeds++;
                 }
             }
-
-            if ($allBedsOccupied && $hasAnyActiveLease) {
-                // All beds have active leases
-                $occupiedUnits++;
-            } elseif ($hasAnyActiveLease) {
-                // Some beds have active leases - move-in ready
-                $moveInReadyUnits++;
-            } else {
-                // No active leases at all - fully vacant
-                $vacantUnits++;
-            }
         }
 
-        $this->occupied = $occupiedUnits;
-        $this->vacant = $vacantUnits;
-        $this->moveInReady = $moveInReadyUnits;
+        $this->totalBeds = $totalBeds;
+        $this->occupiedBeds = $occupiedBeds;
+        $this->availableBeds = $totalBeds - $occupiedBeds;
 
-        // Calculate percentages
-        if ($this->totalUnits > 0) {
-            $this->occupiedPercent = round(($this->occupied / $this->totalUnits) * 100);
-            $this->vacantPercent = round(($this->vacant / $this->totalUnits) * 100);
-            $this->moveInReadyPercent = round(($this->moveInReady / $this->totalUnits) * 100);
-
-            $this->occupancyRate = round(($this->occupied / $this->totalUnits) * 100, 1);
-            $this->availableUnits = $this->vacant + $this->moveInReady;
+        if ($this->totalBeds > 0) {
+            $this->occupiedPercent = round(($this->occupiedBeds / $this->totalBeds) * 100);
+            $this->availablePercent = round(($this->availableBeds / $this->totalBeds) * 100);
+            $this->occupancyRate = round(($this->occupiedBeds / $this->totalBeds) * 100, 1);
+        } else {
+            $this->occupiedPercent = 0;
+            $this->availablePercent = 0;
+            $this->occupancyRate = 0.0;
         }
-
-        // Prepare data for donut chart
-        $this->unitStatusData = [
-            ['label' => 'Occupied', 'value' => $this->occupiedPercent, 'count' => $this->occupied],
-            ['label' => 'Available', 'value' => $this->moveInReadyPercent, 'count' => $this->moveInReady],
-            ['label' => 'Vacant', 'value' => $this->vacantPercent, 'count' => $this->vacant],
-        ];
     }
 
-    public function getUnitStatusChartData()
+    #[On('refresh-property-list')]
+    #[On('refresh-unit-list')]
+    public function refreshWidgets(): void
     {
-        return [
-            ['label' => 'Occupied', 'value' => $this->occupiedPercent, 'count' => $this->occupied],
-            ['label' => 'Available', 'value' => $this->moveInReadyPercent, 'count' => $this->moveInReady],
-            ['label' => 'Vacant', 'value' => $this->vacantPercent, 'count' => $this->vacant],
-        ];
+        if ($this->selectedBuildingId) {
+            $this->loadBedStats();
+        }
     }
 
     public function render()
     {
-        return view('livewire.layouts.property-widgets', [
-            'unitStatusData' => $this->getUnitStatusChartData()
-        ]);
+        return view('livewire.layouts.property-widgets');
     }
 }

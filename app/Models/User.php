@@ -40,6 +40,7 @@ class User extends Authenticatable
         'emergency_contact_name',
         'emergency_contact_relationship',
         'emergency_contact_number',
+        'terms_accepted_at',
     ];
 
     protected $hidden = [
@@ -52,6 +53,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'terms_accepted_at' => 'datetime',
         ];
     }
 

@@ -1,5 +1,4 @@
 <?php
-// database/seeders/MaintenanceSeeder.php
 
 namespace Database\Seeders;
 
@@ -12,221 +11,188 @@ class MaintenanceSeeder extends Seeder
 {
     protected Generator $faker;
 
-    public function run()
+    private array $categories = [
+        'Plumbing', 'Electrical', 'Structural', 'Appliance', 'Pest Control',
+    ];
+
+    private array $problems = [
+        'Plumbing' => [
+            'Leaking faucet', 'Clogged drain', 'Running toilet', 'Low water pressure',
+            'Water heater broken', 'Pipe leakage', 'Dripping shower head', 'Sink drainage issue'
+        ],
+        'Electrical' => [
+            'Power outlet not working', 'Light fixture malfunction', 'Circuit breaker tripping',
+            'AC unit electrical issues', 'Wiring problem', 'Switch not working', 'Flickering lights', 'Electrical panel inspection'
+        ],
+        'Structural' => [
+            'Wall crack', 'Door frame damage', 'Window frame repair', 'Ceiling crack',
+            'Flooring issue', 'Wall damage', 'Loose tiles', 'Door not closing'
+        ],
+        'Appliance' => [
+            'Refrigerator not cooling', 'Oven issue', 'Microwave not heating', 'Washing machine malfunction',
+            'Dryer not working', 'Dishwasher leakage', 'AC remote issue', 'Exhaust fan noise'
+        ],
+        'Pest Control' => [
+            'Ant infestation', 'Cockroach sighting', 'Rodent activity', 'Termite inspection',
+            'Spider infestation', 'General pest treatment', 'Mosquito problem', 'Bed bug inspection'
+        ],
+    ];
+
+    public function run(): void
     {
         $this->faker = app(Generator::class);
 
-        $maintenanceCategories = [
-            'Plumbing',
-            'Electrical',
-            'Structural',
-            'Appliance',
-            'Pest Control'
-        ];
+        // Fetch all relevant leases in one query
+        $leases = DB::table('leases')
+            ->whereIn('status', ['Active', 'Expired'])
+            ->get(['lease_id', 'bed_id', 'status']);
 
-        $startDate = Carbon::create(2021, 1, 1);
-        $endDate = Carbon::now();
-        // $currentYear = Carbon::now()->year; // Kept variable but commented as per original logic
-
-        $requestId = 1;
-        $logId = 1;
-
-        $maintenanceRequests = [];
-        $maintenanceLogs = [];
-
-        // Fetch existing leases
-        $existingLeaseIds = DB::table('leases')->pluck('lease_id')->toArray();
-
-        // Safety check: If no leases exist, use the helper function to create them
-        // This ensures the array_rand later doesn't crash the seeder
-        if (empty($existingLeaseIds)) {
-            $existingLeaseIds = $this->getOrCreateLeaseIds();
+        if ($leases->isEmpty()) {
+            $this->command->error('No leases found. Run LeaseSeeder first.');
+            return;
         }
 
-        $currentDate = $startDate->copy();
+        // Map beds to units
+        $bedIds = $leases->pluck('bed_id')->unique()->toArray();
+        $bedToUnit = DB::table('beds')
+            ->whereIn('bed_id', $bedIds)
+            ->pluck('unit_id', 'bed_id')
+            ->toArray();
+
+        // Group leases by unit for batch maintenance generation
+        $leasesByUnit = [];
+        foreach ($leases as $lease) {
+            $unitId = $bedToUnit[$lease->bed_id] ?? null;
+            if ($unitId) {
+                $leasesByUnit[$unitId][] = $lease;
+            }
+        }
+
+        if (empty($leasesByUnit)) {
+            $this->command->error('No units found for leases.');
+            return;
+        }
+
+        $managers = DB::table('users')
+            ->where('role', 'manager')
+            ->get(['user_id', 'first_name', 'last_name'])
+            ->map(fn($u) => ['user_id' => $u->user_id, 'name' => "{$u->first_name} {$u->last_name}"])
+            ->toArray();
+
+        if (empty($managers)) {
+            $this->command->error('No managers found. Run UserSeeder first.');
+            return;
+        }
+
+        $requests = [];
+        $logs = [];
+        $requestId = 1;
+
+        $currentDate = Carbon::create(2021, 1, 1);
+        $endDate = Carbon::now();
+
         while ($currentDate->lte($endDate)) {
-            // INCREASED: Generate 50-100 requests per month to force pagination
-            $requestsThisMonth = rand(3, 6);
+            $monthStart = $currentDate->copy()->startOfMonth();
+            $monthEnd = $currentDate->copy()->endOfMonth()->min($endDate);
 
-            for ($i = 0; $i < $requestsThisMonth; $i++) {
-                $category = $maintenanceCategories[array_rand($maintenanceCategories)];
-                $urgency = $this->getWeightedUrgency($category);
+            foreach ($leasesByUnit as $unitId => $unitLeases) {
+                $requestsThisUnit = rand(0, 2); // max 2 requests per unit per month
 
-                // Use existing lease logic
-                $leaseId = $existingLeaseIds[array_rand($existingLeaseIds)];
+                for ($i = 0; $i < $requestsThisUnit; $i++) {
+                    $lease = $unitLeases[array_rand($unitLeases)];
+                    $category = $this->categories[array_rand($this->categories)];
+                    $problem = $this->problems[$category][array_rand($this->problems[$category])];
+                    $urgency = $this->getWeightedUrgency($category);
+                    $logDate = $monthStart->copy()->addDays(rand(0, $monthStart->diffInDays($monthEnd)));
 
-                $statusWeights = ['Completed' => 0.85, 'Ongoing' => 0.1, 'Pending' => 0.05];
-                $status = $this->getWeightedRandom($statusWeights);
+                    // Determine status
+                    $monthsAgo = $logDate->diffInMonths(Carbon::now());
+                    $status = $lease->status === 'Expired' ? 'Completed' : $this->resolveStatus($monthsAgo);
 
-                $costRange = $this->getCostRange($category);
-                $baseCost = rand($costRange[0], $costRange[1]);
+                    $manager = $managers[array_rand($managers)];
 
-                $seasonalFactor = $this->getSeasonalFactor($category, $currentDate->month);
-                $finalCost = $baseCost * $seasonalFactor * (0.8 + (rand(0, 40) / 100));
-
-                $completionDays = $this->getCompletionDays($category, $urgency);
-                $completionDate = $currentDate->copy()->addDays($completionDays);
-                if ($completionDate->gt(Carbon::now())) {
-                    $completionDate = $currentDate->copy()->addDays(rand(1, 5));
-                }
-
-                $maintenanceRequests[] = [
-                    'lease_id' => $leaseId,
-                    'status' => $status,
-                    'logged_by' => $this->getRandomStaffName(),
-                    'ticket_number' => 'TICKET-' . str_pad($requestId, 6, '0', STR_PAD_LEFT),
-                    'log_date' => $currentDate->format('Y-m-d'),
-                    'problem' => $this->generateProblemDescription($category),
-                    'urgency' => $urgency,
-                    'category' => $category,
-                    'created_at' => $currentDate->format('Y-m-d H:i:s'),
-                    'updated_at' => $currentDate->format('Y-m-d H:i:s'),
-                ];
-
-                if ($status === 'Completed') {
-                    $maintenanceLogs[] = [
-                        'request_id' => $requestId,
-                        'completion_date' => $completionDate->format('Y-m-d'),
-                        'cost' => round($finalCost, 2),
-                        'created_at' => $completionDate->format('Y-m-d H:i:s'),
-                        'updated_at' => $completionDate->format('Y-m-d H:i:s'),
+                    $requests[] = [
+                        'lease_id' => $lease->lease_id,
+                        'status' => $status,
+                        'logged_by' => $manager['name'],
+                        'ticket_number' => 'TICKET-' . str_pad($requestId, 6, '0', STR_PAD_LEFT),
+                        'log_date' => $logDate->format('Y-m-d'),
+                        'problem' => $problem,
+                        'urgency' => $urgency,
+                        'category' => $category,
+                        'created_at' => $logDate,
+                        'updated_at' => $logDate,
                     ];
-                    $logId++;
-                }
 
-                $requestId++;
+                    if ($status === 'Completed') {
+                        $completionDays = $this->getCompletionDays($category, $urgency);
+                        $completionDate = $logDate->copy()->addDays($completionDays)->min($endDate);
 
-                if ($i < $requestsThisMonth - 1) {
-                    $currentDate = $currentDate->copy()->addDays(rand(1, 5));
-                    if ($currentDate->month != $startDate->month) {
-                        $currentDate = $currentDate->copy()->subDays(rand(1, 5));
+                        $logs[] = [
+                            'request_id' => $requestId,
+                            'completion_date' => $completionDate->format('Y-m-d'),
+                            'cost' => $this->calculateCost($category, $logDate->month),
+                            'created_at' => $completionDate,
+                            'updated_at' => $completionDate,
+                        ];
                     }
+
+                    $requestId++;
                 }
             }
 
-            $currentDate = $currentDate->copy()->addMonth()->day(1);
+            $currentDate->addMonth()->startOfMonth();
         }
 
-        $this->command->info("Inserting " . count($maintenanceRequests) . " maintenance requests...");
-        // Chunk size increased slightly for speed
-        foreach (array_chunk($maintenanceRequests, 500) as $chunk) {
+        foreach (array_chunk($requests, 500) as $chunk) {
             DB::table('maintenance_requests')->insert($chunk);
         }
 
-        $this->command->info("Inserting " . count($maintenanceLogs) . " maintenance logs...");
-        foreach (array_chunk($maintenanceLogs, 500) as $chunk) {
+        foreach (array_chunk($logs, 500) as $chunk) {
             DB::table('maintenance_logs')->insert($chunk);
         }
 
-        $totalCost = array_sum(array_column($maintenanceLogs, 'cost'));
-        $this->command->info("✅ Successfully seeded maintenance data!");
-        $this->command->info("📊 Total Maintenance Cost: ₱" . number_format($totalCost, 2));
+        $totalCost = array_sum(array_column($logs, 'cost'));
+        $this->command->info("✅ Maintenance seeded: " . count($requests) . " requests, total cost: ₱" . number_format($totalCost, 2));
     }
 
-    // --- HELPER FUNCTIONS PRESERVED BELOW ---
-
-    private function getOrCreateLeaseIds()
+    private function resolveStatus(int $monthsAgo): string
     {
-        // First, try to get existing lease IDs
-        $leaseIds = DB::table('leases')->pluck('lease_id')->toArray();
-
-        if (!empty($leaseIds)) {
-            $this->command->info("Found " . count($leaseIds) . " existing leases.");
-            return $leaseIds;
+        if ($monthsAgo >= 2) {
+            return $this->getWeightedRandom(['Completed' => 0.90, 'Ongoing' => 0.07, 'Pending' => 0.03]);
         }
-
-        // If no leases exist, create realistic dummy leases spanning 3+ years
-        $this->command->info("No existing leases found. Creating dummy leases spanning 3+ years...");
-
-        // First, ensure we have users and beds
-        $userIds = $this->getOrCreateUserIds();
-        $bedIds = $this->getOrCreateBedIds();
-
-        $leaseIds = [];
-        $leaseStatuses = ['Active', 'Active', 'Active', 'Active', 'Expired', 'Active', 'Active', 'Expired', 'Active', 'Active'];
-
-        for ($i = 0; $i < 10; $i++) {
-            $startDate = Carbon::now()->subMonths(rand(6, 48)); // Leases starting from 6 to 48 months ago
-            $endDate = $startDate->copy()->addMonths(rand(6, 24));
-
-            $leaseId = DB::table('leases')->insertGetId([
-                'tenant_id' => $userIds[array_rand($userIds)],
-                'bed_id' => $bedIds[array_rand($bedIds)],
-                'status' => $leaseStatuses[$i],
-                'term' => rand(6, 24),
-                'auto_renew' => rand(0, 1),
-                'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d'),
-                'contract_rate' => rand(5000, 15000),
-                'advance_amount' => rand(0, 5000),
-                'security_deposit' => rand(2000, 10000),
-                'move_in' => $startDate->format('Y-m-d'),
-                'created_at' => $startDate->format('Y-m-d H:i:s'),
-                'updated_at' => $startDate->format('Y-m-d H:i:s'),
-            ]);
-            $leaseIds[] = $leaseId;
+        if ($monthsAgo === 1) {
+            return $this->getWeightedRandom(['Completed' => 0.75, 'Ongoing' => 0.15, 'Pending' => 0.10]);
         }
-
-        $this->command->info("Created " . count($leaseIds) . " dummy leases.");
-        return $leaseIds;
+        return $this->getWeightedRandom(['Completed' => 0.40, 'Ongoing' => 0.35, 'Pending' => 0.25]);
     }
 
-    private function getOrCreateUserIds()
+    private function calculateCost(string $category, int $month): float
     {
-        $userIds = DB::table('users')->pluck('user_id')->toArray();
+        $ranges = [
+            'Plumbing' => [1500, 8000],
+            'Electrical' => [2500, 8000],
+            'Structural' => [3000, 8000],
+            'Appliance' => [1000, 6000],
+            'Pest Control' => [600, 2500],
+        ];
 
-        if (!empty($userIds)) {
-            return $userIds;
-        }
+        $seasonal = [
+            'Plumbing' => [12 => 1.4, 1 => 1.4, 2 => 1.3, 6 => 0.8, 7 => 0.7, 8 => 0.8],
+            'Electrical' => [6 => 1.3, 7 => 1.5, 8 => 1.4, 12 => 0.8, 1 => 0.7, 2 => 0.8],
+            'Structural' => [3 => 1.2, 4 => 1.1, 9 => 1.2, 10 => 1.1],
+            'Appliance' => [],
+            'Pest Control' => [3 => 1.2, 6 => 1.2, 9 => 1.2, 12 => 1.2],
+        ];
 
-        // Create realistic dummy users
-        $userIds = [];
-        $firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Lisa', 'Robert', 'Maria', 'William', 'Anna'];
-        $lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+        [$min, $max] = $ranges[$category];
+        $factor = $seasonal[$category][$month] ?? 1.0;
+        $base = rand($min * 100, $max * 100) / 100;
 
-        for ($i = 1; $i <= 10; $i++) {
-            $firstName = $firstNames[array_rand($firstNames)];
-            $lastName = $lastNames[array_rand($lastNames)];
-
-            $userId = DB::table('users')->insertGetId([
-                'name' => $firstName . ' ' . $lastName,
-                'email' => strtolower($firstName) . '.' . strtolower($lastName) . $i . '@example.com',
-                'password' => bcrypt('password'),
-                'created_at' => Carbon::now()->subYears(rand(1, 3))->format('Y-m-d H:i:s'),
-                'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
-            ]);
-            $userIds[] = $userId;
-        }
-
-        return $userIds;
+        return round($base * $factor * (0.8 + rand(0, 40) / 100), 2);
     }
 
-    private function getOrCreateBedIds()
-    {
-        $bedIds = DB::table('beds')->pluck('bed_id')->toArray();
-
-        if (!empty($bedIds)) {
-            return $bedIds;
-        }
-
-        // Create realistic dummy beds
-        $bedIds = [];
-        $bedStatuses = ['Available', 'Occupied', 'Available', 'Occupied', 'Available', 'Maintenance', 'Occupied', 'Available', 'Occupied', 'Available'];
-
-        for ($i = 1; $i <= 15; $i++) {
-            $bedId = DB::table('beds')->insertGetId([
-                'bed_code' => 'BED-' . str_pad($i, 3, '0', STR_PAD_LEFT),
-                'status' => $bedStatuses[$i % count($bedStatuses)],
-                'created_at' => Carbon::now()->subYears(rand(1, 3))->format('Y-m-d H:i:s'),
-                'updated_at' => Carbon::now()->format('Y-m-d H:i:s'),
-            ]);
-            $bedIds[] = $bedId;
-        }
-
-        return $bedIds;
-    }
-
-    private function getWeightedUrgency($category)
+    private function getWeightedUrgency(string $category): string
     {
         $weights = [
             'Plumbing' => ['Level 1' => 0.4, 'Level 2' => 0.3, 'Level 3' => 0.2, 'Level 4' => 0.1],
@@ -239,14 +205,14 @@ class MaintenanceSeeder extends Seeder
         return $this->getWeightedRandom($weights[$category]);
     }
 
-    private function getWeightedRandom($weights)
+    private function getWeightedRandom(array $weights): string
     {
-        $random = rand(1, 100) / 100;
+        $rand = rand(1, 100) / 100;
         $cumulative = 0;
 
         foreach ($weights as $item => $weight) {
             $cumulative += $weight;
-            if ($random <= $cumulative) {
+            if ($rand <= $cumulative) {
                 return $item;
             }
         }
@@ -254,35 +220,9 @@ class MaintenanceSeeder extends Seeder
         return array_key_first($weights);
     }
 
-    private function getCostRange($category)
+    private function getCompletionDays(string $category, string $urgency): int
     {
-        $ranges = [
-            'Plumbing' => [1500, 8000],
-            'Electrical' => [2500, 8000],
-            'Structural' => [3000, 8000],
-            'Appliance' => [1000, 6000],
-            'Pest Control' => [600, 2500],
-        ];
-
-        return $ranges[$category];
-    }
-
-    private function getSeasonalFactor($category, $month)
-    {
-        $factors = [
-            'Plumbing' => [12 => 1.4, 1 => 1.4, 2 => 1.3, 6 => 0.8, 7 => 0.7, 8 => 0.8],
-            'Electrical' => [6 => 1.3, 7 => 1.5, 8 => 1.4, 12 => 0.8, 1 => 0.7, 2 => 0.8],
-            'Structural' => [3 => 1.2, 4 => 1.1, 9 => 1.2, 10 => 1.1],
-            'Appliance' => [],
-            'Pest Control' => [3 => 1.2, 6 => 1.2, 9 => 1.2, 12 => 1.2],
-        ];
-
-        return $factors[$category][$month] ?? 1.0;
-    }
-
-    private function getCompletionDays($category, $urgency)
-    {
-        $baseRanges = [
+        $base = [
             'Plumbing' => [1, 7],
             'Electrical' => [1, 5],
             'Structural' => [5, 20],
@@ -290,83 +230,11 @@ class MaintenanceSeeder extends Seeder
             'Pest Control' => [1, 4],
         ];
 
-        $urgencyMultipliers = [
-            'Level 1' => 0.3,
-            'Level 2' => 0.6,
-            'Level 3' => 0.8,
-            'Level 4' => 1.0
-        ];
+        $multipliers = ['Level 1' => 0.3, 'Level 2' => 0.6, 'Level 3' => 0.8, 'Level 4' => 1.0];
 
-        $range = $baseRanges[$category];
-        $maxDays = (int)($range[1] * $urgencyMultipliers[$urgency]);
-        $minDays = max(1, (int)($range[0] * $urgencyMultipliers[$urgency]));
+        [$min, $max] = $base[$category];
+        $multiplier = $multipliers[$urgency];
 
-        return rand($minDays, $maxDays);
-    }
-
-    private function getRandomStaffName()
-    {
-        $firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Lisa', 'Robert', 'Maria', 'William', 'Anna'];
-        $lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
-
-        return $firstNames[array_rand($firstNames)] . ' ' . $lastNames[array_rand($lastNames)];
-    }
-
-    private function generateProblemDescription($category)
-    {
-        $problems = [
-            'Plumbing' => [
-                'Leaking faucet in bathroom',
-                'Clogged drain in kitchen sink',
-                'Running toilet in unit',
-                'Low water pressure in shower',
-                'Water heater not working',
-                'Pipe leakage under sink',
-                'Dripping shower head needs replacement',
-                'Sink drainage issue in common area'
-            ],
-            'Electrical' => [
-                'Power outlet not working',
-                'Light fixture malfunction',
-                'Circuit breaker tripping',
-                'AC unit electrical issues',
-                'Wiring problem in bedroom',
-                'Switch not functioning',
-                'Flickering lights in hallway',
-                'Electrical panel inspection needed'
-            ],
-            'Structural' => [
-                'Crack in wall needs repair',
-                'Door frame damage',
-                'Window frame repair needed',
-                'Ceiling crack inspection',
-                'Flooring issue in living room',
-                'Wall damage from moisture',
-                'Loose floor tiles in bathroom',
-                'Door not closing properly'
-            ],
-            'Appliance' => [
-                'Refrigerator not cooling',
-                'Oven temperature inaccurate',
-                'Microwave not heating',
-                'Washing machine malfunction',
-                'Dryer not working properly',
-                'Dishwasher leakage',
-                'AC remote control not working',
-                'Exhaust fan making noise'
-            ],
-            'Pest Control' => [
-                'Ant infestation in kitchen',
-                'Cockroach sighting in bathroom',
-                'Rodent activity detected',
-                'Termite inspection needed',
-                'Spider infestation in corners',
-                'General pest control treatment',
-                'Mosquito problem near windows',
-                'Bed bug inspection requested'
-            ]
-        ];
-
-        return $problems[$category][array_rand($problems[$category])];
+        return rand(max(1, (int)($min * $multiplier)), max(1, (int)($max * $multiplier)));
     }
 }

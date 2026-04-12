@@ -16,6 +16,7 @@ class MaintForecast extends Component
     public $error = null;
     public $hasData = false;
     public $debugInfo = null;
+    public $forecastLoaded = false;
 
     protected $rules = [
         'year' => 'required|integer|min:2023|max:2030'
@@ -25,6 +26,26 @@ class MaintForecast extends Component
     {
         $this->year = date('Y');
         $this->loadStats();
+    }
+
+    public function loadForecast()
+    {
+        if ($this->forecastLoaded) {
+            return;
+        }
+
+        $this->forecastLoaded = true;
+        $this->generateForecast();
+    }
+
+    public function updateYear($year)
+    {
+        $this->year = (int) $year;
+
+        if (!$this->forecastLoaded) {
+            $this->forecastLoaded = true;
+        }
+
         $this->generateForecast();
     }
 
@@ -100,9 +121,11 @@ class MaintForecast extends Component
             ]);
             $this->error = 'Failed to generate forecast: ' . $e->getMessage();
             $this->forecast = null;
+        } finally {
+            $this->isGenerating = false;
+            $this->dispatch('maintenance-forecast-updated');
         }
 
-        $this->isGenerating = false;
         Log::info('=== FORECAST GENERATION COMPLETED ===');
     }
 

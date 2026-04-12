@@ -1,14 +1,6 @@
-<div class="bg-white rounded-lg shadow-md p-6">
-    <div class="flex justify-between items-center mb-6">
+<div wire:init="loadForecast">
+    <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Maintenance Cost Forecast</h2>
-        
-        <div class="flex items-center">
-            <select wire:model.live="year" class="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                @for($y = date('Y'); $y <= date('Y') + 3; $y++)
-                    <option value="{{ $y }}">{{ $y }}</option>
-                @endfor
-            </select>
-        </div>
     </div>
 
     @if($error)
@@ -23,267 +15,78 @@
         </div>
     @endif
 
-    @if($hasData && $maintenanceStats)
+    <script type="application/json" id="maintenanceForecastPayload">{!! json_encode([
+        'forecastYear' => $year,
+        'monthlyForecasts' => $forecast['monthly_forecasts'] ?? [],
+    ]) !!}</script>
+
+    @if($hasData && $maintenanceStats && $forecast && isset($forecast['success']) && $forecast['success'])
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <div class="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6 shadow-sm">
-                <p class="text-sm font-medium text-orange-700 mb-2">Annual Forecast</p>
-                <p class="text-3xl font-bold text-orange-600">₱{{ number_format($forecast['total_annual_cost'] ?? 0, 0) }}</p>
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-sm">
+                <p class="text-sm font-medium text-blue-700 mb-2">Annual Forecast</p>
+                <p class="text-3xl font-bold text-blue-600">₱{{ number_format($forecast['total_annual_cost'] ?? 0, 0) }}</p>
             </div>
-            
-            <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 rounded-xl p-6 shadow-sm">
-                <p class="text-sm font-medium text-yellow-700 mb-2">Monthly Average</p>
-                <p class="text-3xl font-bold text-yellow-600">₱{{ number_format($forecast['average_monthly_cost'] ?? 0, 0) }}</p>
+
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-sm">
+                <p class="text-sm font-medium text-blue-700 mb-2">Monthly Average</p>
+                <p class="text-3xl font-bold text-blue-600">₱{{ number_format($forecast['average_monthly_cost'] ?? 0, 0) }}</p>
             </div>
         </div>
     @endif
 
-    @if($forecast && isset($forecast['success']) && $forecast['success'])
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 items-stretch">
-            <div class="bg-white rounded-xl border border-gray-200 p-6 lg:col-span-2">
-                <h3 class="text-lg font-semibold text-gray-800 mb-6">Monthly Maintenance Costs - {{ $year }}</h3>
-                <div id="maintenanceChart" style="height: 400px;"></div>
-            </div>
-
-            <div class="bg-white rounded-xl border border-gray-200 p-6 lg:col-span-1 flex flex-col">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Job Count Forecast</h3>
-                <p class="text-sm text-gray-500 mb-4">Estimated maintenance jobs per month</p>
-                <div id="jobCountChart" class="flex-1" style="height: 400px;"></div>
-            </div>
-        </div>
-
-        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-        <script>
-            document.addEventListener('livewire:navigated', () => { renderMaintenanceChart(); });
-            document.addEventListener('DOMContentLoaded', () => { renderMaintenanceChart(); });
-
-            function renderMaintenanceChart() {
-                const forecast = @json($forecast);
-                const monthlyForecasts = forecast['monthly_forecasts'] || [];
-                
-                if (!monthlyForecasts || monthlyForecasts.length === 0) return;
-
-                const categories = monthlyForecasts.map(f => f.month_name);
-                const series = [
-                    {
-                        name: 'Forecasted Cost',
-                        data: monthlyForecasts.map(f => f.forecasted_cost)
-                    }
-                ];
-                const jobCountSeries = [
-                    {
-                        name: 'Est. Jobs',
-                        data: monthlyForecasts.map(f => Math.round(Number(f.maintenance_count_estimate || 0)))
-                    }
-                ];
-
-                const options = {
-                    chart: {
-                        type: 'bar',
-                        height: 400,
-                        toolbar: {
-                            show: true,
-                            tools: {
-                                download: true,
-                                selection: true,
-                                zoom: true,
-                                zoomin: true,
-                                zoomout: true,
-                                pan: true,
-                                reset: true
-                            }
-                        },
-                        animations: {
-                            enabled: true,
-                            speed: 800,
-                            animateGradually: {
-                                enabled: true,
-                                delay: 150
-                            }
-                        }
-                    },
-                    plotOptions: {
-                        bar: {
-                            horizontal: false,
-                            columnWidth: '55%',
-                            borderRadius: 6,
-                            dataLabels: {
-                                position: 'top'
-                            }
-                        }
-                    },
-                    dataLabels: {
-                        enabled: true,
-                        formatter: function (val) {
-                            return '₱' + (val / 1000).toFixed(0) + 'K';
-                        },
-                        offsetY: -20,
-                        style: {
-                            fontSize: '12px',
-                            colors: ['#304758']
-                        }
-                    },
-                    stroke: {
-                        show: true,
-                        width: 2,
-                        colors: ['transparent']
-                    },
-                    xaxis: {
-                        categories: categories,
-                        labels: {
-                            style: {
-                                fontSize: '12px'
-                            }
-                        }
-                    },
-                    yaxis: {
-                        title: {
-                            text: 'Cost (₱)',
-                            style: {
-                                fontSize: '13px',
-                                fontWeight: 600
-                            }
-                        },
-                        labels: {
-                            formatter: function (val) {
-                                return '₱' + (val / 1000).toFixed(0) + 'K';
-                            }
-                        }
-                    },
-                    fill: {
-                        opacity: 0.9
-                    },
-                    colors: ['#F59E0B'],
-                    tooltip: {
-                        y: {
-                            formatter: function (val) {
-                                return '₱' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                        },
-                        theme: 'light'
-                    },
-                    grid: {
-                        borderColor: '#E7E7E7',
-                        strokeDashArray: 4,
-                        show: true
-                    },
-                    states: {
-                        hover: {
-                            filter: {
-                                type: 'darken',
-                                value: 0.15
-                            }
-                        },
-                        active: {
-                            filter: {
-                                type: 'darken',
-                                value: 0.15
-                            }
-                        }
-                    }
-                };
-
-                // Destroy existing chart if it exists
-                if (window.maintenanceChartInstance) {
-                    window.maintenanceChartInstance.destroy();
-                }
-
-                if (window.jobCountChartInstance) {
-                    window.jobCountChartInstance.destroy();
-                }
-
-                // Create new chart
-                window.maintenanceChartInstance = new ApexCharts(
-                    document.getElementById('maintenanceChart'),
-                    {
-                        series,
-                        ...options
-                    }
-                );
-                
-                window.maintenanceChartInstance.render();
-
-                const jobCountOptions = {
-                    chart: {
-                        type: 'bar',
-                        height: 400,
-                        toolbar: {
-                            show: false
-                        },
-                        animations: {
-                            enabled: true,
-                            speed: 700
-                        }
-                    },
-                    plotOptions: {
-                        bar: {
-                            horizontal: true,
-                            borderRadius: 6,
-                            barHeight: '65%'
-                        }
-                    },
-                    dataLabels: {
-                        enabled: true,
-                        formatter: function (val) {
-                            return Math.round(val);
-                        }
-                    },
-                    xaxis: {
-                        categories: categories,
-                        labels: {
-                            formatter: function (val) {
-                                return Math.round(val);
-                            }
-                        },
-                        title: {
-                            text: 'Jobs'
-                        }
-                    },
-                    yaxis: {
-                        labels: {
-                            style: {
-                                fontSize: '11px'
-                            }
-                        }
-                    },
-                    stroke: {
-                        width: 1,
-                        colors: ['#ffffff']
-                    },
-                    fill: {
-                        opacity: 0.95
-                    },
-                    colors: ['#2563EB'],
-                    tooltip: {
-                        y: {
-                            formatter: function (val) {
-                                return Math.round(val) + ' jobs';
-                            }
-                        }
-                    },
-                    grid: {
-                        borderColor: '#E5E7EB',
-                        strokeDashArray: 3
-                    }
-                };
-
-                window.jobCountChartInstance = new ApexCharts(
-                    document.getElementById('jobCountChart'),
-                    {
-                        series: jobCountSeries,
-                        ...jobCountOptions
-                    }
-                );
-
-                window.jobCountChartInstance.render();
-            }
-        </script>
-    @elseif($isGenerating)
+    @if(!$forecastLoaded || $isGenerating)
         <div class="text-center py-16 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
             <svg class="mx-auto h-16 w-16 text-gray-400 mb-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m0 0c0-1 1-3 3-3s3 1 3 3-1 3-3 3-3-1-3-3m0 0c0 1-1 3-3 3s-3-1-3-3 1-3 3-3 3 1 3 3" />
             </svg>
             <h3 class="mt-2 text-lg font-medium text-gray-700">Generating Forecast</h3>
             <p class="mt-1 text-sm text-gray-500">Processing maintenance data...</p>
+        </div>
+    @elseif($forecast && isset($forecast['success']) && $forecast['success'])
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 items-stretch">
+            <div class="bg-white rounded-2xl shadow-lg p-6 lg:col-span-2" wire:ignore>
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-[#070642]">Monthly Maintenance Costs</h3>
+                    <x-dropdown label="Download" width="w-44" tooltip="Download chart as image or CSV">
+                        <x-dropdown-item @click="open = false; window.maintenanceChartInstance?.dataURI().then(uri => { const a = document.createElement('a'); a.href = uri.imgURI; a.download = 'maintenance-costs-{{ $year }}.png'; a.click(); })">
+                            Download PNG
+                        </x-dropdown-item>
+                        <x-dropdown-item @click="open = false; window.maintenanceChartInstance?.dataURI({type: 'image/svg+xml'}).then(uri => { const a = document.createElement('a'); a.href = uri.imgURI; a.download = 'maintenance-costs-{{ $year }}.svg'; a.click(); })">
+                            Download SVG
+                        </x-dropdown-item>
+                        <x-dropdown-item @click="open = false; window.downloadMaintenanceCsv()">
+                            Download CSV
+                        </x-dropdown-item>
+                    </x-dropdown>
+                </div>
+                <div class="flex items-center gap-5 mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm" style="background-color: #8CC5FF;"></span>
+                        <span class="text-sm text-gray-500 font-medium">Actual Monthly Cost</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm" style="background-color: #0C0B50;"></span>
+                        <span class="text-sm text-gray-500 font-medium">Forecasted Cost</span>
+                    </div>
+                </div>
+                <div id="maintenanceChart" style="height: 400px;"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg p-6 lg:col-span-1 flex flex-col" wire:ignore>
+                <h3 class="text-xl font-bold text-[#070642] mb-2">Job Count Forecast</h3>
+                <p class="text-sm text-gray-500 mb-4">Forecast vs actual split per month</p>
+                <div class="flex items-center gap-5 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm" style="background-color: #0C0B50;"></span>
+                        <span class="text-xs text-gray-500 font-medium">Forecasted</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm" style="background-color: #8CC5FF;"></span>
+                        <span class="text-xs text-gray-500 font-medium">Actual</span>
+                    </div>
+                </div>
+                <div id="jobCountChart" class="flex-1" style="height: 400px;"></div>
+            </div>
         </div>
     @else
         <div class="text-center py-16 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
@@ -294,4 +97,352 @@
             <p class="mt-1 text-sm text-gray-500">Unable to generate forecast. Please ensure maintenance records exist.</p>
         </div>
     @endif
+
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+        function getMaintenanceForecastPayload() {
+            const payloadNode = document.getElementById('maintenanceForecastPayload');
+
+            if (!payloadNode) {
+                return { forecastYear: new Date().getFullYear(), monthlyForecasts: [] };
+            }
+
+            try {
+                return JSON.parse(payloadNode.textContent || '{}');
+            } catch (error) {
+                return { forecastYear: new Date().getFullYear(), monthlyForecasts: [] };
+            }
+        }
+
+        function destroyMaintenanceCharts() {
+            if (window.maintenanceChartInstance) {
+                window.maintenanceChartInstance.destroy();
+                window.maintenanceChartInstance = null;
+            }
+
+            if (window.jobCountChartInstance) {
+                window.jobCountChartInstance.destroy();
+                window.jobCountChartInstance = null;
+            }
+        }
+
+        function renderMaintenanceCharts() {
+            if (typeof ApexCharts === 'undefined') {
+                setTimeout(renderMaintenanceCharts, 100);
+                return;
+            }
+
+            const maintenanceChartElement = document.getElementById('maintenanceChart');
+            const jobCountChartElement = document.getElementById('jobCountChart');
+            const payload = getMaintenanceForecastPayload();
+            const monthlyForecasts = Array.isArray(payload.monthlyForecasts) ? payload.monthlyForecasts : [];
+
+            if (!maintenanceChartElement || !jobCountChartElement || monthlyForecasts.length === 0) {
+                destroyMaintenanceCharts();
+                return;
+            }
+
+            const categories = monthlyForecasts.map(f => f.month_name);
+            const forecastCostData = monthlyForecasts.map(f => Number(f.forecasted_cost || 0));
+            const actualCostData = monthlyForecasts.map(f => Number(f.actual_cost || 0));
+            const forecastJobCounts = monthlyForecasts.map(f => Math.round(Number(f.maintenance_count_estimate || 0)));
+            const actualJobCounts = monthlyForecasts.map(f => Math.round(Number(f.actual_job_count || 0)));
+
+            const costSeries = [
+                {
+                    name: 'Forecasted Cost',
+                    data: forecastCostData,
+                    color: '#0C0B50'
+                },
+                {
+                    name: 'Actual Cost',
+                    data: actualCostData,
+                    color: '#2563EB'
+                }
+            ];
+
+            const jobShareSeries = [
+                {
+                    name: 'Forecasted Jobs',
+                    data: forecastJobCounts.map((forecastCount, index) => {
+                        const actualCount = actualJobCounts[index] || 0;
+                        const total = forecastCount + actualCount;
+                        return total > 0 ? (forecastCount / total) * 100 : 0;
+                    })
+                },
+                {
+                    name: 'Actual Jobs',
+                    data: actualJobCounts.map((actualCount, index) => {
+                        const forecastCount = forecastJobCounts[index] || 0;
+                        const total = forecastCount + actualCount;
+                        return total > 0 ? (actualCount / total) * 100 : 0;
+                    })
+                }
+            ];
+
+            const costOptions = {
+                chart: {
+                    type: 'line',
+                    height: 400,
+                    toolbar: {
+                        show: false
+                    },
+                    animations: {
+                        enabled: true,
+                        speed: 800,
+                        animateGradually: {
+                            enabled: true,
+                            delay: 150
+                        }
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                stroke: {
+                    show: true,
+                    width: [4, 4],
+                    curve: 'smooth',
+                    lineCap: 'round',
+                    colors: ['#0C0B50', '#2563EB']
+                },
+                markers: {
+                    size: [2, 2],
+                    colors: ['#0C0B50', '#2563EB'],
+                    strokeColors: ['#FFFFFF', '#FFFFFF'],
+                    strokeWidth: 2,
+                    hover: {
+                        size: 7
+                    }
+                },
+                xaxis: {
+                    categories: categories,
+                    labels: {
+                        style: {
+                            fontSize: '12px',
+                            colors: '#6B7280',
+                            fontFamily: 'Open Sans, sans-serif'
+                        }
+                    },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
+                },
+                yaxis: {
+                    labels: {
+                        formatter: function (val) {
+                            return '₱' + Number(val).toLocaleString();
+                        },
+                        style: {
+                            fontSize: '12px',
+                            colors: '#6B7280',
+                            fontFamily: 'Open Sans, sans-serif'
+                        }
+                    }
+                },
+                legend: {
+                    show: false
+                },
+                fill: {
+                    type: 'solid',
+                    opacity: [0, 0]
+                },
+                colors: ['#0C0B50', '#2563EB'],
+                theme: {
+                    monochrome: {
+                        enabled: false
+                    }
+                },
+                tooltip: {
+                    shared: true,
+                    intersect: false,
+                    y: {
+                        formatter: function (val) {
+                            return '₱' + Number(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        }
+                    },
+                    theme: 'dark'
+                },
+                grid: {
+                    borderColor: '#F3F4F6',
+                    strokeDashArray: 0,
+                    show: true,
+                    xaxis: { lines: { show: false } },
+                    yaxis: { lines: { show: true } }
+                },
+                states: {
+                    hover: {
+                        filter: {
+                            type: 'darken',
+                            value: 0.1
+                        }
+                    },
+                    active: {
+                        filter: {
+                            type: 'darken',
+                            value: 0.1
+                        }
+                    }
+                }
+            };
+
+            destroyMaintenanceCharts();
+
+            window.maintenanceChartInstance = new ApexCharts(
+                maintenanceChartElement,
+                {
+                    series: costSeries,
+                    ...costOptions
+                }
+            );
+
+            window.maintenanceChartInstance.render().then(() => {
+                // Force explicit stroke colors in the generated SVG to avoid washed-out line rendering.
+                const lineColors = ['#0C0B50', '#2563EB'];
+                const linePaths = maintenanceChartElement.querySelectorAll('.apexcharts-line-series .apexcharts-line');
+
+                linePaths.forEach((path, index) => {
+                    const color = lineColors[index] || lineColors[0];
+                    path.setAttribute('stroke', color);
+                    path.setAttribute('stroke-opacity', '1');
+                    path.style.stroke = color;
+                    path.style.opacity = '1';
+                });
+            });
+
+            const jobCountOptions = {
+                chart: {
+                    type: 'bar',
+                    height: 400,
+                    stacked: true,
+                    stackType: '100%',
+                    toolbar: {
+                        show: false
+                    },
+                    animations: {
+                        enabled: true,
+                        speed: 700
+                    }
+                },
+                plotOptions: {
+                    bar: {
+                        horizontal: true,
+                        borderRadius: 5,
+                        barHeight: '60%'
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                xaxis: {
+                    categories: categories,
+                    min: 0,
+                    max: 100,
+                    tickAmount: 5,
+                    labels: {
+                        formatter: function (val) {
+                            return Math.round(Number(val)) + '%';
+                        },
+                        style: {
+                            fontSize: '12px',
+                            colors: '#6B7280'
+                        }
+                    },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
+                },
+                yaxis: {
+                    labels: {
+                        style: {
+                            fontSize: '11px',
+                            colors: '#6B7280'
+                        }
+                    }
+                },
+                stroke: {
+                    show: true,
+                    width: 1,
+                    colors: ['#FFFFFF']
+                },
+                fill: {
+                    opacity: 1
+                },
+                legend: {
+                    show: false
+                },
+                colors: ['#0C0B50', '#8CC5FF'],
+                tooltip: {
+                    shared: true,
+                    intersect: false,
+                    y: {
+                        formatter: function (val, { seriesIndex, dataPointIndex }) {
+                            const percentage = Number(val || 0).toFixed(1);
+                            const forecastCount = forecastJobCounts[dataPointIndex] || 0;
+                            const actualCount = actualJobCounts[dataPointIndex] || 0;
+
+                            if (seriesIndex === 0) {
+                                return `${percentage}% (${forecastCount} jobs)`;
+                            }
+
+                            return `${percentage}% (${actualCount} jobs)`;
+                        }
+                    },
+                    theme: 'dark'
+                },
+                grid: {
+                    borderColor: '#F3F4F6',
+                    strokeDashArray: 0,
+                    xaxis: { lines: { show: true } },
+                    yaxis: { lines: { show: false } }
+                }
+            };
+
+            window.jobCountChartInstance = new ApexCharts(
+                jobCountChartElement,
+                {
+                    series: jobShareSeries,
+                    ...jobCountOptions
+                }
+            );
+
+            window.jobCountChartInstance.render();
+        }
+
+        window.downloadMaintenanceCsv = function() {
+            const payload = getMaintenanceForecastPayload();
+            const monthlyForecasts = Array.isArray(payload.monthlyForecasts) ? payload.monthlyForecasts : [];
+            const forecastYear = Number(payload.forecastYear || new Date().getFullYear());
+
+            if (monthlyForecasts.length === 0) {
+                return;
+            }
+
+            const csv = ['Month,Forecasted Cost,Actual Cost,Forecasted Jobs,Actual Jobs'];
+            monthlyForecasts.forEach(m => {
+                csv.push(
+                    `${m.month_name},${Number(m.forecasted_cost || 0)},${Number(m.actual_cost || 0)},${Math.round(Number(m.maintenance_count_estimate || 0))},${Math.round(Number(m.actual_job_count || 0))}`
+                );
+            });
+
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `maintenance-costs-${forecastYear}.csv`;
+            a.click();
+        };
+
+        const scheduleMaintenanceChartRender = () => setTimeout(renderMaintenanceCharts, 0);
+
+        if (!window.__maintenanceForecastListenersBound) {
+            window.__maintenanceForecastListenersBound = true;
+
+            document.addEventListener('DOMContentLoaded', scheduleMaintenanceChartRender);
+            document.addEventListener('livewire:navigated', scheduleMaintenanceChartRender);
+
+            document.addEventListener('livewire:init', () => {
+                Livewire.on('maintenance-forecast-updated', scheduleMaintenanceChartRender);
+            });
+        }
+
+        scheduleMaintenanceChartRender();
+    </script>
 </div>

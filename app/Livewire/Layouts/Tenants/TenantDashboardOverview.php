@@ -2,22 +2,30 @@
 
 namespace App\Livewire\Layouts\Tenants;
 
+use App\Livewire\Concerns\WithContractData;
 use App\Livewire\Concerns\WithESignature;
 use App\Models\Billing;
 use App\Models\BillingItem;
+use App\Models\ContractAuditLog;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\MoveInInspection;
 use App\Models\MoveOutInspection;
+use App\Models\Notification;
+use App\Models\PaymentRequest;
 use App\Models\UtilityBill;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class TenantDashboardOverview extends Component
 {
-    use WithESignature;
+    use WithESignature, WithContractData, WithFileUploads;
     // Payment & Billing
     public $currentBilling = null;
     public $amountDue = 0;
@@ -57,6 +65,11 @@ class TenantDashboardOverview extends Component
     // Move-In / Move-Out
     public $moveInDate = null;
     public $moveOutDate = null;
+    public $moveOutInitiated = false;
+
+    // Clearance Checklist (dynamic)
+    public $billsSettled = false;
+    public $inspectionDone = false;
 
     // Requests & Compliance
     public $openMaintenanceCount = 0;
@@ -64,12 +77,19 @@ class TenantDashboardOverview extends Component
     public $ongoingMaintenanceCount = 0;
     public $recentRequests = [];
 
+    // Violations
+    public $violations = [];
+    public $violationCounts = ['total' => 0, 'issued' => 0, 'acknowledged' => 0, 'resolved' => 0];
+    public ?int $pendingAcknowledgeViolationId = null;
+
     // Contract & E-Signature
     public $showSignatureModal = false;
     public $tenantSignature = null;
     public $tenantSignedAt = null;
     public $ownerSignature = null;
     public $ownerSignedAt = null;
+    public $managerSignature = null;
+    public $managerSignedAt = null;
     public $contractAgreed = false;
     public $signedContractPath = null;
     public $showContract = false;
@@ -87,17 +107,43 @@ class TenantDashboardOverview extends Component
     public $moveOutChecklist = [];
     public $moveOutInspectionChecklist = []; // move-in checklist for comparison
 
+    // Dashboard tab
+    public $dashTab = 'overview';
+
+    // Payment request modal
+    public $showPaymentModal = false;
+    public $paymentStep = 1; // 1: select billing, 2: select method + instructions, 3: proof form, 4: success
+    public $unpaidBillings = [];
+    public $selectedBillingId = null;
+    public $selectedPaymentMethod = null;
+    public $paymentReferenceNumber = '';
+    public $paymentAmountPaid = '';
+    public $paymentProofImage = null;
+    public $paymentOwnerInfo = [];
+    public $pendingPaymentRequests = [];
+    public $rejectedPaymentRequests = [];
+    public $previousProofImagePath = null;
+    public $resubmitRejectReason = null;
+
     // Move-out e-signature (independent from move-in)
     public $showMoveOutSignatureModal = false;
     public $moveOutTenantSignature = null;
     public $moveOutTenantSignedAt = null;
     public $moveOutOwnerSignature = null;
     public $moveOutOwnerSignedAt = null;
+    public $moveOutManagerSignature = null;
+    public $moveOutManagerSignedAt = null;
     public $moveOutContractAgreed = false;
 
     public function mount()
     {
         $user = Auth::user();
+
+        // Auto-switch tab from query param (e.g. ?tab=inspection)
+        $tab = request()->query('tab');
+        if ($tab && in_array($tab, ['overview', 'inspection'])) {
+            $this->dashTab = $tab;
+        }
 
         // Try active lease first, then fall back to latest expired lease
         $this->lease = Lease::with(['bed.unit.property', 'billings.items'])
@@ -121,10 +167,29 @@ class TenantDashboardOverview extends Component
             $this->loadLeaseData();
             $this->loadMoveData();
             $this->loadMaintenanceData();
+            $this->loadViolationData();
             $this->loadContractData();
             $this->loadItemsReceived();
             $this->loadItemsReturned();
+            $this->loadClearanceStatus();
+            $this->loadPaymentRequests();
         }
+    }
+
+    protected function loadClearanceStatus()
+    {
+        if (!$this->moveOutDate && !$this->moveOutInitiated) return;
+
+        // Bills settled: no unpaid/overdue billings exist for this lease
+        $unpaidCount = Billing::where('lease_id', $this->lease->lease_id)
+            ->whereIn('status', ['Unpaid', 'Overdue'])
+            ->count();
+        $this->billsSettled = $unpaidCount === 0;
+
+        // Room inspection done: move-out inspection items exist
+        $this->inspectionDone = MoveOutInspection::where('lease_id', $this->lease->lease_id)
+            ->where('type', 'item_returned')
+            ->exists();
     }
 
     protected function loadBillingData()
@@ -245,6 +310,7 @@ class TenantDashboardOverview extends Component
     {
         $this->moveInDate = $this->lease->move_in;
         $this->moveOutDate = $this->lease->move_out;
+        $this->moveOutInitiated = (bool) $this->lease->move_out_initiated_at;
     }
 
     protected function loadMaintenanceData()
@@ -264,18 +330,102 @@ class TenantDashboardOverview extends Component
             ->count();
 
         $this->recentRequests = MaintenanceRequest::whereIn('lease_id', $leaseIds)
+            ->whereIn('status', ['Pending', 'Ongoing'])
             ->orderBy('created_at', 'desc')
             ->take(3)
             ->get();
     }
 
+    protected function loadViolationData()
+    {
+        $leaseIds = Auth::user()->leases()->pluck('lease_id');
+
+        $this->violations = DB::table('violations')
+            ->whereIn('lease_id', $leaseIds)
+            ->whereNull('deleted_at')
+            ->orderBy('offense_number', 'asc')
+            ->get()
+            ->map(fn($v) => (array) $v)
+            ->toArray();
+
+        $statusCounts = collect($this->violations)->groupBy('status')->map->count();
+        $this->violationCounts = [
+            'total' => count($this->violations),
+            'issued' => $statusCounts->get('Issued', 0),
+            'acknowledged' => $statusCounts->get('Acknowledged', 0),
+            'resolved' => $statusCounts->get('Resolved', 0),
+        ];
+    }
+
+    public function promptAcknowledgeViolation(int $violationId): void
+    {
+        $this->pendingAcknowledgeViolationId = $violationId;
+        $this->dispatch('open-modal', 'confirm-acknowledge-violation');
+    }
+
+    public function confirmAcknowledgeViolation(): void
+    {
+        if ($this->pendingAcknowledgeViolationId) {
+            $this->acknowledgeViolation($this->pendingAcknowledgeViolationId);
+            $this->pendingAcknowledgeViolationId = null;
+        }
+    }
+
+    public function acknowledgeViolation(int $violationId): void
+    {
+        $tenantLeaseIds = DB::table('leases')
+            ->where('tenant_id', Auth::id())
+            ->pluck('lease_id');
+
+        $violation = DB::table('violations')
+            ->where('violation_id', $violationId)
+            ->whereIn('lease_id', $tenantLeaseIds)
+            ->where('status', 'Issued')
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$violation) return;
+
+        DB::table('violations')
+            ->where('violation_id', $violationId)
+            ->update([
+                'status' => 'Acknowledged',
+                'tenant_acknowledged_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        // Notify manager
+        $unit = DB::table('leases')
+            ->join('beds', 'leases.bed_id', '=', 'beds.bed_id')
+            ->join('units', 'beds.unit_id', '=', 'units.unit_id')
+            ->where('leases.lease_id', $violation->lease_id)
+            ->select('units.manager_id')
+            ->first();
+
+        if ($unit && $unit->manager_id) {
+            $user = Auth::user();
+            Notification::create([
+                'user_id' => $unit->manager_id,
+                'type' => 'violation_acknowledged',
+                'title' => 'Violation Acknowledged',
+                'message' => "{$user->first_name} {$user->last_name} has acknowledged violation {$violation->violation_number}.",
+                'link' => route('manager.tenant'),
+            ]);
+        }
+
+        $this->loadViolationData();
+        $this->dispatch('notify', type: 'success', title: 'Violation Acknowledged', description: 'You have acknowledged this violation notice.');
+    }
+
+    public function refreshContractData()
+    {
+        $this->lease->refresh();
+        $this->loadContractData();
+    }
+
     protected function loadContractData()
     {
-        $this->tenantSignature = $this->lease->tenant_signature;
-        $this->tenantSignedAt = $this->lease->tenant_signed_at?->format('M d, Y h:i A');
-        $this->ownerSignature = $this->lease->owner_signature;
-        $this->ownerSignedAt = $this->lease->owner_signed_at?->format('M d, Y h:i A');
-        $this->contractAgreed = (bool) $this->lease->contract_agreed;
+        $this->loadSignatureState($this->lease);
         $this->signedContractPath = $this->lease->signed_contract_path;
 
         $user = Auth::user();
@@ -283,7 +433,6 @@ class TenantDashboardOverview extends Component
         $unit = $bed?->unit;
         $property = $unit?->property;
         $owner = $property?->owner;
-        $billing = $this->lease->billings->first();
 
         $this->contractData = [
             'lessor' => $owner ? ($owner->first_name . ' ' . $owner->last_name) : '—',
@@ -299,66 +448,7 @@ class TenantDashboardOverview extends Component
         ];
 
         // Full data structure matching what the contract modal template expects
-        $this->tenantContractData = [
-            'lessor_info' => [
-                'business_name'  => $property?->building_name,
-                'company_name'   => $owner?->company_school ?? 'ForeRent',
-                'address'        => $property?->address,
-                'contact'        => $owner?->contact,
-                'email'          => $owner?->email,
-                'representative' => $owner ? ($owner->first_name . ' ' . $owner->last_name) : '—',
-            ],
-            'personal_info' => [
-                'first_name'       => $user->first_name,
-                'last_name'        => $user->last_name,
-                'gender'           => $user->gender,
-                'address'          => $property?->address,
-                'property'         => $property?->building_name,
-                'unit'             => $unit?->unit_number,
-                'permanent_address' => $user->permanent_address,
-                'government_id_type'   => $user->government_id_type,
-                'government_id_number' => $user->government_id_number,
-                'government_id_image'  => $user->government_id_image,
-                'company_school'       => $user->company_school,
-                'position_course'      => $user->position_course,
-                'emergency_contact_name'         => $user->emergency_contact_name,
-                'emergency_contact_relationship' => $user->emergency_contact_relationship,
-                'emergency_contact_number'       => $user->emergency_contact_number,
-            ],
-            'contact_info' => [
-                'contact_number' => $user->contact,
-                'email'          => $user->email,
-            ],
-            'rent_details' => [
-                'bed_number'       => $bed?->bed_number,
-                'dorm_type'        => $unit?->occupants,
-                'floor'            => $unit?->floor_number,
-                'room_type'        => $unit?->room_type,
-                'lease_start_date' => $this->lease->start_date?->format('Y-m-d'),
-                'lease_end_date'   => $this->lease->end_date?->format('Y-m-d'),
-                'lease_term'       => $this->lease->term,
-                'shift'            => $this->lease->shift,
-                'auto_renew'       => $this->lease->auto_renew,
-            ],
-            'move_in_details' => [
-                'move_in_date'          => $this->lease->move_in?->format('Y-m-d'),
-                'monthly_rate'          => $this->lease->contract_rate,
-                'security_deposit'      => $this->lease->security_deposit,
-                'payment_status'        => $billing?->status ?? 'No billing',
-                'monthly_due_date'      => $this->lease->monthly_due_date,
-                'late_payment_penalty'  => $this->lease->late_payment_penalty,
-                'short_term_premium'    => $this->lease->short_term_premium,
-                'reservation_fee_paid'  => $this->lease->reservation_fee_paid,
-                'early_termination_fee' => $this->lease->early_termination_fee,
-            ],
-            'move_out_details' => [
-                'move_out_date'          => $this->lease->move_out?->format('Y-m-d'),
-                'forwarding_address'     => $this->lease->forwarding_address,
-                'reason_for_vacating'    => $this->lease->reason_for_vacating,
-                'deposit_refund_method'  => $this->lease->deposit_refund_method,
-                'deposit_refund_account' => $this->lease->deposit_refund_account,
-            ],
-        ];
+        $this->tenantContractData = $this->buildContractDataArray($user, $this->lease);
     }
 
     protected function loadItemsReceived()
@@ -368,10 +458,13 @@ class TenantDashboardOverview extends Component
             ->get();
 
         $this->itemsReceived = $inspections->map(fn($i) => [
+            'id' => $i->id,
             'item_name' => $i->item_name,
             'quantity' => $i->quantity,
             'condition' => $i->remarks,
             'tenant_confirmed' => (bool) $i->tenant_confirmed,
+            'dispute_status' => $i->dispute_status ?? 'none',
+            'resolution_remarks' => $i->resolution_remarks,
         ])->toArray();
 
         // Check if all items are confirmed by tenant
@@ -379,8 +472,238 @@ class TenantDashboardOverview extends Component
             && collect($this->itemsReceived)->every(fn($item) => $item['tenant_confirmed']);
     }
 
+    public function setDashTab(string $tab): void
+    {
+        $this->dashTab = $tab;
+    }
+
+    protected function loadPaymentRequests(): void
+    {
+        $this->pendingPaymentRequests = PaymentRequest::where('lease_id', $this->lease->lease_id)
+            ->where('tenant_id', Auth::id())
+            ->where('status', 'Pending')
+            ->with('billing')
+            ->latest()
+            ->get()
+            ->toArray();
+
+        $this->rejectedPaymentRequests = PaymentRequest::where('lease_id', $this->lease->lease_id)
+            ->where('tenant_id', Auth::id())
+            ->where('status', 'Rejected')
+            ->with('billing')
+            ->latest()
+            ->get()
+            ->toArray();
+    }
+
+    public function openPaymentModal(): void
+    {
+        $this->resetPaymentForm();
+
+        // Load unpaid/overdue billings that don't have a pending request
+        $pendingBillingIds = PaymentRequest::where('lease_id', $this->lease->lease_id)
+            ->where('status', 'Pending')
+            ->pluck('billing_id')
+            ->toArray();
+
+        $this->unpaidBillings = Billing::where('lease_id', $this->lease->lease_id)
+            ->whereIn('status', ['Unpaid', 'Overdue'])
+            ->whereNotIn('billing_id', $pendingBillingIds)
+            ->orderBy('due_date', 'asc')
+            ->get()
+            ->toArray();
+
+        // Load owner info for payment instructions
+        $property = $this->lease->bed->unit->property ?? null;
+        $owner = $property?->owner;
+        $this->paymentOwnerInfo = [
+            'property_name' => $property?->building_name ?? 'N/A',
+            'owner_name' => $owner ? ($owner->first_name . ' ' . $owner->last_name) : 'N/A',
+            'contact' => $owner?->contact ?? 'N/A',
+        ];
+
+        $this->showPaymentModal = true;
+    }
+
+    public function closePaymentModal(): void
+    {
+        $this->showPaymentModal = false;
+        $this->resetPaymentForm();
+    }
+
+    public function selectBilling(int $billingId): void
+    {
+        $this->selectedBillingId = $billingId;
+        $billing = collect($this->unpaidBillings)->firstWhere('billing_id', $billingId);
+        if ($billing) {
+            $this->paymentAmountPaid = $billing['to_pay'];
+        }
+        $this->paymentStep = 2;
+    }
+
+    public function selectPaymentMethod(string $method): void
+    {
+        $this->selectedPaymentMethod = $method;
+    }
+
+    public function confirmPaymentMethod(): void
+    {
+        if ($this->selectedPaymentMethod) {
+            $this->paymentStep = 3;
+        }
+    }
+
+    public function goToPaymentStep(int $step): void
+    {
+        if ($step < $this->paymentStep) {
+            $this->paymentStep = $step;
+        }
+    }
+
+    public function submitPaymentRequest(): void
+    {
+        // Force the amount to the full billing amount — no partial payments
+        $billing = collect($this->unpaidBillings)->firstWhere('billing_id', $this->selectedBillingId);
+        $requiredAmount = $billing ? (float) $billing['to_pay'] : 0;
+        $this->paymentAmountPaid = $requiredAmount;
+
+        $rules = [
+            'selectedBillingId' => 'required',
+            'selectedPaymentMethod' => 'required|in:GCash,Maya,Bank Transfer',
+            'paymentReferenceNumber' => 'required|string|max:100',
+            'paymentAmountPaid' => 'required|numeric|min:1',
+        ];
+
+        // Only require new proof if no previous proof exists
+        if (!$this->previousProofImagePath) {
+            $rules['paymentProofImage'] = 'required|image|max:10240';
+        } else {
+            $rules['paymentProofImage'] = 'nullable|image|max:10240';
+        }
+
+        $this->validate($rules, [
+            'paymentProofImage.required' => 'Please upload your proof of payment.',
+            'paymentReferenceNumber.required' => 'Please enter the reference number from your payment receipt.',
+        ]);
+
+        // Use new upload if provided, otherwise keep previous proof
+        $proofPath = $this->paymentProofImage
+            ? $this->paymentProofImage->store('payment_proofs', 'public')
+            : $this->previousProofImagePath;
+
+        PaymentRequest::create([
+            'billing_id' => $this->selectedBillingId,
+            'lease_id' => $this->lease->lease_id,
+            'tenant_id' => Auth::id(),
+            'payment_method' => $this->selectedPaymentMethod,
+            'reference_number' => $this->paymentReferenceNumber ?: null,
+            'amount_paid' => $this->paymentAmountPaid,
+            'proof_image' => $proofPath,
+            'status' => 'Pending',
+        ]);
+
+        // Notify manager
+        $this->notifyManagerOfPaymentRequest();
+
+        $this->paymentStep = 4;
+        $this->loadPaymentRequests();
+    }
+
+    public function resubmitPayment(int $paymentRequestId): void
+    {
+        $request = PaymentRequest::find($paymentRequestId);
+        if (!$request || $request->tenant_id !== Auth::id() || $request->status !== 'Rejected') return;
+
+        // Pre-fill with previous submission data
+        $this->selectedBillingId = $request->billing_id;
+        $this->selectedPaymentMethod = $request->payment_method;
+        $this->paymentReferenceNumber = $request->reference_number ?? '';
+        $this->paymentAmountPaid = $request->amount_paid;
+        $this->previousProofImagePath = $request->proof_image;
+        $this->resubmitRejectReason = $request->reject_reason;
+        $this->paymentProofImage = null;
+
+        // Load unpaid billings
+        $pendingBillingIds = PaymentRequest::where('lease_id', $this->lease->lease_id)
+            ->where('status', 'Pending')
+            ->pluck('billing_id')
+            ->toArray();
+
+        $this->unpaidBillings = Billing::where('lease_id', $this->lease->lease_id)
+            ->whereIn('status', ['Unpaid', 'Overdue'])
+            ->whereNotIn('billing_id', $pendingBillingIds)
+            ->orWhere('billing_id', $request->billing_id)
+            ->orderBy('due_date', 'asc')
+            ->get()
+            ->toArray();
+
+        $property = $this->lease->bed->unit->property ?? null;
+        $owner = $property?->owner;
+        $this->paymentOwnerInfo = [
+            'property_name' => $property?->building_name ?? 'N/A',
+            'owner_name' => $owner ? ($owner->first_name . ' ' . $owner->last_name) : 'N/A',
+            'contact' => $owner?->contact ?? 'N/A',
+        ];
+
+        // Delete the rejected request so they can resubmit
+        $request->delete();
+        $this->loadPaymentRequests();
+
+        $this->paymentStep = 3;
+        $this->showPaymentModal = true;
+    }
+
+    protected function resetPaymentForm(): void
+    {
+        $this->paymentStep = 1;
+        $this->selectedBillingId = null;
+        $this->selectedPaymentMethod = null;
+        $this->paymentReferenceNumber = '';
+        $this->paymentAmountPaid = '';
+        $this->paymentProofImage = null;
+        $this->previousProofImagePath = null;
+        $this->resubmitRejectReason = null;
+    }
+
+    protected function notifyManagerOfPaymentRequest(): void
+    {
+        $user = Auth::user();
+        $unit = $this->lease->bed->unit ?? null;
+        $billing = Billing::find($this->selectedBillingId);
+        $period = $billing?->billing_date ? Carbon::parse($billing->billing_date)->format('M Y') : 'N/A';
+        $msg = $user->first_name . ' ' . $user->last_name . ' submitted a payment of ₱' . number_format($this->paymentAmountPaid, 2) . ' for ' . $period . ' billing.';
+
+        $notifyIds = [];
+
+        // Notify the manager if assigned
+        if ($unit?->manager_id) {
+            $notifyIds[] = $unit->manager_id;
+        }
+
+        // Also notify the property owner
+        $ownerId = $unit?->property?->owner_id;
+        if ($ownerId && !in_array($ownerId, $notifyIds)) {
+            $notifyIds[] = $ownerId;
+        }
+
+        foreach ($notifyIds as $id) {
+            Notification::create([
+                'user_id' => $id,
+                'type' => 'payment_request',
+                'title' => 'Payment Submitted',
+                'message' => $msg,
+                'link' => '/manager/payment',
+            ]);
+        }
+    }
+
     public function openSignatureModal(): void
     {
+        // Both owner and manager must sign before tenant
+        if (!$this->ownerSignature || !$this->managerSignature) {
+            $this->dispatch('notify', type: 'warning', title: 'Not Yet Available', description: 'The property owner and manager must sign the contract first.');
+            return;
+        }
         $this->showSignatureModal = true;
     }
 
@@ -403,6 +726,30 @@ class TenantDashboardOverview extends Component
         $this->tenantSignedAt = $result['signedAt'];
         $this->contractAgreed = $result['agreed'];
 
+        // Notify the manager and owner that the tenant signed the contract
+        $this->notifyManagerOfSign($this->lease, 'move-in');
+
+        // If contract is now fully executed (tenant signed last), notify all parties
+        if ($result['agreed']) {
+            $this->lease->refresh();
+            $this->signedContractPath = $this->lease->signed_contract_path;
+
+            $managerId = $this->findManagerIdForLease($this->lease);
+            $ownerId = $this->findOwnerIdForLease($this->lease);
+            $user = Auth::user();
+
+            $notifyIds = array_filter(array_unique([$managerId, $ownerId]));
+            foreach ($notifyIds as $id) {
+                Notification::create([
+                    'user_id' => $id,
+                    'type' => 'contract_executed',
+                    'title' => 'Contract Fully Executed',
+                    'message' => $user->first_name . ' ' . $user->last_name . '\'s move-in contract is now fully signed by all parties.',
+                    'link' => '/manager/tenant',
+                ]);
+            }
+        }
+
         $this->closeSignatureModal();
         $this->dispatch('signature-saved');
     }
@@ -413,13 +760,16 @@ class TenantDashboardOverview extends Component
 
         $this->itemsReceived[$index]['tenant_confirmed'] = true;
 
-        // Update in database
         MoveInInspection::where('lease_id', $this->lease->lease_id)
             ->where('type', 'item_received')
             ->where('item_name', $this->itemsReceived[$index]['item_name'])
             ->update(['tenant_confirmed' => true]);
 
-        // Check if all confirmed
+        ContractAuditLog::log($this->lease->lease_id, 'item_confirmed', [
+            'field_changed' => $this->itemsReceived[$index]['item_name'],
+            'metadata' => ['type' => 'move_in_item'],
+        ]);
+
         $this->itemsConfirmedByTenant = collect($this->itemsReceived)
             ->every(fn($item) => $item['tenant_confirmed']);
     }
@@ -434,28 +784,50 @@ class TenantDashboardOverview extends Component
             $item['tenant_confirmed'] = true;
         }
         $this->itemsConfirmedByTenant = true;
+
+        ContractAuditLog::log($this->lease->lease_id, 'all_items_confirmed', [
+            'metadata' => ['type' => 'move_in_items', 'count' => count($this->itemsReceived)],
+        ]);
+
+        // Notify manager
+        $managerId = $this->findManagerIdForLease($this->lease);
+        if ($managerId) {
+            $user = Auth::user();
+            Notification::create([
+                'user_id' => $managerId,
+                'type' => 'items_confirmed',
+                'title' => 'Items Received Confirmed',
+                'message' => $user->first_name . ' ' . $user->last_name . ' has confirmed all move-in items received.',
+                'link' => '/manager/tenant',
+            ]);
+        }
     }
 
     // ===== MOVE-OUT ITEMS RETURNED =====
 
+    public function refreshMoveOutData()
+    {
+        $this->lease->refresh();
+        $this->loadItemsReturned();
+    }
+
     protected function loadItemsReturned()
     {
-        // Load move-out signature state
-        $this->moveOutTenantSignature = $this->lease->moveout_tenant_signature;
-        $this->moveOutTenantSignedAt = $this->lease->moveout_tenant_signed_at?->format('M d, Y h:i A');
-        $this->moveOutOwnerSignature = $this->lease->moveout_owner_signature;
-        $this->moveOutOwnerSignedAt = $this->lease->moveout_owner_signed_at?->format('M d, Y h:i A');
-        $this->moveOutContractAgreed = (bool) $this->lease->moveout_contract_agreed;
-
         $moveOutInspections = MoveOutInspection::where('lease_id', $this->lease->lease_id)->get();
 
         // Items returned
         $returnedItems = $moveOutInspections->where('type', 'item_returned');
         $this->itemsReturned = $returnedItems->map(fn($i) => [
+            'id' => $i->id,
             'item_name' => $i->item_name,
             'quantity' => $i->quantity,
+            'quantity_returned' => $i->quantity_returned,
             'condition' => $i->remarks,
+            'is_returned' => (bool) $i->is_returned,
+            'replacement_cost' => $i->replacement_cost,
             'tenant_confirmed' => (bool) $i->tenant_confirmed,
+            'dispute_status' => $i->dispute_status ?? 'none',
+            'resolution_remarks' => $i->resolution_remarks,
         ])->toArray();
 
         $this->itemsReturnedConfirmedByTenant = count($this->itemsReturned) > 0
@@ -467,6 +839,7 @@ class TenantDashboardOverview extends Component
             'item_name' => $i->item_name,
             'condition' => $i->condition,
             'remarks' => $i->remarks,
+            'repair_cost' => $i->repair_cost,
         ])->toArray();
 
         // Move-in checklist for comparison
@@ -491,6 +864,11 @@ class TenantDashboardOverview extends Component
             ->where('item_name', $this->itemsReturned[$index]['item_name'])
             ->update(['tenant_confirmed' => true]);
 
+        ContractAuditLog::log($this->lease->lease_id, 'item_confirmed', [
+            'field_changed' => $this->itemsReturned[$index]['item_name'],
+            'metadata' => ['type' => 'move_out_item'],
+        ]);
+
         $this->itemsReturnedConfirmedByTenant = collect($this->itemsReturned)
             ->every(fn($item) => $item['tenant_confirmed']);
     }
@@ -505,6 +883,23 @@ class TenantDashboardOverview extends Component
             $item['tenant_confirmed'] = true;
         }
         $this->itemsReturnedConfirmedByTenant = true;
+
+        ContractAuditLog::log($this->lease->lease_id, 'all_items_confirmed', [
+            'metadata' => ['type' => 'move_out_items', 'count' => count($this->itemsReturned)],
+        ]);
+
+        // Notify manager that tenant confirmed all returned items
+        $managerId = $this->findManagerIdForLease($this->lease);
+        if ($managerId) {
+            $user = Auth::user();
+            Notification::create([
+                'user_id' => $managerId,
+                'type' => 'items_confirmed',
+                'title' => 'Returned Items Confirmed',
+                'message' => $user->first_name . ' ' . $user->last_name . ' has confirmed all move-out items returned.',
+                'link' => '/manager/tenant',
+            ]);
+        }
     }
 
     public function toggleMoveOutContract(): void
@@ -514,6 +909,11 @@ class TenantDashboardOverview extends Component
 
     public function openMoveOutSignatureModal(): void
     {
+        // Both owner and manager must sign before tenant
+        if (!$this->moveOutOwnerSignature || !$this->moveOutManagerSignature) {
+            $this->dispatch('notify', type: 'warning', title: 'Not Yet Available', description: 'The property owner and manager must sign the move-out contract first.');
+            return;
+        }
         $this->showMoveOutSignatureModal = true;
     }
 
@@ -531,8 +931,249 @@ class TenantDashboardOverview extends Component
         $this->moveOutTenantSignedAt = $result['signedAt'];
         $this->moveOutContractAgreed = $result['agreed'];
 
+        // Notify the manager and owner that the tenant signed the move-out contract
+        $this->notifyManagerOfSign($this->lease, 'move-out');
+
+        // Reload contract data so outstanding balances / deposit refund are fresh
+        $this->lease->refresh();
+        $this->loadContractData();
+
         $this->closeMoveOutSignatureModal();
         $this->dispatch('moveout-signature-saved');
+    }
+
+    // ===== TENANT DISPUTE WORKFLOW =====
+
+    public function disputeInspectionItem(int $inspectionId, string $remarks): void
+    {
+        $item = MoveInInspection::where('id', $inspectionId)
+            ->where('lease_id', $this->lease->lease_id)
+            ->first();
+
+        if (!$item || $item->dispute_status === 'disputed') return;
+
+        $item->update([
+            'dispute_status' => 'disputed',
+            'dispute_remarks' => $remarks,
+            'disputed_at' => now(),
+        ]);
+
+        // Audit log
+        ContractAuditLog::log($this->lease->lease_id, 'item_disputed', [
+            'field_changed' => $item->item_name,
+            'new_value' => $remarks,
+            'metadata' => [
+                'inspection_type' => 'move_in',
+                'item_type' => $item->type,
+            ],
+        ]);
+
+        // Notify manager
+        $managerId = $this->findManagerIdForLease($this->lease);
+
+        if ($managerId) {
+            $user = Auth::user();
+            Notification::create([
+                'user_id' => $managerId,
+                'type' => 'inspection_disputed',
+                'title' => 'Inspection Item Disputed',
+                'message' => $user->first_name . ' ' . $user->last_name . ' has disputed "' . $item->item_name . '": ' . $remarks,
+                'link' => '/manager/tenant',
+            ]);
+        }
+
+        $this->loadItemsReceived();
+        $this->dispatch('notify', type: 'info', title: 'Dispute Submitted', description: 'Your dispute has been submitted. The manager will review it.');
+    }
+
+    public function disputeMoveOutItem(int $inspectionId, string $remarks): void
+    {
+        $item = MoveOutInspection::where('id', $inspectionId)
+            ->where('lease_id', $this->lease->lease_id)
+            ->first();
+
+        if (!$item || $item->dispute_status === 'disputed') return;
+
+        $item->update([
+            'dispute_status' => 'disputed',
+            'dispute_remarks' => $remarks,
+            'disputed_at' => now(),
+        ]);
+
+        ContractAuditLog::log($this->lease->lease_id, 'item_disputed', [
+            'field_changed' => $item->item_name,
+            'new_value' => $remarks,
+            'metadata' => [
+                'inspection_type' => 'move_out',
+                'item_type' => $item->type,
+            ],
+        ]);
+
+        $managerId = $this->findManagerIdForLease($this->lease);
+
+        if ($managerId) {
+            $user = Auth::user();
+            Notification::create([
+                'user_id' => $managerId,
+                'type' => 'inspection_disputed',
+                'title' => 'Move-Out Item Disputed',
+                'message' => $user->first_name . ' ' . $user->last_name . ' has disputed "' . $item->item_name . '": ' . $remarks,
+                'link' => '/manager/tenant',
+            ]);
+        }
+
+        $this->loadItemsReturned();
+        $this->dispatch('notify', type: 'info', title: 'Dispute Submitted', description: 'Your dispute has been submitted. The manager will review it.');
+    }
+
+    // ===== CONTRACT DOWNLOAD FOR TENANT =====
+
+    private function resolveSignatureBase64(?string $relativePath): ?string
+    {
+        if (!$relativePath) return null;
+
+        if (Storage::disk('local')->exists($relativePath)) {
+            return 'data:image/png;base64,' . base64_encode(Storage::disk('local')->get($relativePath));
+        }
+        if (Storage::disk('public')->exists($relativePath)) {
+            return 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($relativePath));
+        }
+
+        return null;
+    }
+
+    public function downloadSignedContract()
+    {
+        set_time_limit(120);
+
+        if (!$this->lease) return;
+
+        // If a pre-generated signed PDF exists, download it directly
+        if ($this->lease->signed_contract_path && Storage::disk('public')->exists($this->lease->signed_contract_path)) {
+            return Storage::disk('public')->download(
+                $this->lease->signed_contract_path,
+                'Move-In-Contract_' . Auth::user()->first_name . '-' . Auth::user()->last_name . '_Unit-' . ($this->lease->bed->unit->unit_number ?? 'N-A') . '.pdf'
+            );
+        }
+
+        // Generate PDF on-the-fly from contract data
+        $this->lease->load(['tenant', 'bed.unit.property']);
+        $t = $this->tenantContractData;
+        $rate = (float) ($t['move_in_details']['monthly_rate'] ?? 0);
+        $deposit = (float) ($t['move_in_details']['security_deposit'] ?? 0);
+        $premium = (float) ($t['move_in_details']['short_term_premium'] ?? 0);
+        $dueDay = $t['move_in_details']['monthly_due_date'] ?? null;
+        $dueSfx = match ((int) $dueDay) { 1, 21, 31 => 'st', 2, 22 => 'nd', 3, 23 => 'rd', default => 'th' };
+
+        $property = $this->lease->bed?->unit?->property;
+        $contractSettings = $property?->contract_settings ?? [];
+
+        $managerId = $this->findManagerIdForLease($this->lease);
+        $manager = $managerId ? User::find($managerId) : null;
+
+        // Resolve government ID image
+        $govIdImage = $this->lease->tenant?->government_id_image;
+        $govIdBase64 = null;
+        if ($govIdImage) {
+            if (Storage::disk('local')->exists($govIdImage)) {
+                $govIdBase64 = 'data:image/png;base64,' . base64_encode(Storage::disk('local')->get($govIdImage));
+            } elseif (Storage::disk('public')->exists($govIdImage)) {
+                $govIdBase64 = 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($govIdImage));
+            }
+        }
+
+        $data = [
+            'tenant'                 => $t,
+            'lessor'                 => $t['lessor_info'],
+            't'                      => $t,
+            'tenantSignatureBase64'  => $this->resolveSignatureBase64($this->lease->tenant_signature),
+            'ownerSignatureBase64'   => $this->resolveSignatureBase64($this->lease->owner_signature),
+            'managerSignatureBase64' => $this->resolveSignatureBase64($this->lease->manager_signature),
+            'tenantSignedAt'         => $this->lease->tenant_signed_at?->format('M d, Y'),
+            'ownerSignedAt'          => $this->lease->owner_signed_at?->format('M d, Y'),
+            'managerSignedAt'        => $this->lease->manager_signed_at?->format('M d, Y'),
+            'managerName'            => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
+            'contractSettings'       => $contractSettings,
+            'inspectionChecklist'    => [],
+            'itemsReceived'          => $this->itemsReceived ?? [],
+            'rate'                   => $rate,
+            'deposit'                => $deposit,
+            'premium'                => $premium,
+            'dueDay'                 => $dueDay,
+            'dueSfx'                 => $dueSfx,
+            'govIdBase64'            => $govIdBase64,
+        ];
+
+        $pdf = Pdf::loadView('pdf.move-in-contract', $data)
+            ->setPaper('a4')
+            ->setOption('isRemoteEnabled', false);
+
+        // Cache the generated PDF for future downloads
+        $cachePath = 'contracts/move-in-' . $this->lease->lease_id . '.pdf';
+        Storage::disk('public')->put($cachePath, $pdf->output());
+        $this->lease->update(['signed_contract_path' => $cachePath]);
+
+        $filename = 'Move-In-Contract_' . Auth::user()->first_name . '-' . Auth::user()->last_name . '_Unit-' . ($this->lease->bed->unit->unit_number ?? 'N-A') . '.pdf';
+
+        return Storage::disk('public')->download($cachePath, $filename);
+    }
+
+    public function downloadMoveOutSignedContract()
+    {
+        set_time_limit(120);
+
+        if (!$this->lease) return;
+
+        // If a pre-generated signed PDF exists, download it directly
+        if ($this->lease->moveout_signed_contract_path && Storage::disk('public')->exists($this->lease->moveout_signed_contract_path)) {
+            return Storage::disk('public')->download(
+                $this->lease->moveout_signed_contract_path,
+                'Move-Out-Contract_' . Auth::user()->first_name . '-' . Auth::user()->last_name . '_Unit-' . ($this->lease->bed->unit->unit_number ?? 'N-A') . '.pdf'
+            );
+        }
+
+        // Generate PDF on-the-fly from contract data
+        $this->lease->load(['tenant', 'bed.unit.property']);
+        $t = $this->tenantContractData;
+        $deposit = (float) ($t['move_in_details']['security_deposit'] ?? 0);
+
+        $property = $this->lease->bed?->unit?->property;
+        $contractSettings = $property?->contract_settings ?? [];
+
+        $managerId = $this->findManagerIdForLease($this->lease);
+        $manager = $managerId ? User::find($managerId) : null;
+
+        $data = [
+            'tenant'                 => $t,
+            't'                      => $t,
+            'deposit'                => $deposit,
+            'moveOutChecklist'       => $this->moveOutChecklist ?? [],
+            'itemsReturned'          => $this->itemsReturned ?? [],
+            'inspectionChecklist'    => $this->moveOutInspectionChecklist ?? [],
+            'tenantSignatureBase64'  => $this->resolveSignatureBase64($this->lease->moveout_tenant_signature),
+            'ownerSignatureBase64'   => $this->resolveSignatureBase64($this->lease->moveout_owner_signature),
+            'managerSignatureBase64' => $this->resolveSignatureBase64($this->lease->moveout_manager_signature),
+            'tenantSignedAt'         => $this->lease->moveout_tenant_signed_at?->format('M d, Y'),
+            'ownerSignedAt'          => $this->lease->moveout_owner_signed_at?->format('M d, Y'),
+            'managerSignedAt'        => $this->lease->moveout_manager_signed_at?->format('M d, Y'),
+            'managerName'            => $manager ? ($manager->first_name . ' ' . $manager->last_name) : 'Unit Manager',
+            'contractSettings'       => $contractSettings,
+            'outstandingBalances'    => $t['outstanding_balances'] ?? [],
+            'depositRefund'          => $t['deposit_refund'] ?? [],
+        ];
+
+        $pdf = Pdf::loadView('pdf.move-out-contract', $data)
+            ->setPaper('a4')
+            ->setOption('isRemoteEnabled', false);
+
+        // Cache the generated PDF for future downloads
+        $cachePath = 'contracts/move-out-' . $this->lease->lease_id . '.pdf';
+        Storage::disk('public')->put($cachePath, $pdf->output());
+        $this->lease->update(['moveout_signed_contract_path' => $cachePath]);
+
+        $filename = 'Move-Out-Contract_' . Auth::user()->first_name . '-' . Auth::user()->last_name . '_Unit-' . ($this->lease->bed->unit->unit_number ?? 'N-A') . '.pdf';
+
+        return Storage::disk('public')->download($cachePath, $filename);
     }
 
     public function render()

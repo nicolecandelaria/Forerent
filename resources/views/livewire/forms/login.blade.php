@@ -1,5 +1,7 @@
 <div class="bg-white rounded-3xl shadow-lg px-12 py-12 w-full max-w-lg">
 
+        @if(!$showTermsStep)
+        {{-- ========== STEP 1: Login Form ========== --}}
         {{-- Logo SVG (unchanged) --}}
         <svg viewBox="0 0 625 170" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-70 mb-6">
             {{-- SVG paths unchanged... --}}
@@ -118,6 +120,104 @@
         </p>
         @endif
 
+        @else
+        {{-- ========== STEP 2: Terms Acceptance (new tenants only) ========== --}}
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 mb-4">
+                <svg class="w-7 h-7 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800">Terms & Privacy Policy</h2>
+            <p class="text-sm text-gray-500 mt-1">Please review and accept before continuing.</p>
+        </div>
+
+        {{-- Read Terms of Service --}}
+        <div class="space-y-3 mb-6">
+            @if($hasReadTerms)
+                <div class="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-blue-300 bg-blue-50 opacity-70 cursor-default">
+                    <span class="text-sm font-medium text-blue-700 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Terms of Service
+                    </span>
+                </div>
+            @else
+                <a
+                    href="{{ route('terms-of-service') }}"
+                    class="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all duration-200 no-underline">
+                    <span class="text-sm font-medium text-[var(--color-primary)]">
+                        Terms of Service
+                    </span>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
+            @endif
+
+            {{-- Read Privacy Policy --}}
+            @if($hasReadPrivacy)
+                <div class="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-blue-300 bg-blue-50 opacity-70 cursor-default">
+                    <span class="text-sm font-medium text-blue-700 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Privacy Policy
+                    </span>
+                </div>
+            @else
+                <a
+                    href="{{ route('privacy-policy') }}"
+                    class="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all duration-200 no-underline">
+                    <span class="text-sm font-medium text-[var(--color-primary)]">
+                        Privacy Policy
+                    </span>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
+            @endif
+        </div>
+
+        {{-- Checkbox --}}
+        <div class="mb-6">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input
+                    type="checkbox"
+                    wire:model="termsAccepted"
+                    wire:change="acceptTerms"
+                    @if(!$hasReadTerms || !$hasReadPrivacy) disabled @endif
+                    class="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500
+                        {{ (!$hasReadTerms || !$hasReadPrivacy) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}">
+                <span class="text-xs leading-relaxed {{ (!$hasReadTerms || !$hasReadPrivacy) ? 'text-gray-400' : 'text-gray-600' }}">
+                    I have read and agree to the
+                    <span class="font-medium text-[var(--color-primary)]">Terms of Service</span>
+                    and
+                    <span class="font-medium text-[var(--color-primary)]">Privacy Policy</span>.
+                </span>
+            </label>
+
+            @if(!$hasReadTerms || !$hasReadPrivacy)
+                <p class="text-xs text-amber-600 mt-2 ml-7">
+                    Please read both documents above before agreeing.
+                </p>
+            @endif
+
+            @error('terms')
+                <p class="text-red-500 text-xs mt-2 ml-7">{{ $message }}</p>
+            @enderror
+        </div>
+
+        {{-- Back to login --}}
+        <p class="text-center text-sm text-gray-500 mt-6">
+            <button wire:click="backToLogin" class="font-semibold text-[var(--color-primary)] hover:text-blue-700 cursor-pointer">
+                Back to Sign In
+            </button>
+        </p>
+
+        @endif
+
 </div>
 {{-- End card --}}
 
@@ -137,4 +237,5 @@
             iconHide.classList.add('hidden');
         }
     }
+
 </script>

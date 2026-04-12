@@ -10,6 +10,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\Unit;
 use App\Models\Bed;
 use App\Models\Property;
+use App\Models\Lease;
 
 class UnitAccordion extends Component
 {
@@ -21,6 +22,7 @@ class UnitAccordion extends Component
     public $specifications = [];
     public $sortBy = 'newest';
     public $search = '';
+    public $unitTenants = [];
 
     /**
      * Listen for building selection from property.blade.php
@@ -42,9 +44,40 @@ class UnitAccordion extends Component
 
         $this->resetPage();
         $this->specifications = [];
+        $this->unitTenants = [];
         $this->openUnitId = null;
 
         // Sync Alpine openId with server state
+        $this->dispatch('unitsReset');
+    }
+
+    #[On('refresh-unit-list')]
+    public function refreshUnits($buildingId = null, $unitId = null): void
+    {
+        $targetBuildingId = $buildingId ?: $this->selectedBuildingId;
+
+        if (!$targetBuildingId) {
+            return;
+        }
+
+        $this->selectedBuildingId = (int) $targetBuildingId;
+        $this->selectedBuildingName = Property::where('property_id', $this->selectedBuildingId)
+            ->value('building_name');
+
+        $this->resetPage();
+
+        if ($unitId) {
+            $this->openUnitId = (int) $unitId;
+            $this->loadSpecifications((int) $unitId);
+            $this->loadTenantData((int) $unitId);
+        } elseif ($this->openUnitId) {
+            $this->loadSpecifications((int) $this->openUnitId);
+            $this->loadTenantData((int) $this->openUnitId);
+        } else {
+            $this->specifications = [];
+            $this->unitTenants = [];
+        }
+
         $this->dispatch('unitsReset');
     }
 
@@ -64,9 +97,11 @@ class UnitAccordion extends Component
         if ($this->openUnitId === $unitId) {
             $this->openUnitId = null;
             $this->specifications = [];
+            $this->unitTenants = [];
         } else {
             $this->openUnitId = $unitId;
             $this->loadSpecifications($unitId);
+            $this->loadTenantData($unitId);
         }
     }
 
@@ -130,13 +165,61 @@ class UnitAccordion extends Component
     }
 
     /**
+     * Load tenant and contract data for a unit's beds.
+     */
+    public function loadTenantData($unitId)
+    {
+        $this->unitTenants = [];
+
+        if (Auth::user()->role !== 'landlord') {
+            return;
+        }
+
+        $leases = Lease::whereHas('bed', fn($q) => $q->where('unit_id', $unitId))
+            ->whereIn('status', ['Active', 'Expired'])
+            ->with(['tenant', 'bed', 'moveInInspections', 'moveOutInspections'])
+            ->latest()
+            ->get()
+            ->unique('tenant_id');
+
+        $tenants = [];
+        foreach ($leases as $lease) {
+            if (!$lease->tenant) continue;
+
+            $tenants[] = [
+                'lease_id' => $lease->lease_id,
+                'tenant_name' => $lease->tenant->first_name . ' ' . $lease->tenant->last_name,
+                'bed_number' => $lease->bed?->bed_number,
+                'lease_status' => $lease->status,
+                'contract_status' => $lease->contract_status ?? 'draft',
+                'start_date' => $lease->start_date?->format('M d, Y'),
+                'end_date' => $lease->end_date?->format('M d, Y'),
+                'move_in_signed' => (bool) $lease->contract_agreed,
+                'move_out_signed' => (bool) $lease->moveout_contract_agreed,
+                'has_move_out' => (bool) $lease->move_out_initiated_at,
+            ];
+        }
+
+        $this->unitTenants = $tenants;
+    }
+
+    /**
+     * Open the landlord contract viewer modal for a specific lease.
+     */
+    public function viewContract($leaseId, $contractType = 'move-in')
+    {
+        $this->dispatch('open-landlord-contract-viewer', leaseId: $leaseId, contractType: $contractType);
+    }
+
+    /**
      * Status styling helpers
      */
     public function getStatusTextClass($status)
     {
         return match (strtolower($status)) {
             'occupied' => 'text-red-600',
-            'vacant', 'available' => 'text-green-600',
+            'partially occupied' => 'text-orange-600',
+            'available' => 'text-green-600',
             'maintenance' => 'text-yellow-600',
             default => 'text-gray-600',
         };
@@ -146,7 +229,8 @@ class UnitAccordion extends Component
     {
         return match (strtolower($status)) {
             'occupied' => 'bg-red-500',
-            'vacant', 'available' => 'bg-green-500',
+            'partially occupied' => 'bg-orange-500',
+            'available' => 'bg-green-500',
             'maintenance' => 'bg-yellow-500',
             default => 'bg-gray-500',
         };
@@ -176,9 +260,9 @@ class UnitAccordion extends Component
         if ($allBedsOccupied && $hasAnyActiveLease) {
             return 'Occupied';
         } elseif ($hasAnyActiveLease) {
-            return 'Available';
+            return 'Partially Occupied';
         } else {
-            return 'Vacant';
+            return 'Available';
         }
     }
 
@@ -220,6 +304,7 @@ class UnitAccordion extends Component
         $this->resetPage();
         $this->openUnitId = null;
         $this->specifications = [];
+        $this->unitTenants = [];
     }
 
     public function render()
@@ -256,7 +341,14 @@ class UnitAccordion extends Component
                     $search = '%' . $term . '%';
                     $cleanSearch = '%' . $cleanTerm . '%';
                     $q->where('unit_number', 'like', $cleanSearch)
-                      ->orWhere('floor_number', 'like', $cleanSearch);
+                      ->orWhere('floor_number', 'like', $cleanSearch)
+                      ->orWhereHas('beds.leases', function ($leaseQuery) use ($search) {
+                          $leaseQuery->whereIn('status', ['Active', 'Expired'])
+                              ->whereHas('tenant', function ($tenantQuery) use ($search) {
+                                  $tenantQuery->where('first_name', 'like', $search)
+                                      ->orWhere('last_name', 'like', $search);
+                              });
+                      });
                 });
             }
 
@@ -272,6 +364,7 @@ class UnitAccordion extends Component
                 $firstUnit = $units->first();
                 $this->openUnitId = $firstUnit->unit_id;
                 $this->buildSpecificationsFromUnit($firstUnit);
+                $this->loadTenantData($firstUnit->unit_id);
             }
         } else {
             $units = new LengthAwarePaginator([], 0, 4, 1);

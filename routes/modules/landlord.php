@@ -38,9 +38,15 @@ Route::prefix('landlord')->middleware(['auth', 'role:landlord'])->group(function
         return view('users.admin.owner.managerdetails');
     })->name('landlord.manager');
 
+    // Payments
+    Route::get('/payment', function () {
+        return view('users.admin.owner.payment');
+    })->name('landlord.payment');
+
     // Revenue
     Route::get('/revenue', function () {
         return view('users.admin.owner.revenue');
     })->name('landlord.revenue');
+
 });
 

@@ -4,7 +4,6 @@ namespace App\Livewire\Layouts\Properties;
 
 use App\Models\Property;
 use App\Models\PropertyDocument;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -29,8 +28,8 @@ class PropertyDetails extends Component
 
     public function mount($buildingId = null)
     {
-        $buildingId = $buildingId ?: $this->resolveInitialBuildingId();
-
+        // Don't independently resolve — wait for buildingSelected event
+        // from BuildingCardsSection to ensure consistent selection
         if ($buildingId) {
             $this->loadPropertyData((int) $buildingId);
         }
@@ -39,9 +38,7 @@ class PropertyDetails extends Component
     #[On('buildingSelected')]
     public function onBuildingSelected($buildingId = null)
     {
-        $buildingId = $buildingId ?: $this->resolveInitialBuildingId();
-
-        if (!$buildingId) {
+        if (! $buildingId) {
             return;
         }
 
@@ -60,27 +57,18 @@ class PropertyDetails extends Component
         }
     }
 
-    private function resolveInitialBuildingId(): ?int
+    #[On('refresh-unit-list')]
+    public function refreshFromUnitUpdate($buildingId = null): void
     {
-        $user = Auth::user();
-
-        if (!$user) {
-            return null;
+        if (! $this->propertyId) {
+            return;
         }
 
-        if ($user->role === 'landlord') {
-            return Property::where('owner_id', $user->user_id)
-                ->orderBy('property_id')
-                ->value('property_id');
+        if ($buildingId && (int) $buildingId !== (int) $this->propertyId) {
+            return;
         }
 
-        if ($user->role === 'manager') {
-            return Property::whereHas('units', function ($query) use ($user) {
-                $query->where('manager_id', $user->user_id);
-            })->orderBy('property_id')->value('property_id');
-        }
-
-        return Property::orderBy('property_id')->value('property_id');
+        $this->loadPropertyData((int) $this->propertyId);
     }
 
     private function loadPropertyData($id): void

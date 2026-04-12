@@ -22,6 +22,9 @@ class PropertyDocument extends Model
         'bir_2303',
         'inspection_report',
         'barangay_clearance',
+        'title_tct',
+        'tax_declaration',
+        'transfer_certificate',
     ];
 
     /**

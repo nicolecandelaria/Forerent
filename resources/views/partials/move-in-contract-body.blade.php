@@ -13,25 +13,66 @@
     - $itemsReceived        : array of received items (optional, defaults to [])
     - $tenantSignature      : tenant signature path (nullable)
     - $ownerSignature       : owner signature path (nullable)
+    - $managerSignature     : manager/witness signature path (nullable)
     - $tenantSignedAt       : formatted date string (nullable)
     - $ownerSignedAt        : formatted date string (nullable)
+    - $managerSignedAt      : formatted date string (nullable)
     - $contractAgreed       : bool
-    - $signatureMode        : 'manager' (interactive sign buttons) or 'tenant' (read-only display)
+    - $signatureMode        : 'owner' (owner sign buttons), 'manager' (manager witness sign buttons), 'tenant' (tenant sign buttons), or 'readonly'
 --}}
 
 @php
     $inspectionChecklist = $inspectionChecklist ?? [];
     $itemsReceived = $itemsReceived ?? [];
     $signatureMode = $signatureMode ?? 'tenant';
+    $contractSettings = $contractSettings ?? [];
+
+    $defaultInclusions = [
+        'Association dues / condo or building fees',
+        'Wi-Fi / Internet access',
+        'Access to building amenities (pool, gym, function areas, etc.)',
+        'Housekeeping / common-area cleaning',
+        'Use of shared appliances',
+        '24/7 building security',
+        'Furnished room (bed, cabinet, air conditioning, etc.)',
+        'Water utility',
+    ];
+    $defaultExclusions = [
+        'Electricity (split equally among unit tenants)',
+        'Water (if not included above)',
+        'Laundry services',
+        'Parking fees',
+    ];
+    $defaultHouseRules = [
+        'No overnight visitors or unauthorized guests. Visitors must leave by the designated curfew time.',
+        'No smoking inside the unit or building common areas.',
+        'No illegal drugs, substances, or activities of any kind.',
+        'No pets allowed within the premises unless explicitly permitted in writing.',
+        'Observe quiet hours from 10:00 PM to 6:00 AM.',
+        'No unauthorized room transfers, subletting, or sharing of assigned bed with another person.',
+        'No tampering with air conditioning units, electrical systems, or building infrastructure.',
+        'No unauthorized repairs, modifications, or do-it-yourself (DIY) maintenance. All maintenance concerns must be reported to the dormitory administration for proper handling.',
+        'Report all maintenance issues to the dormitory administration promptly.',
+        'Keep personal area and all shared spaces clean and orderly.',
+        'Follow proper garbage disposal and recycling procedures.',
+        'Respect fellow tenants\' privacy, belongings, and personal space.',
+        'Comply with all building management rules and regulations.',
+    ];
+    $defaultPenalties = 'First offense — written warning. Second offense — fine of PHP 500.00. Third offense — grounds for lease termination with possible deposit forfeiture. Serious violations (illegal activity, property destruction) may result in immediate termination.';
+
+    $inclusions = data_get($contractSettings, 'inclusions', $defaultInclusions);
+    $exclusions = data_get($contractSettings, 'exclusions', $defaultExclusions);
+    $houseRules = data_get($contractSettings, 'house_rules', $defaultHouseRules);
+    $penaltySchedule = data_get($contractSettings, 'penalty_schedule', $defaultPenalties);
 @endphp
 
 {{-- Page Header --}}
-<div style="background-color: #1a1a4e; margin: -2rem -2rem 0 -2rem; padding: 0.85rem 2rem; display: flex; justify-content: space-between; align-items: center;">
+<div class="bg-[#1a1a4e] -mx-8 -mt-8 px-8 py-3 flex justify-between items-center">
     <div>
-        <p style="font-size: 0.875rem; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.025em;">Dormitory Rental Agreement</p>
-        <p style="font-size: 10px; color: #d1d5db;">Republic of the Philippines</p>
+        <p class="text-sm font-bold text-white uppercase tracking-wide">Dormitory Rental Agreement</p>
+        <p class="text-[10px] text-gray-300">Republic of the Philippines</p>
     </div>
-    <p style="font-size: 0.75rem; font-weight: 600; color: #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Move-In Contract</p>
+    <p class="text-xs font-semibold text-gray-300 uppercase tracking-widest">Move-In Contract</p>
 </div>
 
 {{-- Title --}}
@@ -112,10 +153,10 @@
     </table>
     <table class="w-full border border-gray-300 text-sm mb-3"><tbody>
         <tr class="border-b"><td class="p-2 font-semibold text-gray-600 w-1/3 border-r bg-gray-50">Monthly Due Date:</td><td class="p-2">{{ $dueDay ? $dueDay . $dueSfx . ' of the month' : '—' }}</td></tr>
-        <tr><td class="p-2 font-semibold text-gray-600 w-1/3 border-r bg-gray-50">Accepted Payment Methods:</td><td class="p-2">GCash, Maya, Bank Transfer, Cash</td></tr>
+        <tr><td class="p-2 font-semibold text-gray-600 w-1/3 border-r bg-gray-50">Accepted Payment Methods:</td><td class="p-2">{{ data_get($contractSettings, 'payment_methods', 'GCash, Maya, Bank Transfer, Cash') }}</td></tr>
     </tbody></table>
     <p class="text-xs text-gray-700 leading-relaxed mb-2"><strong>Short-Term Premium:</strong> A fixed charge of PHP 500.00 per month is automatically applied when the lease term is below six (6) months. This will be reflected in the monthly billing statement.</p>
-    <p class="text-xs text-gray-700 leading-relaxed mb-3"><strong>Late Payment Penalty:</strong> A fixed penalty of PHP 100.00 per day of delay shall be automatically computed and applied to any rent payment received after the monthly due date.</p>
+    <p class="text-xs text-gray-700 leading-relaxed mb-3"><strong>Late Payment Penalty:</strong> A penalty of {{ $t['move_in_details']['late_payment_penalty'] ?? 1 }}% of the monthly rent per day of delay shall be automatically computed and applied to any rent payment received after the monthly due date. The total late payment penalty is capped at a maximum of 25% of the monthly rent.</p>
     <ul class="text-xs text-gray-600 space-y-1 list-disc pl-5">
         <li>Under RA 9653, the Lessor cannot demand more than one (1) month advance rent and two (2) months' security deposit.</li>
         <li>The security deposit shall be placed in a bank account under the Lessor's name. Interest earned shall be returned to the Lessee upon lease expiration.</li>
@@ -126,8 +167,8 @@
 
 {{-- SECTION 4A --}}
 <div>
-    <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 4A — Reservation Policy</h3>
-    <p class="text-xs text-gray-700 leading-relaxed">There is no reservation fee. Once a tenant confirms intent to rent a specific slot, the slot shall be held for a maximum of three (3) calendar days. If the tenant fails to complete the full move-in payment (advance + deposit) within the 3-day holding period, the slot shall automatically be released and made available to other prospective tenants. No financial obligation arises from the reservation hold itself.</p>
+    <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 4A — Payment Before Occupancy</h3>
+    <p class="text-xs text-gray-700 leading-relaxed">There is no reservation fee. The full move-in payment (1 month advance + security deposit) must be completed before the Lessee is assigned to a bed and allowed to occupy the premises. No move-in shall proceed without confirmed payment. This is in accordance with RA 9653, Section 6, which allows the Lessor to require advance rent and deposit to be paid in advance of occupancy.</p>
 </div>
 
 {{-- SECTION 5 --}}
@@ -135,11 +176,11 @@
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 5 — Rent Inclusions and Exclusions</h3>
     <p class="text-xs font-bold text-gray-700 mb-1">The following items are included in the monthly rent:</p>
     <ul class="text-xs text-gray-600 list-disc pl-5 space-y-0.5 mb-3">
-        <li>Association dues / condo or building fees</li><li>Wi-Fi / Internet access</li><li>Access to building amenities (pool, gym, function areas, etc.)</li><li>Housekeeping / common-area cleaning</li><li>Use of shared appliances</li><li>24/7 building security</li><li>Furnished room (bed, cabinet, air conditioning, etc.)</li><li>Water utility</li>
+        @foreach($inclusions as $item)<li>{{ $item }}</li>@endforeach
     </ul>
     <p class="text-xs font-bold text-gray-700 mb-1">The following items are NOT included and will be billed separately:</p>
     <ul class="text-xs text-gray-600 list-disc pl-5 space-y-0.5">
-        <li>Electricity (split equally among unit tenants)</li><li>Water (if not included above)</li><li>Laundry services</li><li>Parking fees</li>
+        @foreach($exclusions as $item)<li>{{ $item }}</li>@endforeach
     </ul>
 </div>
 
@@ -148,9 +189,9 @@
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 6 — House Rules and Policies</h3>
     <p class="text-xs text-gray-700 mb-2">The Lessee agrees to abide by the following rules at all times:</p>
     <ul class="text-xs text-gray-600 list-disc pl-5 space-y-0.5 mb-3">
-        <li>No overnight visitors or unauthorized guests. Visitors must leave by the designated curfew time.</li><li>No smoking inside the unit or building common areas.</li><li>No illegal drugs, substances, or activities of any kind.</li><li>No pets allowed within the premises unless explicitly permitted in writing.</li><li>Observe quiet hours from 10:00 PM to 6:00 AM.</li><li>No unauthorized room transfers, subletting, or sharing of assigned bed with another person.</li><li>No tampering with air conditioning units, electrical systems, or building infrastructure.</li><li>Report all maintenance issues to the dormitory administration promptly.</li><li>Keep personal area and all shared spaces clean and orderly.</li><li>Follow proper garbage disposal and recycling procedures.</li><li>Respect fellow tenants' privacy, belongings, and personal space.</li><li>Comply with all building management rules and regulations.</li>
+        @foreach($houseRules as $rule)<li>{{ $rule }}</li>@endforeach
     </ul>
-    <p class="text-xs text-gray-700"><strong>Violation Penalties:</strong> First offense — written warning. Second offense — fine of PHP 500.00. Third offense — grounds for lease termination with possible deposit forfeiture. Serious violations (illegal activity, property destruction) may result in immediate termination.</p>
+    <p class="text-xs text-gray-700"><strong>Violation Penalties:</strong> {{ $penaltySchedule }}</p>
 </div>
 
 {{-- SECTION 7 --}}
@@ -166,8 +207,20 @@
 </div>
 
 {{-- SECTION 8 --}}
+@php
+    $checklistComplete = collect($inspectionChecklist)->isNotEmpty() && collect($inspectionChecklist)->every(fn($i) => !empty($i['condition']));
+@endphp
 <div>
-    <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 8 — Move-In Room Condition Checklist</h3>
+    <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1 flex items-center justify-between">
+        <span>Section 8 — Move-In Room Condition Checklist</span>
+        @if($checklistComplete)
+            <span class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full normal-case tracking-normal">Completed</span>
+        @elseif(collect($inspectionChecklist)->isNotEmpty())
+            <span class="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full normal-case tracking-normal">In Progress</span>
+        @else
+            <span class="text-[10px] font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full normal-case tracking-normal">Pending</span>
+        @endif
+    </h3>
     <p class="text-xs text-gray-700 mb-3">Both parties shall inspect the room on the move-in date and record the condition of each item below.</p>
     <table class="w-full border border-gray-300 text-xs">
         <thead><tr class="bg-[#3B5998] text-white"><th class="p-2 text-left">Item</th><th class="p-2 text-center w-16">Good</th><th class="p-2 text-center w-20">Damaged</th><th class="p-2 text-center w-18">Missing</th><th class="p-2 text-left">Remarks</th></tr></thead>
@@ -186,8 +239,20 @@
 </div>
 
 {{-- SECTION 9 --}}
+@php
+    $itemsComplete = collect($itemsReceived)->isNotEmpty() && collect($itemsReceived)->every(fn($i) => !empty($i['quantity']) && !empty($i['condition']));
+@endphp
 <div>
-    <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 9 — Items Received by Tenant</h3>
+    <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1 flex items-center justify-between">
+        <span>Section 9 — Items Received by Tenant</span>
+        @if($itemsComplete)
+            <span class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full normal-case tracking-normal">Completed</span>
+        @elseif(collect($itemsReceived)->isNotEmpty())
+            <span class="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full normal-case tracking-normal">In Progress</span>
+        @else
+            <span class="text-[10px] font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full normal-case tracking-normal">Pending</span>
+        @endif
+    </h3>
     <table class="w-full border border-gray-300 text-xs">
         <thead><tr class="bg-[#3B5998] text-white"><th class="p-2 text-left">Item</th><th class="p-2 text-center w-12">Qty</th><th class="p-2 text-left">Condition</th><th class="p-2 text-center w-24">Confirmed</th></tr></thead>
         <tbody>
@@ -211,8 +276,8 @@
         <li>A monthly billing statement shall be generated and issued to the Lessee on or before the 1st of each month, showing all charges due for the current period.</li>
         <li>The billing statement shall include the base monthly rent, electricity share, water share, short-term premium (if applicable at PHP 500/month for leases under 6 months), and any conditional charges.</li>
         <li>Electricity and water utility charges shall be computed by dividing the total unit bill equally among all active tenants in the room. Mid-month move-ins shall be prorated by the number of days occupied.</li>
-        <li>Late Payment Penalty: PHP 100.00 per day shall be automatically computed and added to the next billing statement for any payment received after the monthly due date.</li>
-        <li>A payment receipt with an Official Receipt (OR) number shall be generated upon confirmed payment, as required by RA 9653 and BIR regulations.</li>
+        <li>Late Payment Penalty: {{ $t['move_in_details']['late_payment_penalty'] ?? 1 }}% of the monthly rent per day shall be automatically computed and added to the next billing statement for any payment received after the monthly due date. The total late payment penalty is capped at a maximum of 25% of the monthly rent.</li>
+        <li>A payment confirmation with a reference number shall be generated upon confirmed payment.</li>
         <li>Accepted payment methods, payment history, and downloadable receipts shall be made available to the Lessee.</li>
     </ul>
 </div>
@@ -250,67 +315,174 @@
 </div>
 
 {{-- SECTION 14: Signatures --}}
+@php
+    $managerSignature = $managerSignature ?? null;
+    $managerSignedAt = $managerSignedAt ?? null;
+@endphp
 <div>
     <h3 class="text-sm font-bold text-[#3B5998] uppercase mb-3 border-b border-gray-200 pb-1">Section 14 — Agreement and Signatures</h3>
-    <p class="text-xs text-gray-700 mb-4">By signing below, both parties acknowledge that they have read, understood, and voluntarily agree to all terms and conditions stated in this Move-In Contract.</p>
+    <p class="text-xs text-gray-700 mb-4">By signing below, all parties acknowledge that they have read, understood, and voluntarily agree to all terms and conditions stated in this Move-In Contract.</p>
 
-    {{-- Signature display (read-only for both views) --}}
-    <div class="grid grid-cols-2 gap-8 mt-4">
-        {{-- Tenant Signature --}}
-        <div class="text-center">
-            @if($tenantSignature)
-                <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
-                    <img src="{{ asset('storage/' . $tenantSignature) }}" class="max-h-full max-w-full object-contain" alt="Tenant Signature">
+    {{-- Signing Progress Stepper --}}
+    @php
+        $sigSteps = [
+            ['num' => 1, 'title' => 'Owner', 'done' => (bool) $ownerSignature],
+            ['num' => 2, 'title' => 'Witness', 'done' => (bool) $managerSignature],
+            ['num' => 3, 'title' => 'Tenant', 'done' => (bool) $tenantSignature],
+        ];
+        $currentSigStep = 4;
+        foreach ($sigSteps as $s) {
+            if (!$s['done']) { $currentSigStep = $s['num']; break; }
+        }
+    @endphp
+    @if(!$contractAgreed)
+        <div class="bg-gray-50 rounded-2xl border border-gray-100 p-4 mb-5">
+            <div class="flex items-center gap-2 mb-3">
+                <div class="w-5 h-5 rounded-lg bg-indigo-50 flex items-center justify-center">
+                    <svg class="w-3 h-3 text-[#070589]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
                 </div>
-                <div class="border-b border-gray-400 mb-1"></div>
-                <p class="text-xs font-semibold text-gray-800">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
-                <p class="text-[10px] text-emerald-600 font-medium mt-1">Signed: {{ $tenantSignedAt }}</p>
-            @else
-                @if($signatureMode === 'manager')
-                    <button
-                        wire:click="openSignatureModal('tenant')"
-                        class="w-full border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group"
-                    >
-                        <svg class="w-6 h-6 text-blue-400 group-hover:text-blue-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
-                        <span class="text-[10px] font-semibold text-blue-500 group-hover:text-blue-600">Click to Sign</span>
-                    </button>
-                @else
-                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
-                        <span class="text-[10px] text-gray-400">Awaiting signature</span>
+                <p class="text-[11px] font-bold text-[#070589] uppercase tracking-wide">Signing Progress</p>
+            </div>
+            <div class="flex items-center justify-between">
+                @foreach($sigSteps as $i => $step)
+                    <div class="flex items-center {{ $i < count($sigSteps) - 1 ? 'flex-1' : '' }}">
+                        <div class="flex flex-col items-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all
+                                {{ $currentSigStep === $step['num']
+                                    ? 'bg-[#070589] text-white border-[#070589] shadow-lg shadow-blue-500/20'
+                                    : ($step['done']
+                                        ? 'bg-[#070589]/10 text-[#070589] border-[#070589]/30'
+                                        : 'bg-transparent text-gray-300 border-gray-200') }}">
+                                @if($step['done'] && $currentSigStep !== $step['num'])
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                @else
+                                    {{ $step['num'] }}
+                                @endif
+                            </div>
+                            <span class="text-[10px] font-semibold mt-1 tracking-wide
+                                {{ $currentSigStep === $step['num'] ? 'text-[#070589]' : ($step['done'] ? 'text-[#070589]/60' : 'text-gray-300') }}">
+                                {{ $step['title'] }}
+                            </span>
+                        </div>
+                        @if($i < count($sigSteps) - 1)
+                            <div class="flex-1 mx-2 mt-[-14px]">
+                                <div class="h-0.5 rounded-full bg-gray-200 relative overflow-hidden">
+                                    <div class="absolute inset-y-0 left-0 bg-[#070589]/40 rounded-full transition-all duration-300" style="width: {{ $step['done'] ? '100%' : '0%' }}"></div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
-                @endif
-                <div class="border-b border-gray-400 mb-1"></div>
-                <p class="text-xs font-semibold text-gray-500">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
-                <p class="text-[10px] text-gray-400 mt-1">Tenant's Signature</p>
-            @endif
+                @endforeach
+            </div>
         </div>
+    @endif
 
-        {{-- Owner/Manager Signature --}}
+    {{-- 3 Signature blocks: Owner (1st) → Manager/Witness (2nd) → Tenant (3rd) --}}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 items-end">
+        {{-- 1. Owner/Lessor Signature (signs first) --}}
         <div class="text-center">
             @if($ownerSignature)
                 <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
-                    <img src="{{ asset('storage/' . $ownerSignature) }}" class="max-h-full max-w-full object-contain" alt="Owner Signature">
+                    <img src="{{ route('secure.file', $ownerSignature) }}" class="max-h-full max-w-full object-contain" alt="Owner Signature">
                 </div>
                 <div class="border-b border-gray-400 mb-1"></div>
                 <p class="text-xs font-semibold text-gray-800">{{ $t['lessor_info']['representative'] }}</p>
-                <p class="text-[10px] text-emerald-600 font-medium mt-1">Signed: {{ $ownerSignedAt }}</p>
+                <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $ownerSignedAt }}</p>
             @else
-                @if($signatureMode === 'manager')
-                    <button
-                        wire:click="openSignatureModal('owner')"
-                        class="w-full border-2 border-dashed border-indigo-300 bg-indigo-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer group"
-                    >
-                        <svg class="w-6 h-6 text-indigo-400 group-hover:text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
-                        <span class="text-[10px] font-semibold text-indigo-500 group-hover:text-indigo-600">Click to Sign</span>
-                    </button>
+                @if($signatureMode === 'owner')
+                    <div x-data="{ ownerReadConfirmed: false }">
+                        <label class="inline-flex items-start gap-2 mb-2 cursor-pointer px-1">
+                            <input type="checkbox" x-model="ownerReadConfirmed" class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-[10px] text-gray-600 text-left leading-tight">I have read and agree to all terms in this contract.</span>
+                        </label>
+                        <button
+                            x-show="ownerReadConfirmed"
+                            wire:click="openSignatureModal"
+                            class="w-full border-2 border-dashed border-indigo-300 bg-indigo-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer group"
+                        >
+                            <svg class="w-6 h-6 text-indigo-400 group-hover:text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                            <span class="text-[11px] font-semibold text-indigo-500 group-hover:text-indigo-600">Click to Sign</span>
+                        </button>
+                        <div x-show="!ownerReadConfirmed" class="border-2 border-dashed border-gray-200 rounded-xl h-24 mb-2 flex items-center justify-center">
+                            <span class="text-[11px] text-gray-400">Check the box above to sign</span>
+                        </div>
+                    </div>
                 @else
                     <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
-                        <span class="text-[10px] text-gray-400">Awaiting signature</span>
+                        <span class="text-[11px] text-gray-400">Awaiting owner signature</span>
                     </div>
                 @endif
                 <div class="border-b border-gray-400 mb-1"></div>
                 <p class="text-xs font-semibold text-gray-500">{{ $t['lessor_info']['representative'] }}</p>
-                <p class="text-[10px] text-gray-400 mt-1">Lessor / Authorized Representative</p>
+                <p class="text-[11px] text-gray-400 mt-1">Lessor / Property Owner</p>
+            @endif
+        </div>
+
+        {{-- 2. Manager/Witness Signature (signs second) --}}
+        <div class="text-center">
+            @if($managerSignature)
+                <div class="border-2 border-amber-200 bg-amber-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
+                    <img src="{{ route('secure.file', $managerSignature) }}" class="max-h-full max-w-full object-contain" alt="Manager Witness Signature">
+                </div>
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-800">{{ $t['manager_info']['name'] ?? 'Unit Manager' }}</p>
+                <p class="text-[11px] text-amber-600 font-medium mt-1">Witnessed: {{ $managerSignedAt }}</p>
+            @else
+                @if($signatureMode === 'manager' && $ownerSignature)
+                    <button
+                        wire:click="openSignatureModal('manager')"
+                        class="w-full border-2 border-dashed border-amber-300 bg-amber-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-amber-50 hover:border-amber-400 transition-all cursor-pointer group"
+                    >
+                        <svg class="w-6 h-6 text-amber-400 group-hover:text-amber-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                        <span class="text-[11px] font-semibold text-amber-500 group-hover:text-amber-600">Sign as Witness</span>
+                    </button>
+                @else
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
+                        <span class="text-[11px] text-gray-400">{{ $ownerSignature ? 'Awaiting witness signature' : 'Awaiting owner signature' }}</span>
+                    </div>
+                @endif
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-500">{{ $t['manager_info']['name'] ?? 'Unit Manager' }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">Witness</p>
+            @endif
+        </div>
+
+        {{-- 3. Tenant Signature (signs last) --}}
+        <div class="text-center">
+            @if($tenantSignature)
+                <div class="border-2 border-emerald-200 bg-emerald-50/50 rounded-xl h-24 mb-2 flex items-center justify-center p-2">
+                    <img src="{{ route('secure.file', $tenantSignature) }}" class="max-h-full max-w-full object-contain" alt="Tenant Signature">
+                </div>
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-800">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
+                <p class="text-[11px] text-emerald-600 font-medium mt-1">Signed: {{ $tenantSignedAt }}</p>
+            @else
+                @if($signatureMode === 'tenant' && $ownerSignature && $managerSignature)
+                    <div x-data="{ tenantReadConfirmed: false }">
+                        <label class="inline-flex items-start gap-2 mb-2 cursor-pointer px-1">
+                            <input type="checkbox" x-model="tenantReadConfirmed" class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-[10px] text-gray-600 text-left leading-tight">I have read and agree to all terms in this contract.</span>
+                        </label>
+                        <button
+                            x-show="tenantReadConfirmed"
+                            wire:click="openSignatureModal"
+                            class="w-full border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-xl h-24 mb-2 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group"
+                        >
+                            <svg class="w-6 h-6 text-blue-400 group-hover:text-blue-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                            <span class="text-[11px] font-semibold text-blue-500 group-hover:text-blue-600">Click to Sign</span>
+                        </button>
+                        <div x-show="!tenantReadConfirmed" class="border-2 border-dashed border-gray-200 rounded-xl h-24 mb-2 flex items-center justify-center">
+                            <span class="text-[11px] text-gray-400">Check the box above to sign</span>
+                        </div>
+                    </div>
+                @else
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl h-24 mb-2 flex items-center justify-center">
+                        <span class="text-[11px] text-gray-400">{{ ($ownerSignature && $managerSignature) ? 'Awaiting tenant signature' : 'Awaiting owner & witness signatures' }}</span>
+                    </div>
+                @endif
+                <div class="border-b border-gray-400 mb-1"></div>
+                <p class="text-xs font-semibold text-gray-500">{{ $t['personal_info']['first_name'] }} {{ $t['personal_info']['last_name'] }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">Tenant / Lessee</p>
             @endif
         </div>
     </div>
@@ -319,7 +491,7 @@
     @if($contractAgreed)
         <div class="mt-6 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
             <span class="text-sm font-bold text-emerald-700">Contract Fully Signed</span>
-            <p class="text-[10px] text-emerald-600 mt-1">Both parties have signed this agreement electronically per RA 8792.</p>
+            <p class="text-[11px] text-emerald-600 mt-1">All parties have signed this agreement electronically per RA 8792.</p>
         </div>
     @endif
 
@@ -335,7 +507,7 @@
     @if($t['personal_info']['government_id_image'] ?? null)
         <div class="flex flex-col items-center">
             <div class="border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-3 max-w-lg w-full">
-                <img src="{{ asset('storage/' . $t['personal_info']['government_id_image']) }}" class="w-full object-contain rounded-lg" alt="Tenant Valid ID">
+                <img src="{{ route('secure.file', $t['personal_info']['government_id_image']) }}" class="w-full object-contain rounded-lg" alt="Tenant Valid ID">
             </div>
             <div class="mt-3 text-center text-sm">
                 <p class="text-gray-600"><span class="font-semibold">ID Type:</span> {{ $t['personal_info']['government_id_type'] ?? '—' }}</p>
@@ -353,5 +525,5 @@
 
 {{-- Footer --}}
 <div class="border-t pt-3 mt-6 text-center">
-    <p class="text-[10px] text-gray-400">This document is confidential and intended solely for the parties named herein.</p>
+    <p class="text-[11px] text-gray-400">This document is confidential and intended solely for the parties named herein.</p>
 </div>

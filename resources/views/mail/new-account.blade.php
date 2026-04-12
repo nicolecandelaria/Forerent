@@ -1,150 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Welcome to {{ config('app.name') }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to ForeRent</title>
+
     <style>
         body {
-            margin: 0; padding: 0;
+            margin: 0;
+            padding: 0;
             background-color: #f4f4f4;
             font-family: Arial, sans-serif;
-            font-size: 15px;
-            color: #333333;
         }
+
         .wrapper {
             width: 100%;
-            background-color: #f4f4f4;
             padding: 40px 0;
         }
+
         .container {
             max-width: 600px;
+            width: 100%;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
+
+        /* ✅ HEADER FIXED */
         .header {
-            background-color: #2d3748;
-            padding: 32px 40px;
+            background: linear-gradient(135deg, #1f2937, #374151);
+            padding: 40px 30px;
+            /* ✅ left/right spacing */
             text-align: center;
         }
+
+        .eyebrow {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 12px;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
         .header h1 {
             margin: 0;
             color: #ffffff;
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
-            letter-spacing: 0.5px;
+            text-align: center;
         }
+
+        /* ✅ BODY FIXED (SIDE SPACING) */
         .body {
-            padding: 36px 40px;
+            padding: 40px 30px;
+            /* ✅ consistent spacing */
+            color: #333;
             line-height: 1.7;
         }
+
         .body p {
-            margin: 0 0 16px;
+            margin: 0 0 18px;
         }
+
+        .greeting {
+            margin-bottom: 25px;
+        }
+
         .credentials {
-            background-color: #f8f8f8;
-            border-left: 4px solid #2d3748;
-            border-radius: 4px;
-            padding: 16px 20px;
-            margin: 24px 0;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-left: 5px solid #111827;
+            border-radius: 8px;
+            padding: 18px;
+            margin: 25px 0;
         }
+
         .credentials p {
             margin: 6px 0;
-            font-size: 14px;
         }
+
         .credentials span {
             font-weight: bold;
-            color: #2d3748;
+            display: inline-block;
+            width: 130px;
         }
+
         .tip {
-            background-color: #fffbeb;
-            border: 1px solid #f6e05e;
-            border-radius: 4px;
-            padding: 14px 18px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 18px;
+            margin: 25px 0;
             font-size: 14px;
-            color: #744210;
-            margin-bottom: 24px;
+            color: #0369a1;
         }
+
         .btn-wrapper {
             text-align: center;
-            margin: 28px 0;
+            margin: 35px 0;
         }
+
         .btn {
-            display: inline-block;
-            background-color: #2d3748;
+            background: #111827;
             color: #ffffff !important;
             text-decoration: none;
-            padding: 14px 32px;
+            padding: 14px 30px;
             border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: 0.3px;
+            display: inline-block;
+            font-weight: bold;
         }
+
         .footer {
-            background-color: #f4f4f4;
             text-align: center;
-            padding: 20px 40px;
+            padding: 25px 30px;
             font-size: 12px;
-            color: #999999;
+            color: #777;
+            border-top: 1px solid #eee;
         }
     </style>
 </head>
+
 <body>
-<div class="wrapper">
-    <div class="container">
+    <div class="wrapper">
+        <div class="container">
 
-        <div class="header">
-            <h1>A Warm Welcome to {{ config('app.name') }}!</h1>
-        </div>
-
-        <div class="body">
-            <p>Hello <strong>{{ $recipientName }}</strong>,</p>
-
-            <p>
-                We're delighted to let you know that your account as a
-                <strong>{{ $accountType }}</strong> has been set up! You now have full access to
-                {{ config('app.name') }} and all the features designed to make your experience
-                smooth and easy.
-            </p>
-
-            <p>To get started, please use the temporary credentials below to log in:</p>
-
-            <div class="credentials">
-                <p><span>Login Email:</span> {{ $email }}</p>
-                <p><span>Temporary Password:</span> {{ $tempPassword }}</p>
+            <!-- HEADER -->
+            <div class="header">
+                <div class="eyebrow">ForeRent</div>
+                <h1>Welcome to Your New Account</h1>
             </div>
 
-            <div class="tip">
-                <strong>Quick Tip:</strong> For your security, please
-                <strong>change this temporary password</strong> immediately after your first
-                successful login.
+            <!-- BODY -->
+            <div class="body">
+                <p class="greeting">Hello <strong>{{ $recipientName }}</strong>,</p>
+
+                <p>
+                    We are happy to inform you that your account as a <strong>{{ $accountType }}</strong> has been set
+                    up! You can now access and start using the system.
+                </p>
+
+                <p>To get started, please sign in using the details below:</p>
+
+                <div class="credentials">
+                    <p><span>Your Email:</span> {{ $email }}</p>
+                    <p><span>Temporary Code:</span> {{ $tempPassword }}</p>
+                </div>
+
+                <div class="tip">
+                    <strong>Important Security Step:</strong> To keep your account safe, we recommend that you
+                    <strong>create your own personal password</strong> immediately after signing in for the first time.
+                </div>
+
+                <p>Click below to sign in:</p>
+
+                <div class="btn-wrapper">
+                    <a href="https://forerent.onrender.com/" class="btn">
+                        Sign In
+                    </a>
+                </div>
+
+                <p>
+                    If you have any questions or need help, please feel free to reach out to the ForeRent Team.
+                </p>
+
+                <p>
+                    Best regards,<br>
+                    <strong>ForeRent Team</strong>
+                </p>
             </div>
 
-            <p>Ready to jump in? Click the button below to head straight to the login page:</p>
-
-            <div class="btn-wrapper">
-                <a href="{{ $loginUrl }}" class="btn">Start Using {{ config('app.name') }}</a>
+            <!-- FOOTER -->
+            <div class="footer">
+                &copy; {{ date('Y') }} ForeRent<br>
+                University of Makati Thesis Project
             </div>
 
-            <p>
-                We're truly excited to have you join our community! If anything comes up,
-                please don't hesitate to reach out to the administrator.
-            </p>
-
-            <p>
-                Thanks and welcome aboard,<br>
-                <strong>The Team at {{ config('app.name') }}</strong>
-            </p>
         </div>
-
-        <div class="footer">
-            &copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.
-        </div>
-
     </div>
-</div>
 </body>
+
 </html>

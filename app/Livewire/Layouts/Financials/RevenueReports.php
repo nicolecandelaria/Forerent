@@ -29,15 +29,23 @@ class RevenueReports extends Component
     public function getInflowOutflowData(): array
     {
         $year = Carbon::now()->year;
+        $driver = Transaction::query()->getConnection()->getDriverName();
+        $transactionMonthExpr = $driver === 'pgsql'
+            ? 'EXTRACT(MONTH FROM transaction_date)::int'
+            : 'CAST(MONTH(transaction_date) AS UNSIGNED)';
+        $maintenanceMonthExpr = $driver === 'pgsql'
+            ? 'EXTRACT(MONTH FROM completion_date)::int'
+            : 'CAST(MONTH(completion_date) AS UNSIGNED)';
 
         $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         $income = array_fill(0, 12, 0);
         $expenses = array_fill(0, 12, 0);
 
-        // Revenue/inflow source: credit transactions.
-        $monthlyIncome = Transaction::where('transaction_type', 'Credit')
+        // Revenue/inflow source: all credit inflow transactions.
+        $monthlyIncome = Transaction::query()
+            ->creditInflows()
             ->whereYear('transaction_date', $year)
-            ->selectRaw('MONTH(transaction_date) as month, SUM(amount) as total')
+            ->selectRaw("{$transactionMonthExpr} as month, SUM(amount) as total")
             ->groupBy('month')
             ->get();
 
@@ -45,8 +53,10 @@ class RevenueReports extends Component
             $income[(int) $row->month - 1] = (float) $row->total;
         }
 
+        // 2. Expenses - USE THE DYNAMIC VARIABLE HERE
         $monthlyExpenses = MaintenanceLog::whereYear('completion_date', $year)
-            ->selectRaw('MONTH(completion_date) as month, SUM(cost) as total')
+            // Use double quotes so PHP injects the correct version for the current DB
+            ->selectRaw("$maintenanceMonthExpr as month, SUM(cost) as total")
             ->groupBy('month')
             ->get();
 
