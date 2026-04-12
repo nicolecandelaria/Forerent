@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Layouts\Maintenance;
 
-use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Component;
 
 class ProjectedMaintenanceCost extends Component
 {
@@ -25,6 +25,10 @@ class ProjectedMaintenanceCost extends Component
         $managerId = Auth::id();
         $currentYear = (int) date('Y');
         $monthlyCosts = array_fill(1, 12, 0);
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? 'EXTRACT(MONTH FROM maintenance_logs.created_at)'
+            : 'MONTH(maintenance_logs.created_at)';
 
         // Query real costs from maintenance_logs grouped by month
         $rows = DB::table('maintenance_logs')
@@ -37,7 +41,7 @@ class ProjectedMaintenanceCost extends Component
             ->whereNull('maintenance_requests.deleted_at')
             ->whereYear('maintenance_logs.created_at', $currentYear)
             ->select(
-                DB::raw('EXTRACT(MONTH FROM maintenance_logs.created_at)::int as month'),
+                DB::raw("{$monthExpr} as month"),
                 DB::raw('SUM(maintenance_logs.cost) as total')
             )
             ->groupBy('month')
@@ -107,18 +111,18 @@ class ProjectedMaintenanceCost extends Component
             }
 
             $this->buildingData[] = [
-                'name'        => $b->building_name,
-                'cost'        => round($b->total_cost, 2),
-                'change'      => $change,
+                'name' => $b->building_name,
+                'cost' => round($b->total_cost, 2),
+                'change' => $change,
                 'change_type' => $changeType,
             ];
         }
 
         if (empty($this->buildingData)) {
             $this->buildingData[] = [
-                'name'        => 'No Costs Recorded',
-                'cost'        => 0,
-                'change'      => 0,
+                'name' => 'No Costs Recorded',
+                'cost' => 0,
+                'change' => 0,
                 'change_type' => 'stable',
             ];
         }
