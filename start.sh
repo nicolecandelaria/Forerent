@@ -1,37 +1,15 @@
 #!/bin/bash
 set -e
 
-# 1. Ensure permissions are correct
-mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
-chown -R www-data:www-data storage bootstrap/cache
-chmod -R 775 storage bootstrap/cache
+# Ensure Laravel writable paths exist.
+mkdir -p /var/www/storage/logs /var/www/bootstrap/cache
+touch /var/www/storage/logs/laravel.log
 
-# 2. Wait for Database (Crucial for Cloud Deploys)
-# This prevents the "Connection Refused" crash on Render
-echo "Waiting for database connection..."
-until php artisan db:monitor --databases=mysql > /dev/null 2>&1; do
-  echo "Database is unavailable - sleeping"
-  sleep 2
-done
-echo "Database is up!"
-
-# 3. Production Optimizations
-if [ "${APP_ENV}" = "production" ]; then
-    echo "Running in production mode..."
-    php artisan migrate --force
-    # 'optimize' handles config, routes, and views in one go
-    php artisan optimize
-    php artisan storage:link
-else
-    echo "Running in development mode..."
-    php artisan migrate
+# If php-fpm user exists, align ownership with runtime user.
+if id -u www-data >/dev/null 2>&1; then
+	chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 fi
 
-<<<<<<< HEAD
-# 4. Start the Engine
-echo "Starting Supervisord..."
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
-=======
 chmod -R ug+rwX /var/www/storage /var/www/bootstrap/cache
 
 # On production, default to stderr logging unless explicitly configured.
@@ -84,4 +62,3 @@ php artisan db:seed --force &
 
 # Start supervisor (app is available with empty DB during seed)
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
->>>>>>> 07d21e8eb6667c9448ea154eec15c45164d8f1e1
